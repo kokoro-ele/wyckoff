@@ -1,0 +1,22 @@
+{
+  "name": "@wyckoff/wyckoff",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "bench": "RUN_BENCHMARK=1 vitest run src/__tests__/bench.test.ts",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@wyckoff/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
+  }
+}
