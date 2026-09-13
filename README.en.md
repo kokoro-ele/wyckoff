@@ -6,7 +6,9 @@ A local AI workspace for single-asset price-and-volume research: professional ca
 
 > This project is for research and education. It is not investment advice, a performance guarantee, or an automated trading service.
 
-![Wyckoff Agent workbench](./docs/screenshots/workbench.jpg)
+![Automated AAPL Wyckoff analysis with trading ranges, event markers, support and resistance, and trendlines](./docs/screenshots/workbench.jpg)
+
+The example above uses AAPL. After **Auto analysis**, the Agent draws trading ranges, Wyckoff events, support and resistance, and trendlines directly on the candlestick canvas while preserving the explanation and tool trace on the right.
 
 ## Why this project exists
 

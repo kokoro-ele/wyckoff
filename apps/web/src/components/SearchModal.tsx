@@ -105,7 +105,7 @@ export function SearchModal() {
                 pick(results[active]);
               }
             }}
-            placeholder="代码 / 名称 / 拼音首字母，如 600519 或 pfyh"
+            placeholder="代码 / 名称 / 拼音首字母，如 AAPL 或 Apple"
             className="h-12 flex-1 text-sm text-ink placeholder:text-ink-faint"
           />
           <button type="button" className="rounded-lg p-1.5 text-ink-faint hover:bg-panel-2 hover:text-ink" onClick={() => setSearchOpen(false)}>
@@ -157,7 +157,7 @@ export function SearchModal() {
             ))}
           {!query && (
             <p className="px-4 py-8 text-center text-xs text-ink-faint">
-              支持代码前缀、中文名称、拼音首字母（如 <span className="font-mono text-ink-dim">gzmt</span> → 贵州茅台）
+              支持代码、公司名称与拼音首字母（如 <span className="font-mono text-ink-dim">AAPL</span> → Apple）
             </p>
           )}
         </div>

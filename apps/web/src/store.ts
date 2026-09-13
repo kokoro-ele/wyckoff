@@ -161,7 +161,7 @@ function firstUserGroup(groups: WatchGroup[]): WatchGroup | undefined {
 }
 
 export const useWorkbench = create<WorkbenchState>((set, get) => ({
-  symbol: localStorage.getItem(LAST_SYMBOL_KEY) ?? "600519.SH",
+  symbol: localStorage.getItem(LAST_SYMBOL_KEY) ?? "AAPL.US",
   instrumentName: null,
   period: "1d",
   adjust: "forward",

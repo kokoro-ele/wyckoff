@@ -6,7 +6,9 @@
 
 > 本项目用于研究与教育，不构成投资建议、收益承诺或自动交易服务。
 
-![Wyckoff Agent 主工作台](./docs/screenshots/workbench.jpg)
+![AAPL 自动 Wyckoff 分析：交易区间、事件标记、支撑阻力与趋势线](./docs/screenshots/workbench.jpg)
+
+上图以 AAPL 为演示。点击「自动分析」后，Agent 会把交易区间、Wyckoff 事件、支撑阻力与趋势线直接绘制到 K 线画布，并在右侧保留对应分析与工具轨迹。
 
 ## 为什么做这个项目
 
