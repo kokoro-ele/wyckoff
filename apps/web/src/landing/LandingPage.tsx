@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { ArrowRight, Languages, Moon, Sun } from "lucide-react";
+import { ArrowRight, BookOpen, Languages, Moon, Sun } from "lucide-react";
 import { useI18n } from "../i18n.js";
 import { useTheme } from "../theme.js";
 import { landingCopy } from "./copy.js";
@@ -60,6 +60,10 @@ export function LandingPage() {
                 {copy.hero.cta}
                 <ArrowRight size={15} />
               </a>
+              <a className="hand-btn" href="/wyckoff.html">
+                <BookOpen size={14} />
+                {copy.hero.learn}
+              </a>
             </div>
             <p className="site-home-note">{copy.hero.note}</p>
           </div>
@@ -81,7 +85,13 @@ export function LandingPage() {
               <h2>{copy.glossary.title}</h2>
               <p>{copy.glossary.intro}</p>
             </div>
-            <span className="site-glossary-note">{copy.glossary.note}</span>
+            <div className="site-glossary-links">
+              <span className="site-glossary-note">{copy.glossary.note}</span>
+              <a className="site-glossary-more" href="/wyckoff.html">
+                {copy.glossary.more}
+                <ArrowRight size={12} />
+              </a>
+            </div>
           </div>
 
           <div className="site-term-grid">

@@ -16,6 +16,7 @@ export interface LandingCopy {
     title: string;
     subtitle: string;
     cta: string;
+    learn: string;
     note: string;
     symbol: string;
     window: string;
@@ -33,6 +34,7 @@ export interface LandingCopy {
     title: string;
     intro: string;
     note: string;
+    more: string;
     terms: TermCopy[];
   };
   footer: string;
@@ -46,11 +48,12 @@ const zh: LandingCopy = {
     title: "看见价格背后的结构",
     subtitle: "用区间、量能和收盘位置，读懂六个基本动作。",
     cta: "现在开始",
+    learn: "学习 Wyckoff",
     note: "免登录看图，分析时登录。",
-    symbol: "600519.SH",
-    window: "2026-05-01 → 2026-11-10",
-    zoneLabel: "吸筹区间",
-    chartCaption: "贵州茅台 · 吸筹区间 → SOS",
+    symbol: "NVDA.US",
+    window: "2025-11-11 → 2026-11-10",
+    zoneLabel: "派发区间",
+    chartCaption: "NVDA · 最近一年 · 5 个关键事件",
   },
   chart: {
     range: "交易区间",
@@ -63,6 +66,7 @@ const zh: LandingCopy = {
     title: "六个名词，读懂图上的语言",
     intro: "示意图只画结构，不构成交易信号。",
     note: "虚线为支撑 / 阻力",
+    more: "全部名词与图例 →",
     terms: [
       { code: "Spring", name: "弹簧", body: "跌破区间下沿后快速收回，测试供给。" },
       { code: "Shakeout", name: "震仓", body: "宽价差放量下破，收盘拉回区间内。" },
@@ -83,11 +87,12 @@ const en: LandingCopy = {
     title: "See the structure behind the price.",
     subtitle: "Read ranges, volume and closes through six basic actions.",
     cta: "Start now",
+    learn: "Learn Wyckoff",
     note: "Browse free; sign in to analyze.",
-    symbol: "600519.SH",
-    window: "2026-05-01 → 2026-11-10",
-    zoneLabel: "Accumulation",
-    chartCaption: "Kweichow Moutai · accumulation → SOS",
+    symbol: "NVDA.US",
+    window: "2025-11-11 → 2026-11-10",
+    zoneLabel: "Distribution",
+    chartCaption: "NVDA · last year · five key events",
   },
   chart: {
     range: "Trading range",
@@ -100,6 +105,7 @@ const en: LandingCopy = {
     title: "Six terms, one visual language",
     intro: "Schematic shapes, not trade signals.",
     note: "Dashed lines are support / resistance",
+    more: "All terms & diagrams →",
     terms: [
       { code: "Spring", name: "Spring", body: "Sweeps below support, then closes back inside." },
       { code: "Shakeout", name: "Shakeout", body: "Wide spread and volume below support, then a recovery." },

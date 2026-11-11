@@ -1310,3 +1310,9 @@
   .site-term-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .site-home-footer { padding-inline: 14px; }
 }
+.site-glossary-links { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.site-glossary-more { display: inline-flex; align-items: center; gap: 3px; color: var(--color-accent); font-size: 10px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.site-glossary-more:hover { text-decoration: underline; }
+@media (max-width: 980px) {
+  .site-glossary-links { align-items: flex-start; }
+}

@@ -22,21 +22,23 @@ export interface CaseStudy {
 }
 
 /**
- * The one real chart on the landing page.
+ * NVDA over the last year.
  *
- * Moutai's spring and the November SOS are far apart on the timeline, so the
- * labels stay readable at hero size. Only two events are marked; the glossary
- * below carries the full vocabulary.
+ * Five events are spread across the year so no two labels collide:
+ * UT (Nov 2025) → SOS (Apr 2026) → Spring (Jun) → UT (Sep) → SOW (Oct).
  */
 export const landingCase: CaseStudy = {
-  symbol: "600519.SH",
-  chartFrom: "2026-05-01",
+  symbol: "NVDA.US",
+  chartFrom: "2025-11-11",
   chartTo: "2026-11-10",
-  zone: { from: "2026-06-15", to: "2026-07-13", support: 1170.28, resistance: 1234.78, phase: "B" },
+  zone: { from: "2026-08-07", to: "2026-09-30", support: 208.93, resistance: 230.21, phase: "B" },
   events: [
-    { code: "Spring", date: "2026-06-28", price: 1151.01, placement: "above" },
-    { code: "SOS", date: "2026-11-02", price: 1480, placement: "below" },
+    { code: "UT", date: "2025-11-20", price: 195.53, placement: "above" },
+    { code: "SOS", date: "2026-04-27", price: 216.33, placement: "above" },
+    { code: "Spring", date: "2026-06-29", price: 189.59, placement: "below" },
+    { code: "UT", date: "2026-09-04", price: 234.5, placement: "above" },
+    { code: "SOW", date: "2026-10-30", price: 204.64, placement: "below" },
   ],
-  supports: [1359.97],
-  resistances: [1480.6],
+  supports: [208.93],
+  resistances: [230.21],
 };
