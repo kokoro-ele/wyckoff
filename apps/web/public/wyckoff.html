@@ -12,143 +12,180 @@
     />
     <style>
       :root {
-        --canvas: #070b12;
-        --ink: #e8eef8;
-        --ink-dim: #9aa8bf;
-        --ink-faint: #6b7a94;
-        --accent: #5aa7ff;
-        --accent-soft: rgba(90, 167, 255, 0.16);
-        --up: #ff5a72;
-        --down: #2dd4a8;
-        --warn: #f0b44c;
-        --line: rgba(255, 255, 255, 0.1);
-        --glass: rgba(18, 26, 40, 0.62);
+        --canvas: #f4eee6;
+        --panel: #fffdf7;
+        --panel-2: #f7f0e7;
+        --ink: #493e3b;
+        --ink-dim: #73615b;
+        --ink-faint: #88736b;
+        --accent: #a34468;
+        --accent-soft: #fbe3eb;
+        --up: #c34e68;
+        --down: #278268;
+        --warn: #94661f;
+        --line: #bcaa9e;
+        --line-soft: #e7dcd1;
+        --mint: #e1eee2;
+        --yellow: #fbefc8;
+        --lilac: #eee5f5;
+        --shadow: #aa8e7530;
+        --font-sans: "Outfit", "Noto Sans SC", "PingFang SC", sans-serif;
+        --font-hand: "Klee", "Kaiti SC", "STKaiti", "KaiTi", "Comic Sans MS", cursive;
+        --font-mono: "IBM Plex Mono", "SF Mono", ui-monospace, monospace;
       }
       * { box-sizing: border-box; }
       html { scroll-behavior: smooth; }
       body {
         margin: 0;
         color: var(--ink);
-        font-family: Outfit, "Noto Sans SC", sans-serif;
-        font-size: 15px;
-        line-height: 1.6;
-        background:
-          radial-gradient(900px 520px at 8% -10%, rgba(90, 167, 255, 0.18), transparent 55%),
-          radial-gradient(700px 420px at 92% 8%, rgba(45, 212, 168, 0.1), transparent 50%),
-          linear-gradient(180deg, #0a101a 0%, #070b12 100%);
+        font-family: var(--font-sans);
+        font-size: 14px;
+        line-height: 1.7;
+        background-color: var(--canvas);
+        background-image: radial-gradient(var(--line-soft) .8px, transparent .8px);
+        background-size: 7px 7px;
         min-height: 100vh;
       }
       a { color: var(--accent); text-decoration: none; }
       a:hover { text-decoration: underline; }
-      .wrap { max-width: 920px; margin: 0 auto; padding: 40px 24px 80px; }
-      header.hero {
-        background: var(--glass);
-        border: 1px solid var(--line);
-        backdrop-filter: blur(18px);
-        border-radius: 18px;
-        padding: 28px 32px;
-        margin-bottom: 28px;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 8px 32px rgba(0,0,0,0.28);
+      .wrap { max-width: 1080px; margin: 0 auto; padding: 18px 24px 72px; }
+      .topline { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+      .back { display: inline-flex; align-items: center; gap: 8px; color: var(--ink); font-family: var(--font-hand); font-size: 18px; font-weight: 700; text-decoration: none; }
+      .back:hover { color: var(--accent); text-decoration: none; }
+      .brand-mark {
+        display: grid; width: 28px; height: 28px; place-items: center;
+        border: 1.5px solid var(--ink-dim); border-radius: 6px 10px 5px 9px;
+        background: var(--yellow); box-shadow: 2px 2px 0 var(--shadow);
+        color: var(--accent); transform: rotate(-4deg);
       }
-      header.hero .back { display: inline-block; margin-bottom: 10px; color: var(--ink-faint); font-size: 12px; text-decoration: none; }
-      header.hero .back:hover { color: var(--accent); text-decoration: none; }
-      header.hero h1 { margin: 0 0 8px; font-size: 28px; letter-spacing: -0.03em; }
-      header.hero p { margin: 0; color: var(--ink-dim); max-width: 62ch; }
-      .meta { margin-top: 14px; font-size: 12px; color: var(--ink-faint); font-family: "IBM Plex Mono", monospace; }
-      nav {
-        display: flex; flex-wrap: wrap; gap: 8px;
-        margin: 20px 0 32px;
-      }
-      nav a {
-        font-size: 12px;
-        padding: 6px 12px;
-        border-radius: 8px;
-        border: 1px solid var(--line);
-        background: rgba(255,255,255,0.04);
-        color: var(--ink-dim);
+      .app-link {
+        display: inline-flex; align-items: center; gap: 7px;
+        border: 1.5px solid var(--accent); border-radius: 8px 11px 7px 10px;
+        background: var(--accent); box-shadow: 2px 2px 0 var(--shadow);
+        padding: 6px 11px; color: #fffdf7; font-size: 11px; font-weight: 600;
         text-decoration: none;
       }
-      nav a:hover { background: var(--accent-soft); color: var(--ink); text-decoration: none; }
-      h2 { font-size: 20px; margin: 36px 0 12px; letter-spacing: -0.02em; }
-      h3 { font-size: 16px; margin: 28px 0 10px; color: var(--ink); }
+      .app-link:hover { text-decoration: none; transform: translateY(-1px); }
+      header.hero {
+        position: relative;
+        background: var(--panel);
+        border: 1.5px solid var(--line);
+        border-radius: 12px 18px 10px 16px;
+        padding: 24px 26px;
+        margin-bottom: 18px;
+        box-shadow: 5px 6px 0 var(--shadow);
+      }
+      header.hero::before {
+        content: ""; position: absolute; top: -10px; left: 42%;
+        width: 96px; height: 18px; background: var(--mint);
+        opacity: .8; transform: rotate(-2deg);
+        clip-path: polygon(2% 10%, 98% 0, 96% 92%, 0 100%);
+      }
+      header.hero .kicker { color: var(--accent); font-family: var(--font-mono); font-size: 9px; font-weight: 700; letter-spacing: .16em; }
+      header.hero h1 { margin: 7px 0 8px; font-family: var(--font-hand); font-size: clamp(34px, 4vw, 48px); letter-spacing: -.03em; line-height: 1.03; }
+      header.hero p { margin: 0; color: var(--ink-dim); max-width: 68ch; font-size: 13px; }
+      .meta { margin-top: 12px; font-size: 10px; color: var(--ink-faint); font-family: var(--font-mono); }
+      nav { display: flex; flex-wrap: wrap; gap: 7px; margin: 16px 0 26px; }
+      nav a {
+        border: 1.5px solid var(--line);
+        border-radius: 5px 9px 4px 8px;
+        background: var(--panel-2);
+        padding: 5px 10px;
+        color: var(--ink-dim);
+        font-size: 11px;
+        font-weight: 600;
+        text-decoration: none;
+        box-shadow: 1px 2px 0 var(--shadow);
+      }
+      nav a:nth-child(3n + 1) { background: var(--mint); }
+      nav a:nth-child(3n + 2) { background: var(--yellow); }
+      nav a:nth-child(3n) { background: var(--lilac); }
+      nav a:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; }
+      h2 { margin: 38px 0 12px; font-family: var(--font-hand); font-size: clamp(26px, 3vw, 34px); font-weight: 700; letter-spacing: -.02em; line-height: 1.1; }
+      h3 { margin: 26px 0 10px; font-family: var(--font-hand); font-size: 21px; font-weight: 700; color: var(--ink); }
       p, li { color: var(--ink-dim); }
       code, .code {
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 12.5px;
-        background: rgba(0,0,0,0.35);
-        padding: 1px 6px;
-        border-radius: 5px;
+        font-family: var(--font-mono);
+        font-size: 12px;
+        background: var(--accent-soft);
+        padding: 1px 5px;
+        border-radius: 4px;
         color: var(--accent);
       }
       .cycle {
-        font-family: "IBM Plex Mono", monospace;
-        font-size: 13px;
-        padding: 14px 16px;
-        border-radius: 12px;
-        border: 1px solid var(--line);
-        background: rgba(0,0,0,0.25);
+        font-family: var(--font-mono);
+        font-size: 12px;
+        padding: 12px 14px;
+        border: 1.5px solid var(--line);
+        border-radius: 6px 11px 5px 9px;
+        background: var(--yellow);
+        box-shadow: 2px 3px 0 var(--shadow);
         color: var(--ink);
         overflow-x: auto;
       }
-      .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+      .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 11px; }
       .card {
-        background: var(--glass);
-        border: 1px solid var(--line);
-        border-radius: 14px;
-        padding: 14px 16px;
-        backdrop-filter: blur(14px);
+        background: var(--panel);
+        border: 1.5px solid var(--line);
+        border-radius: 8px 13px 7px 11px;
+        padding: 13px 15px;
+        box-shadow: 3px 4px 0 var(--shadow);
       }
-      .card h3 { margin: 0 0 6px; font-size: 14px; }
-      .card p { margin: 0; font-size: 13px; }
+      .card h3 { margin: 0 0 5px; font-size: 16px; }
+      .card p { margin: 0; font-size: 12px; }
       .phase { border-left: 3px solid var(--accent); padding-left: 12px; margin: 10px 0; }
       .phase strong { color: var(--ink); }
       table {
         width: 100%;
         border-collapse: collapse;
-        font-size: 13px;
-        margin: 12px 0 24px;
+        font-size: 12px;
+        margin: 10px 0 22px;
+        background: var(--panel);
       }
-      th, td {
-        border: 1px solid var(--line);
-        padding: 8px 10px;
-        text-align: left;
-        vertical-align: top;
-      }
-      th { background: rgba(0,0,0,0.3); color: var(--ink-faint); font-weight: 500; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
-      td { background: rgba(0,0,0,0.12); color: var(--ink-dim); }
-      td:first-child { font-family: "IBM Plex Mono", monospace; color: var(--accent); white-space: nowrap; }
-      .bias-bullish { color: var(--up); }
-      .bias-bearish { color: var(--down); }
-      .bias-neutral { color: var(--warn); }
+      th, td { border: 1px solid var(--line-soft); padding: 8px 9px; text-align: left; vertical-align: top; }
+      th { background: var(--yellow); color: var(--ink-dim); font-weight: 600; font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
+      td { color: var(--ink-dim); }
+      td:first-child { font-family: var(--font-mono); color: var(--accent); white-space: nowrap; }
+      .bias-bullish { color: var(--up); font-weight: 600; }
+      .bias-bearish { color: var(--down); font-weight: 600; }
+      .bias-neutral { color: var(--warn); font-weight: 600; }
       .note {
-        font-size: 13px;
-        border: 1px dashed var(--line);
-        border-radius: 12px;
-        padding: 12px 16px;
-        color: var(--ink-faint);
+        font-size: 12px;
+        border: 1.5px dashed var(--line);
+        border-radius: 6px 11px 5px 9px;
+        padding: 10px 14px;
+        color: var(--ink-dim);
+        background: var(--panel-2);
       }
-      footer { margin-top: 48px; font-size: 12px; color: var(--ink-faint); }
+      footer { margin-top: 42px; border-top: 1.5px dashed var(--line); padding-top: 12px; font-size: 10px; color: var(--ink-faint); }
       .diagram {
-        margin: 16px 0 28px;
-        background: rgba(0,0,0,0.28);
-        border: 1px solid var(--line);
-        border-radius: 16px;
-        padding: 8px 8px 4px;
+        margin: 14px 0 24px;
+        background: var(--panel);
+        border: 1.5px solid var(--line);
+        border-radius: 9px 15px 8px 13px;
+        box-shadow: 4px 5px 0 var(--shadow);
+        padding: 8px 8px 2px;
         overflow-x: auto;
       }
       .diagram svg { display: block; width: 100%; height: auto; min-width: 720px; }
-      .diagram-cap {
-        font-size: 12px;
-        color: var(--ink-faint);
-        padding: 4px 12px 10px;
-        font-family: "IBM Plex Mono", monospace;
+      .diagram-cap { font-size: 10px; color: var(--ink-faint); padding: 4px 10px 8px; font-family: var(--font-mono); }
+      @media (max-width: 640px) {
+        .wrap { padding: 14px 14px 54px; }
+        .topline { margin-bottom: 14px; }
+        header.hero { padding: 20px 18px; }
+        header.hero h1 { font-size: 34px; }
+        nav { margin-bottom: 20px; }
       }
     </style>
   </head>
   <body>
     <div class="wrap">
+      <div class="topline">
+        <a class="back" href="/"><span class="brand-mark">W</span>EasyWyckoff</a>
+        <a class="app-link" href="/app">Open workbench →</a>
+      </div>
       <header class="hero">
-        <a class="back" href="/">← EasyWyckoff</a>
+        <div class="kicker">WYCKOFF METHOD · FIELD NOTES</div>
         <h1>Wyckoff Method</h1>
         <p>
           How this workbench reads tape: Composite Man, three laws, phases A–E, and the event codes
@@ -195,15 +232,15 @@
         <svg viewBox="0 0 920 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Accumulation schematic with Wyckoff events">
           <defs>
             <style>
-              .ph { font: 600 11px Outfit, sans-serif; fill: #6b7a94; }
-              .lbl { font: 600 10px "IBM Plex Mono", monospace; fill: #fff; }
-              .axis { font: 10px Outfit, sans-serif; fill: #6b7a94; }
+              .ph { font: 600 11px Outfit, sans-serif; fill: #88736b; }
+              .lbl { font: 600 10px "IBM Plex Mono", monospace; fill: #fffdf7; }
+              .axis { font: 10px Outfit, sans-serif; fill: #88736b; }
             </style>
           </defs>
           <!-- range: support y=228 (price ~32), resistance y=132 (price ~62) -->
-          <rect x="188" y="132" width="492" height="96" fill="rgba(90,167,255,0.08)" stroke="rgba(90,167,255,0.45)" stroke-dasharray="5 4" rx="2"/>
-          <line x1="188" y1="132" x2="680" y2="132" stroke="#5aa7ff" stroke-width="1.5"/>
-          <line x1="188" y1="228" x2="680" y2="228" stroke="#5aa7ff" stroke-width="1.5"/>
+          <rect x="188" y="132" width="492" height="96" fill="rgba(163,68,104,0.08)" stroke="rgba(163,68,104,0.45)" stroke-dasharray="5 4" rx="2"/>
+          <line x1="188" y1="132" x2="680" y2="132" stroke="#a34468" stroke-width="1.5"/>
+          <line x1="188" y1="228" x2="680" y2="228" stroke="#a34468" stroke-width="1.5"/>
           <text x="686" y="128" class="axis">creek</text>
           <text x="686" y="232" class="axis">support</text>
 
@@ -213,16 +250,16 @@
           <text x="500" y="348" class="ph">C</text>
           <text x="600" y="348" class="ph">D</text>
           <text x="780" y="348" class="ph">E · markup</text>
-          <line x1="40" y1="336" x2="300" y2="336" stroke="rgba(255,255,255,0.08)"/>
-          <line x1="300" y1="336" x2="470" y2="336" stroke="rgba(255,255,255,0.08)"/>
-          <line x1="470" y1="336" x2="560" y2="336" stroke="rgba(232,163,61,0.35)"/>
-          <line x1="560" y1="336" x2="700" y2="336" stroke="rgba(90,167,255,0.35)"/>
-          <line x1="700" y1="336" x2="900" y2="336" stroke="rgba(255,90,114,0.35)"/>
+          <line x1="40" y1="336" x2="300" y2="336" stroke="rgba(73,62,59,0.08)"/>
+          <line x1="300" y1="336" x2="470" y2="336" stroke="rgba(73,62,59,0.08)"/>
+          <line x1="470" y1="336" x2="560" y2="336" stroke="rgba(148,102,31,0.35)"/>
+          <line x1="560" y1="336" x2="700" y2="336" stroke="rgba(163,68,104,0.35)"/>
+          <line x1="700" y1="336" x2="900" y2="336" stroke="rgba(195,78,104,0.35)"/>
 
           <!-- candles: x, high, low, open, close in y coords (smaller y = higher price)
                downtrend → PS SC AR ST → chop → Spring Test SOS LPS markup -->
           <!-- 0-3 decline -->
-          <g fill="#2dd4a8" stroke="#2dd4a8">
+          <g fill="#278268" stroke="#278268">
             <line x1="56" y1="70" x2="56" y2="118" stroke-width="1.2"/><rect x="51" y="78" width="10" height="32"/>
             <line x1="86" y1="88" x2="86" y2="142" stroke-width="1.2"/><rect x="81" y="98" width="10" height="36"/>
             <line x1="116" y1="108" x2="116" y2="168" stroke-width="1.2"/><rect x="111" y="118" width="10" height="40"/>
@@ -230,84 +267,84 @@
           </g>
           <!-- PS: wide down, close off low -->
           <g id="ps">
-            <line x1="188" y1="150" x2="188" y2="248" stroke="#2dd4a8" stroke-width="1.2"/>
-            <rect x="183" y="168" width="10" height="62" fill="#2dd4a8"/>
-            <line x1="188" y1="248" x2="188" y2="268" stroke="#f0b44c" stroke-width="1"/>
-            <rect x="172" y="270" width="32" height="16" rx="3" fill="#f0b44c"/>
+            <line x1="188" y1="150" x2="188" y2="248" stroke="#278268" stroke-width="1.2"/>
+            <rect x="183" y="168" width="10" height="62" fill="#278268"/>
+            <line x1="188" y1="248" x2="188" y2="268" stroke="#94661f" stroke-width="1"/>
+            <rect x="172" y="270" width="32" height="16" rx="3" fill="#94661f"/>
             <text x="188" y="282" text-anchor="middle" class="lbl">PS</text>
           </g>
           <!-- bounce -->
-          <g fill="#ff5a72" stroke="#ff5a72">
+          <g fill="#c34e68" stroke="#c34e68">
             <line x1="218" y1="160" x2="218" y2="220" stroke-width="1.2"/><rect x="213" y="168" width="10" height="36"/>
             <line x1="248" y1="148" x2="248" y2="200" stroke-width="1.2"/><rect x="243" y="152" width="10" height="32"/>
           </g>
           <!-- SC -->
           <g id="sc">
-            <line x1="286" y1="170" x2="286" y2="272" stroke="#2dd4a8" stroke-width="1.4"/>
-            <rect x="280" y="188" width="12" height="68" fill="#2dd4a8"/>
-            <line x1="286" y1="272" x2="286" y2="292" stroke="#ff5a72" stroke-width="1"/>
-            <rect x="268" y="294" width="36" height="16" rx="3" fill="#ff5a72"/>
+            <line x1="286" y1="170" x2="286" y2="272" stroke="#278268" stroke-width="1.4"/>
+            <rect x="280" y="188" width="12" height="68" fill="#278268"/>
+            <line x1="286" y1="272" x2="286" y2="292" stroke="#c34e68" stroke-width="1"/>
+            <rect x="268" y="294" width="36" height="16" rx="3" fill="#c34e68"/>
             <text x="286" y="306" text-anchor="middle" class="lbl">SC</text>
           </g>
           <!-- AR rally to creek -->
-          <g fill="#ff5a72" stroke="#ff5a72">
+          <g fill="#c34e68" stroke="#c34e68">
             <line x1="322" y1="150" x2="322" y2="230" stroke-width="1.2"/><rect x="317" y="158" width="10" height="48"/>
             <line x1="352" y1="128" x2="352" y2="190" stroke-width="1.2"/><rect x="347" y="132" width="10" height="42"/>
             <line x1="382" y1="118" x2="382" y2="168" stroke-width="1.2"/><rect x="377" y="122" width="10" height="28"/>
           </g>
           <g id="ar-acc">
-            <line x1="382" y1="118" x2="382" y2="98" stroke="#f0b44c" stroke-width="1"/>
-            <rect x="366" y="80" width="32" height="16" rx="3" fill="#f0b44c"/>
+            <line x1="382" y1="118" x2="382" y2="98" stroke="#94661f" stroke-width="1"/>
+            <rect x="366" y="80" width="32" height="16" rx="3" fill="#94661f"/>
             <text x="382" y="92" text-anchor="middle" class="lbl">AR</text>
           </g>
           <!-- ST -->
           <g id="st-acc">
-            <line x1="418" y1="150" x2="418" y2="236" stroke="#2dd4a8" stroke-width="1.2"/>
-            <rect x="413" y="168" width="10" height="52" fill="#2dd4a8"/>
-            <line x1="418" y1="236" x2="418" y2="256" stroke="#f0b44c" stroke-width="1"/>
-            <rect x="403" y="258" width="30" height="16" rx="3" fill="#f0b44c"/>
+            <line x1="418" y1="150" x2="418" y2="236" stroke="#278268" stroke-width="1.2"/>
+            <rect x="413" y="168" width="10" height="52" fill="#278268"/>
+            <line x1="418" y1="236" x2="418" y2="256" stroke="#94661f" stroke-width="1"/>
+            <rect x="403" y="258" width="30" height="16" rx="3" fill="#94661f"/>
             <text x="418" y="270" text-anchor="middle" class="lbl">ST</text>
           </g>
           <!-- Phase B chop -->
           <g>
-            <line x1="448" y1="140" x2="448" y2="200" stroke="#ff5a72" stroke-width="1.2"/><rect x="443" y="148" width="10" height="28" fill="#ff5a72"/>
-            <line x1="478" y1="138" x2="478" y2="210" stroke="#2dd4a8" stroke-width="1.2"/><rect x="473" y="150" width="10" height="44" fill="#2dd4a8"/>
-            <line x1="508" y1="142" x2="508" y2="198" stroke="#ff5a72" stroke-width="1.2"/><rect x="503" y="150" width="10" height="30" fill="#ff5a72"/>
+            <line x1="448" y1="140" x2="448" y2="200" stroke="#c34e68" stroke-width="1.2"/><rect x="443" y="148" width="10" height="28" fill="#c34e68"/>
+            <line x1="478" y1="138" x2="478" y2="210" stroke="#278268" stroke-width="1.2"/><rect x="473" y="150" width="10" height="44" fill="#278268"/>
+            <line x1="508" y1="142" x2="508" y2="198" stroke="#c34e68" stroke-width="1.2"/><rect x="503" y="150" width="10" height="30" fill="#c34e68"/>
           </g>
           <!-- Spring: pierce support, close back in -->
           <g id="spring">
-            <line x1="546" y1="170" x2="546" y2="292" stroke="#2dd4a8" stroke-width="1.4"/>
-            <rect x="540" y="186" width="12" height="52" fill="#2dd4a8"/>
-            <line x1="546" y1="292" x2="546" y2="312" stroke="#ff5a72" stroke-width="1"/>
-            <rect x="520" y="314" width="52" height="16" rx="3" fill="#ff5a72"/>
+            <line x1="546" y1="170" x2="546" y2="292" stroke="#278268" stroke-width="1.4"/>
+            <rect x="540" y="186" width="12" height="52" fill="#278268"/>
+            <line x1="546" y1="292" x2="546" y2="312" stroke="#c34e68" stroke-width="1"/>
+            <rect x="520" y="314" width="52" height="16" rx="3" fill="#c34e68"/>
             <text x="546" y="326" text-anchor="middle" class="lbl">Spring</text>
           </g>
           <!-- Test -->
           <g id="test-acc">
-            <line x1="582" y1="168" x2="582" y2="234" stroke="#2dd4a8" stroke-width="1.2"/>
-            <rect x="577" y="186" width="10" height="28" fill="#2dd4a8"/>
-            <line x1="582" y1="234" x2="582" y2="250" stroke="#f0b44c" stroke-width="1"/>
-            <rect x="564" y="252" width="36" height="16" rx="3" fill="#f0b44c"/>
+            <line x1="582" y1="168" x2="582" y2="234" stroke="#278268" stroke-width="1.2"/>
+            <rect x="577" y="186" width="10" height="28" fill="#278268"/>
+            <line x1="582" y1="234" x2="582" y2="250" stroke="#94661f" stroke-width="1"/>
+            <rect x="564" y="252" width="36" height="16" rx="3" fill="#94661f"/>
             <text x="582" y="264" text-anchor="middle" class="lbl">Test</text>
           </g>
           <!-- SOS / JAC -->
           <g id="sos">
-            <line x1="622" y1="88" x2="622" y2="200" stroke="#ff5a72" stroke-width="1.4"/>
-            <rect x="616" y="96" width="12" height="72" fill="#ff5a72"/>
-            <line x1="622" y1="88" x2="622" y2="70" stroke="#ff5a72" stroke-width="1"/>
-            <rect x="598" y="52" width="70" height="16" rx="3" fill="#ff5a72"/>
+            <line x1="622" y1="88" x2="622" y2="200" stroke="#c34e68" stroke-width="1.4"/>
+            <rect x="616" y="96" width="12" height="72" fill="#c34e68"/>
+            <line x1="622" y1="88" x2="622" y2="70" stroke="#c34e68" stroke-width="1"/>
+            <rect x="598" y="52" width="70" height="16" rx="3" fill="#c34e68"/>
             <text x="633" y="64" text-anchor="middle" class="lbl">SOS / JAC</text>
           </g>
           <!-- LPS / BU -->
           <g id="lps">
-            <line x1="662" y1="118" x2="662" y2="160" stroke="#2dd4a8" stroke-width="1.2"/>
-            <rect x="657" y="128" width="10" height="22" fill="#2dd4a8"/>
-            <line x1="662" y1="160" x2="662" y2="176" stroke="#ff5a72" stroke-width="1"/>
-            <rect x="640" y="178" width="58" height="16" rx="3" fill="#ff5a72"/>
+            <line x1="662" y1="118" x2="662" y2="160" stroke="#278268" stroke-width="1.2"/>
+            <rect x="657" y="128" width="10" height="22" fill="#278268"/>
+            <line x1="662" y1="160" x2="662" y2="176" stroke="#c34e68" stroke-width="1"/>
+            <rect x="640" y="178" width="58" height="16" rx="3" fill="#c34e68"/>
             <text x="669" y="190" text-anchor="middle" class="lbl">LPS / BU</text>
           </g>
           <!-- markup -->
-          <g fill="#ff5a72" stroke="#ff5a72">
+          <g fill="#c34e68" stroke="#c34e68">
             <line x1="702" y1="70" x2="702" y2="140" stroke-width="1.2"/><rect x="697" y="78" width="10" height="48"/>
             <line x1="732" y1="52" x2="732" y2="110" stroke-width="1.2"/><rect x="727" y="58" width="10" height="40"/>
             <line x1="762" y1="40" x2="762" y2="90" stroke-width="1.2"/><rect x="757" y="46" width="10" height="32"/>
@@ -324,15 +361,15 @@
         <svg viewBox="0 0 920 382" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Distribution schematic with Wyckoff events">
           <defs>
             <style>
-              .ph { font: 600 11px Outfit, sans-serif; fill: #6b7a94; }
-              .lbl { font: 600 10px "IBM Plex Mono", monospace; fill: #fff; }
-              .axis { font: 10px Outfit, sans-serif; fill: #6b7a94; }
+              .ph { font: 600 11px Outfit, sans-serif; fill: #88736b; }
+              .lbl { font: 600 10px "IBM Plex Mono", monospace; fill: #fffdf7; }
+              .axis { font: 10px Outfit, sans-serif; fill: #88736b; }
             </style>
           </defs>
           <g transform="translate(0 22)">
-          <rect x="188" y="88" width="492" height="100" fill="rgba(125,138,163,0.1)" stroke="rgba(125,138,163,0.5)" stroke-dasharray="5 4" rx="2"/>
-          <line x1="188" y1="88" x2="680" y2="88" stroke="#7d8aa3" stroke-width="1.5"/>
-          <line x1="188" y1="188" x2="680" y2="188" stroke="#7d8aa3" stroke-width="1.5"/>
+          <rect x="188" y="88" width="492" height="100" fill="rgba(188,170,158,0.1)" stroke="rgba(188,170,158,0.5)" stroke-dasharray="5 4" rx="2"/>
+          <line x1="188" y1="88" x2="680" y2="88" stroke="#bcaa9e" stroke-width="1.5"/>
+          <line x1="188" y1="188" x2="680" y2="188" stroke="#bcaa9e" stroke-width="1.5"/>
           <text x="686" y="84" class="axis">supply / creek</text>
           <text x="686" y="192" class="axis">ice</text>
 
@@ -343,7 +380,7 @@
           <text x="770" y="348" class="ph">E · markdown</text>
 
           <!-- uptrend into range -->
-          <g fill="#ff5a72" stroke="#ff5a72">
+          <g fill="#c34e68" stroke="#c34e68">
             <line x1="56" y1="210" x2="56" y2="268" stroke-width="1.2"/><rect x="51" y="220" width="10" height="36"/>
             <line x1="86" y1="180" x2="86" y2="240" stroke-width="1.2"/><rect x="81" y="190" width="10" height="38"/>
             <line x1="116" y1="150" x2="116" y2="210" stroke-width="1.2"/><rect x="111" y="158" width="10" height="40"/>
@@ -351,80 +388,80 @@
           </g>
           <!-- PSY -->
           <g id="psy">
-            <line x1="188" y1="70" x2="188" y2="150" stroke="#ff5a72" stroke-width="1.2"/>
-            <rect x="183" y="82" width="10" height="48" fill="#ff5a72"/>
-            <line x1="188" y1="70" x2="188" y2="52" stroke="#f0b44c" stroke-width="1"/>
-            <rect x="171" y="34" width="34" height="16" rx="3" fill="#f0b44c"/>
+            <line x1="188" y1="70" x2="188" y2="150" stroke="#c34e68" stroke-width="1.2"/>
+            <rect x="183" y="82" width="10" height="48" fill="#c34e68"/>
+            <line x1="188" y1="70" x2="188" y2="52" stroke="#94661f" stroke-width="1"/>
+            <rect x="171" y="34" width="34" height="16" rx="3" fill="#94661f"/>
             <text x="188" y="46" text-anchor="middle" class="lbl">PSY</text>
           </g>
-          <g fill="#2dd4a8" stroke="#2dd4a8">
+          <g fill="#278268" stroke="#278268">
             <line x1="218" y1="100" x2="218" y2="160" stroke-width="1.2"/><rect x="213" y="110" width="10" height="36"/>
             <line x1="248" y1="90" x2="248" y2="148" stroke-width="1.2"/><rect x="243" y="100" width="10" height="32"/>
           </g>
           <!-- BC -->
           <g id="bc">
-            <line x1="286" y1="42" x2="286" y2="140" stroke="#ff5a72" stroke-width="1.4"/>
-            <rect x="280" y="58" width="12" height="62" fill="#ff5a72"/>
-            <line x1="286" y1="42" x2="286" y2="24" stroke="#2dd4a8" stroke-width="1"/>
-            <rect x="269" y="6" width="34" height="16" rx="3" fill="#2dd4a8"/>
+            <line x1="286" y1="42" x2="286" y2="140" stroke="#c34e68" stroke-width="1.4"/>
+            <rect x="280" y="58" width="12" height="62" fill="#c34e68"/>
+            <line x1="286" y1="42" x2="286" y2="24" stroke="#278268" stroke-width="1"/>
+            <rect x="269" y="6" width="34" height="16" rx="3" fill="#278268"/>
             <text x="286" y="18" text-anchor="middle" class="lbl">BC</text>
           </g>
           <!-- AR reaction down to ice -->
-          <g fill="#2dd4a8" stroke="#2dd4a8">
+          <g fill="#278268" stroke="#278268">
             <line x1="322" y1="90" x2="322" y2="180" stroke-width="1.2"/><rect x="317" y="102" width="10" height="56"/>
             <line x1="352" y1="120" x2="352" y2="200" stroke-width="1.2"/><rect x="347" y="132" width="10" height="52"/>
             <line x1="382" y1="140" x2="382" y2="198" stroke-width="1.2"/><rect x="377" y="152" width="10" height="36"/>
           </g>
           <g id="ar-dist">
-            <line x1="382" y1="198" x2="382" y2="218" stroke="#f0b44c" stroke-width="1"/>
-            <rect x="366" y="220" width="32" height="16" rx="3" fill="#f0b44c"/>
+            <line x1="382" y1="198" x2="382" y2="218" stroke="#94661f" stroke-width="1"/>
+            <rect x="366" y="220" width="32" height="16" rx="3" fill="#94661f"/>
             <text x="382" y="232" text-anchor="middle" class="lbl">AR</text>
           </g>
           <!-- ST of BC high -->
           <g id="st-dist">
-            <line x1="418" y1="58" x2="418" y2="150" stroke="#ff5a72" stroke-width="1.2"/>
-            <rect x="413" y="72" width="10" height="56" fill="#ff5a72"/>
-            <line x1="418" y1="58" x2="418" y2="42" stroke="#f0b44c" stroke-width="1"/>
-            <rect x="403" y="24" width="30" height="16" rx="3" fill="#f0b44c"/>
+            <line x1="418" y1="58" x2="418" y2="150" stroke="#c34e68" stroke-width="1.2"/>
+            <rect x="413" y="72" width="10" height="56" fill="#c34e68"/>
+            <line x1="418" y1="58" x2="418" y2="42" stroke="#94661f" stroke-width="1"/>
+            <rect x="403" y="24" width="30" height="16" rx="3" fill="#94661f"/>
             <text x="418" y="36" text-anchor="middle" class="lbl">ST</text>
           </g>
           <!-- UT -->
           <g id="ut">
-            <line x1="456" y1="36" x2="456" y2="150" stroke="#ff5a72" stroke-width="1.2"/>
-            <rect x="451" y="70" width="10" height="58" fill="#ff5a72"/>
-            <line x1="456" y1="36" x2="456" y2="20" stroke="#2dd4a8" stroke-width="1"/>
-            <rect x="441" y="2" width="30" height="16" rx="3" fill="#2dd4a8"/>
+            <line x1="456" y1="36" x2="456" y2="150" stroke="#c34e68" stroke-width="1.2"/>
+            <rect x="451" y="70" width="10" height="58" fill="#c34e68"/>
+            <line x1="456" y1="36" x2="456" y2="20" stroke="#278268" stroke-width="1"/>
+            <rect x="441" y="2" width="30" height="16" rx="3" fill="#278268"/>
             <text x="456" y="14" text-anchor="middle" class="lbl">UT</text>
           </g>
           <g>
-            <line x1="488" y1="100" x2="488" y2="170" stroke="#2dd4a8" stroke-width="1.2"/><rect x="483" y="112" width="10" height="42" fill="#2dd4a8"/>
+            <line x1="488" y1="100" x2="488" y2="170" stroke="#278268" stroke-width="1.2"/><rect x="483" y="112" width="10" height="42" fill="#278268"/>
           </g>
           <!-- UTAD -->
           <g id="utad">
-            <line x1="530" y1="22" x2="530" y2="160" stroke="#ff5a72" stroke-width="1.4"/>
-            <rect x="524" y="64" width="12" height="72" fill="#ff5a72"/>
-            <line x1="530" y1="22" x2="530" y2="4" stroke="#2dd4a8" stroke-width="1"/>
-            <rect x="508" y="4" width="44" height="16" rx="3" fill="#2dd4a8"/>
+            <line x1="530" y1="22" x2="530" y2="160" stroke="#c34e68" stroke-width="1.4"/>
+            <rect x="524" y="64" width="12" height="72" fill="#c34e68"/>
+            <line x1="530" y1="22" x2="530" y2="4" stroke="#278268" stroke-width="1"/>
+            <rect x="508" y="4" width="44" height="16" rx="3" fill="#278268"/>
             <text x="530" y="16" text-anchor="middle" class="lbl">UTAD</text>
           </g>
           <!-- SOW / ICE -->
           <g id="sow">
-            <line x1="580" y1="120" x2="580" y2="250" stroke="#2dd4a8" stroke-width="1.4"/>
-            <rect x="574" y="140" width="12" height="88" fill="#2dd4a8"/>
-            <line x1="580" y1="250" x2="580" y2="268" stroke="#2dd4a8" stroke-width="1"/>
-            <rect x="552" y="270" width="72" height="16" rx="3" fill="#2dd4a8"/>
+            <line x1="580" y1="120" x2="580" y2="250" stroke="#278268" stroke-width="1.4"/>
+            <rect x="574" y="140" width="12" height="88" fill="#278268"/>
+            <line x1="580" y1="250" x2="580" y2="268" stroke="#278268" stroke-width="1"/>
+            <rect x="552" y="270" width="72" height="16" rx="3" fill="#278268"/>
             <text x="588" y="282" text-anchor="middle" class="lbl">SOW / ICE</text>
           </g>
           <!-- LPSY -->
           <g id="lpsy">
-            <line x1="628" y1="168" x2="628" y2="228" stroke="#ff5a72" stroke-width="1.2"/>
-            <rect x="623" y="178" width="10" height="32" fill="#ff5a72"/>
-            <line x1="628" y1="168" x2="628" y2="152" stroke="#2dd4a8" stroke-width="1"/>
-            <rect x="608" y="134" width="40" height="16" rx="3" fill="#2dd4a8"/>
+            <line x1="628" y1="168" x2="628" y2="228" stroke="#c34e68" stroke-width="1.2"/>
+            <rect x="623" y="178" width="10" height="32" fill="#c34e68"/>
+            <line x1="628" y1="168" x2="628" y2="152" stroke="#278268" stroke-width="1"/>
+            <rect x="608" y="134" width="40" height="16" rx="3" fill="#278268"/>
             <text x="628" y="146" text-anchor="middle" class="lbl">LPSY</text>
           </g>
           <!-- markdown -->
-          <g fill="#2dd4a8" stroke="#2dd4a8">
+          <g fill="#278268" stroke="#278268">
             <line x1="668" y1="200" x2="668" y2="270" stroke-width="1.2"/><rect x="663" y="210" width="10" height="48"/>
             <line x1="698" y1="230" x2="698" y2="292" stroke-width="1.2"/><rect x="693" y="240" width="10" height="42"/>
             <line x1="728" y1="250" x2="728" y2="310" stroke-width="1.2"/><rect x="723" y="258" width="10" height="40"/>
