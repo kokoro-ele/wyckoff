@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { Crosshair, Landmark, Minus, RefreshCw, TrendingDown, TrendingUp } from "lucide-react";
+import { Crosshair, Landmark, LockKeyhole, Minus, RefreshCw, TrendingDown, TrendingUp } from "lucide-react";
 import type { AdjustType, Period, ResearchLevel, ResearchResponse } from "@wyckoff/shared";
 import * as api from "@/lib/api.js";
+import { useWorkbench } from "@/store.js";
 import { useI18n } from "@/i18n.js";
 import {
   cn,
@@ -56,12 +57,22 @@ export function ResearchPanel({
   symbol,
   period,
   adjust,
+  onRequestAnalysis,
 }: {
   symbol: string;
   period: Period;
   adjust: AdjustType;
+  onRequestAnalysis: () => void;
 }) {
   const { t, lang } = useI18n();
+  const messages = useWorkbench((s) => s.messages);
+  const hasAnalysis = messages.some(
+    (message) =>
+      (message.mode ?? "agent") === "agent" &&
+      message.role === "assistant" &&
+      !message.streaming &&
+      (message.content.trim().length > 0 || (message.toolTrace?.length ?? 0) > 0),
+  );
   const [data, setData] = useState<ResearchResponse | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
@@ -198,57 +209,72 @@ export function ResearchPanel({
         </div>
       </section>
 
-      <section className="research-card hand-card mt-3 p-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-1.5">
-            <Crosshair size={14} className="text-accent" />
-            <h3 className="text-[13px] font-semibold">{t("research.strategy")}</h3>
-          </div>
-          <span className={cn("research-bias", strategy.bias === "long" ? "research-bias-long" : strategy.bias === "short" ? "research-bias-short" : "research-bias-wait")}>
-            {t(`research.bias.${strategy.bias}`)}
-          </span>
-        </div>
-
-        <div className="research-trend mt-2">
-          {(["short", "medium", "long"] as const).map((term) => (
-            <span key={term} className="research-trend-item">
-              <span>{t(`research.trend.${term}`)}</span>
-              <span className={cn("inline-flex items-center gap-0.5", strategy.trend[term] === "up" ? "text-up" : strategy.trend[term] === "down" ? "text-down" : "text-ink-faint")}>
-                {trendIcon(strategy.trend[term])}
-                {t(`research.trend.${strategy.trend[term]}`)}
-              </span>
+      {hasAnalysis ? (
+        <section className="research-card hand-card mt-3 p-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-1.5">
+              <Crosshair size={14} className="text-accent" />
+              <h3 className="text-[13px] font-semibold">{t("research.strategy")}</h3>
+            </div>
+            <span className={cn("research-bias", strategy.bias === "long" ? "research-bias-long" : strategy.bias === "short" ? "research-bias-short" : "research-bias-wait")}>
+              {t(`research.bias.${strategy.bias}`)}
             </span>
-          ))}
-        </div>
+          </div>
 
-        <div className="research-trigger mt-2">
-          {t(`research.trigger.${strategy.trigger.kind}`, { price: triggerPrice })}
-        </div>
+          <div className="research-trend mt-2">
+            {(["short", "medium", "long"] as const).map((term) => (
+              <span key={term} className="research-trend-item">
+                <span>{t(`research.trend.${term}`)}</span>
+                <span className={cn("inline-flex items-center gap-0.5", strategy.trend[term] === "up" ? "text-up" : strategy.trend[term] === "down" ? "text-down" : "text-ink-faint")}>
+                  {trendIcon(strategy.trend[term])}
+                  {t(`research.trend.${strategy.trend[term]}`)}
+                </span>
+              </span>
+            ))}
+          </div>
 
-        <div className="research-plan mt-2">
-          <PlanRow label={t("research.entry")} value={strategy.entryLow !== null && strategy.entryHigh !== null ? `${formatPrice(strategy.entryLow)}–${formatPrice(strategy.entryHigh)}` : "—"} />
-          <PlanRow label={t("research.stop")} value={formatPrice(strategy.stop)} />
-          <PlanRow label={t("research.target1")} value={formatPrice(strategy.target1)} />
-          <PlanRow label={t("research.target2")} value={formatPrice(strategy.target2)} />
-          <PlanRow label={t("research.rr")} value={strategy.riskReward === null ? "—" : `${strategy.riskReward.toFixed(2)} : 1`} />
-          <PlanRow label={t("research.invalidation")} value={t(`research.invalidation.${strategy.invalidation.kind}`, { price: invalidationPrice })} />
-        </div>
+          <div className="research-trigger mt-2">
+            {t(`research.trigger.${strategy.trigger.kind}`, { price: triggerPrice })}
+          </div>
 
-        <div className="mt-2 grid grid-cols-2 gap-2 border-t border-dashed border-line-soft pt-2">
-          <LevelGroup title={t("research.support")} levels={strategy.support} />
-          <LevelGroup title={t("research.resistance")} levels={strategy.resistance} />
-        </div>
+          <div className="research-plan mt-2">
+            <PlanRow label={t("research.entry")} value={strategy.entryLow !== null && strategy.entryHigh !== null ? `${formatPrice(strategy.entryLow)}–${formatPrice(strategy.entryHigh)}` : "—"} />
+            <PlanRow label={t("research.stop")} value={formatPrice(strategy.stop)} />
+            <PlanRow label={t("research.target1")} value={formatPrice(strategy.target1)} />
+            <PlanRow label={t("research.target2")} value={formatPrice(strategy.target2)} />
+            <PlanRow label={t("research.rr")} value={strategy.riskReward === null ? "—" : `${strategy.riskReward.toFixed(2)} : 1`} />
+            <PlanRow label={t("research.invalidation")} value={t(`research.invalidation.${strategy.invalidation.kind}`, { price: invalidationPrice })} />
+          </div>
 
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-[9px] text-ink-faint">
-          {strategy.range ? (
-            <span>{t("research.range", { low: formatPrice(strategy.range.support), high: formatPrice(strategy.range.resistance) })}</span>
-          ) : (
-            <span>{t("research.noRange")}</span>
-          )}
-          <span>· {t("research.atr")} {formatCompactNumber(strategy.atr, lang)}</span>
-        </div>
-        <p className="mt-2 text-[9px] leading-relaxed text-ink-faint">{t("research.ruleNote")}<br />{t("research.disclaimer")}</p>
-      </section>
+          <div className="mt-2 grid grid-cols-2 gap-2 border-t border-dashed border-line-soft pt-2">
+            <LevelGroup title={t("research.support")} levels={strategy.support} />
+            <LevelGroup title={t("research.resistance")} levels={strategy.resistance} />
+          </div>
+
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-[9px] text-ink-faint">
+            {strategy.range ? (
+              <span>{t("research.range", { low: formatPrice(strategy.range.support), high: formatPrice(strategy.range.resistance) })}</span>
+            ) : (
+              <span>{t("research.noRange")}</span>
+            )}
+            <span>· {t("research.atr")} {formatCompactNumber(strategy.atr, lang)}</span>
+          </div>
+          <p className="mt-2 text-[9px] leading-relaxed text-ink-faint">{t("research.ruleNote")}<br />{t("research.disclaimer")}</p>
+        </section>
+      ) : (
+        <section className="research-card hand-card mt-3 p-3">
+          <div className="flex items-center gap-1.5">
+            <LockKeyhole size={14} className="text-accent" />
+            <h3 className="text-[13px] font-semibold">{t("research.lockedTitle")}</h3>
+          </div>
+          <p className="mt-2 text-[11px] leading-relaxed text-ink-dim">{t("research.lockedBody")}</p>
+          <button type="button" className="hand-btn hand-btn-primary mt-3 inline-flex items-center gap-1.5 px-3 py-2 text-xs" onClick={onRequestAnalysis}>
+            <Crosshair size={13} />
+            {t("research.lockedCta")}
+          </button>
+          <p className="mt-2 text-[9px] text-ink-faint">{t("research.lockedNote")}</p>
+        </section>
+      )}
     </div>
   );
 }

@@ -257,6 +257,10 @@ export function ChatPanel() {
     useWorkbench.getState().notify(t("chat.stopped"), "info");
   };
 
+  const analyze = () => {
+    setDockTab("agent");
+    send(t("chat.autoPrompt.agent"));
+  };
   const thinking = t(THINKING_KEYS[thinkingIndex] ?? THINKING_KEYS[0]);
   const agent = dockTab === "agent";
 
@@ -297,7 +301,7 @@ export function ChatPanel() {
       </div>
 
       {dockTab === "research" ? (
-        <ResearchPanel symbol={symbol} period={period} adjust={adjust} />
+        <ResearchPanel symbol={symbol} period={period} adjust={adjust} onRequestAnalysis={analyze} />
       ) : (
         <>
           <div ref={listRef} className="chat-stream flex-1 space-y-3 overflow-y-auto px-3 py-3">

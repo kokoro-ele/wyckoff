@@ -8,13 +8,13 @@ An AI workspace for single-asset price-and-volume research: professional candles
 
 ![Wyckoff workbench with the chart, research tabs, watchlist and account rail](./docs/screenshots/workbench-en.jpg)
 
-Open **Analysis** to switch between **Research** and **Agent**. Research merges fundamentals and a rule-based trade plan into a read-only view; Agent reads the chart, annotates structure and answers questions. Production shows friendly animated progress hints; detailed tool traces are development-only.
+Open **Analysis** to switch between **Research** and **Agent**. Research shows fundamentals immediately; the rule-based trade plan appears after an analysis. Agent reads the chart, annotates structure and answers questions. Production shows friendly animated progress hints; detailed tool traces are development-only.
 
 ## Highlights
 
 - **Marketing site + no-login workbench**: the site introduces the Wyckoff method, real cases and the product; the workbench opens straight to the chart, and public quotes/search need no account.
 - **Professional chart workspace** with zooming, panning, crosshair, timeframes, adjustments, indicators, and drawing tools.
-- **Read-only research panel**: fundamentals (market cap, P/E, P/B, 52-week range, SEC filing metrics) and a rule-based trade plan (bias, trigger, entry, stop, T1/T2, risk/reward) in one view with no input. Agent chat is a separate tab.
+- **Research panel**: fundamentals (market cap, P/E, P/B, 52-week range, SEC filing metrics) are available immediately; the rule-based trade plan (bias, trigger, entry, stop, T1/T2, risk/reward) appears after an analysis. Agent chat is a separate tab.
 - **Wyckoff Agent** for Phase A–E and events such as SC, AR, ST, Spring, SOS, LPS, UTAD, and SOW, rendered directly on the chart.
 - **Verified accounts** via email OTP or Google; watchlists, sessions, annotations, and market caches are isolated per account.
 - **Separate account panel** for login status, credits, invite code and invited users; top-ups and invites live there.
@@ -163,7 +163,7 @@ data/                    Local SQLite cache (Git ignored)
 - Payment amounts, credits, currency, and orders are server-snapshotted; callbacks must pass signature and amount checks.
 - Users cannot override the model URL, model ID, or API key; operator credentials come only from the environment.
 - Production Agent responses contain only text, annotations and progress; `tool_start`/`tool_end` and tool arguments are filtered by the server.
-- The research panel is a read-only data view; it never calls the model and does not consume analysis credits.
+- The research panel's fundamentals are a read-only data view; it never calls the model. The trade plan appears after an Agent analysis and does not consume extra credits.
 - Language and theme are stored in the browser; previews accept `?lang=zh|en`, `?theme=light|dark`, `?auth=1` and `?account=1`.
 
 ## Deployment
