@@ -59,6 +59,9 @@ export async function cloudFetch(request: Request): Promise<Response> {
     if (path === "/api/billing/webhooks/stripe") {
       return await handleBillingWebhook(request, getPool());
     }
+    if (path === "/api/billing/webhooks/wechat") {
+      return Response.json({ code: "NOT_FOUND", message: "接口不存在" }, { status: 404 });
+    }
 
     if (path.startsWith("/api/auth/")) return await handleAuthRequest(request);
     if (path === "/api/health") return Response.json({ ok: true, backend: "vercel", storage: "postgres" });
