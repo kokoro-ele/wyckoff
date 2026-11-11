@@ -21,7 +21,7 @@ and the API never starts a persistent HTTP listener.
 
    - `DATABASE_SSL_CA` for a provider CA such as Supabase.
    - `OPENAI_BASE_URL`, `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_WEB_SEARCH`.
-   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM` for email OTP; add `SMTP_USER`/`SMTP_PASS` only for authenticated relays.
+   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM` for email OTP; add `SMTP_USER`/`SMTP_PASS` only for authenticated relays. `SMTP_REQUIRE_TLS` overrides the default STARTTLS policy (587 requires it, 465 uses implicit TLS, local catchers usually use 1025 without TLS).
    - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` for Google OAuth.
    - `ANALYSIS_CREDIT_PACKS`, `BILLING_PUBLIC_ORIGIN`, and Stripe/WeChat keys for top-ups.
    - `PG_POOL_MAX` (default 10) and `DEBUG_LLM=1` only for temporary diagnostics.

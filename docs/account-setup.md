@@ -20,7 +20,7 @@
 
 ## 邮箱注册与密码找回
 
-设置 `SMTP_HOST`、`SMTP_PORT`、`SMTP_FROM`；需要认证的发件服务再填写 `SMTP_USER`、`SMTP_PASS`。端口默认 587，要求 STARTTLS；465 使用隐式 TLS。`SMTP_FROM` 应为邮件服务商已验证的发件地址。本地 Mailpit 等无认证 catcher 可以不填用户名密码。缺少 `SMTP_HOST`/`SMTP_FROM` 时邮箱注册和找回按钮不可用；Google 可独立使用。
+设置 `SMTP_HOST`、`SMTP_PORT`、`SMTP_FROM`；需要认证的发件服务再填写 `SMTP_USER`、`SMTP_PASS`。端口默认 587，默认要求 STARTTLS；465 使用隐式 TLS；本地 catcher（如 Mailpit 的 1025）默认不启用 TLS，可用 `SMTP_REQUIRE_TLS=1/0` 覆盖。`SMTP_FROM` 应为邮件服务商已验证的发件地址。本地 Mailpit 等无认证 catcher 可以不填用户名密码。缺少 `SMTP_HOST`/`SMTP_FROM` 时邮箱注册和找回按钮不可用；Google 可独立使用。
 
 邮箱注册要求至少 12 字符密码。注册后发送六位验证码，有效期 5 分钟，数据库仅保存哈希，最多允许 3 次尝试。重发会替换旧验证码；发送和验证端点有每 IP 每分钟 3 次限流，认证全局每分钟 30 次限流，状态保存在数据库。密码找回同样使用验证码，重置后旧密码和已有会话失效。SMTP 失败会返回 503，界面不会声称发送成功；已创建的未验证账号可回到登录并重新发送验证码。
 

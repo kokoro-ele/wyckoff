@@ -67,11 +67,14 @@ export async function sendAuthOTP({ email, otp, type }: { email: string; otp: st
   try {
     if (!authAvailability().email) throw new Error("Email delivery is not configured");
     const port = Number(process.env.SMTP_PORT || 587);
+    const requireTLS = process.env.SMTP_REQUIRE_TLS
+      ? process.env.SMTP_REQUIRE_TLS === "1"
+      : port === 587;
     const transport = nodemailer.createTransport({
       host: process.env.SMTP_HOST,
       port,
       secure: port === 465,
-      requireTLS: port !== 465,
+      requireTLS,
       auth:
         process.env.SMTP_USER && process.env.SMTP_PASS
           ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
