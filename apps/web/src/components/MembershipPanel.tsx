@@ -122,7 +122,7 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
 
   const copy = async (link: boolean) => {
     if (!status) return;
-    const url = new URL("/", window.location.origin);
+    const url = new URL("/app", window.location.origin);
     url.searchParams.set("invite", status.inviteCode);
     try {
       await navigator.clipboard.writeText(link ? url.href : status.inviteCode);

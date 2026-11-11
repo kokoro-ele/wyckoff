@@ -63,8 +63,8 @@ export async function createProviderCheckout(order: CheckoutOrder, env: Env = pr
   const origin = env.BILLING_PUBLIC_ORIGIN!;
   const body = new URLSearchParams({
     mode: "payment",
-    success_url: `${origin}/?billing=success&order=${order.id}`,
-    cancel_url: `${origin}/?billing=cancel`,
+    success_url: `${origin}/app?billing=success&order=${order.id}`,
+    cancel_url: `${origin}/app?billing=cancel`,
     client_reference_id: order.id,
     "metadata[order_id]": order.id,
     "line_items[0][quantity]": "1",

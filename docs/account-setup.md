@@ -6,7 +6,7 @@
 
 - `DATABASE_URL`：PostgreSQL 服务端连接字符串。
 - `BETTER_AUTH_SECRET`：至少 32 个字符的随机密钥。可用 `openssl rand -base64 32` 生成；不要提交到仓库。
-- `BETTER_AUTH_URL`：固定站点 origin，例如 `https://workbench.example.com`；本地使用 `http://localhost:5273`。不要填写路径或随意信任预览域名。
+- `BETTER_AUTH_URL`：固定站点 origin，例如 `https://workbench.example.com`；本地使用 `http://localhost:5273`（工作台在 `/app`，官网在 `/`）。不要填写路径或随意信任预览域名。
 - `WORKSPACE_ENCRYPTION_KEY`：32 字节随机值的十六进制形式，可用 `openssl rand -hex 32` 生成。保持稳定，否则无法解密已有工作区。
 - `OPENAI_BASE_URL`、`OPENAI_API_KEY`、`OPENAI_MODEL`：运营方模型服务配置，仅在服务端使用。
 

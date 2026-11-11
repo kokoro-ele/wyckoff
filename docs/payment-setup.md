@@ -77,7 +77,7 @@ STRIPE_WEBHOOK_SECRET=whsec_…   # from stripe listen
 
 Restart the dev server with `PORT=8788 pnpm dev`, then:
 
-1. Open `http://localhost:5273`.
+1. Open `http://localhost:5273/app`.
 2. Sign in and go to Account → Top up.
 3. Buy a pack.
 4. Use Stripe's test card `4242 4242 4242 4242`, any future expiry date, any CVC, any postal code.

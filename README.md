@@ -12,7 +12,7 @@
 
 ## 核心功能
 
-- **免登录浏览**：打开就是画布和工作台；图表、搜索和基础行情不需要账号。
+- **官网 + 免登录工作台**：官网介绍 Wyckoff 方法、真实案例与产品；打开工作台即可看图，图表、搜索和基础行情不需要账号。
 - **专业 K 线工作台**：缩放、平移、十字光标、多周期、复权、指标与绘图工具。
 - **只读研究面板**：基本面（市值、PE/PB、52 周区间、SEC 财报指标）与交易策略（偏向、触发、入场、止损、T1/T2、风险收益比）合并在一个面板，不可输入、纯查看。
 - **Wyckoff Agent**：识别 Phase A–E、SC、AR、ST、Spring、SOS、LPS、UTAD、SOW 等结构，并直接绘制到图表。
@@ -83,7 +83,8 @@ pnpm -F @wyckoff/server db:migrate
 pnpm dev
 ```
 
-- 前端：<http://localhost:5273>
+- 官网：<http://localhost:5273>
+- 工作台：<http://localhost:5273/app>
 - 后端：<http://127.0.0.1:8787>
 - Wyckoff 方法说明：<http://localhost:5273/wyckoff.html>
 

@@ -12,7 +12,7 @@ Open **Analysis** to switch between **Research** and **Agent**. Research merges 
 
 ## Highlights
 
-- **Browse without signing in**: the chart and workbench are the landing page; public quotes and search need no account.
+- **Marketing site + no-login workbench**: the site introduces the Wyckoff method, real cases and the product; the workbench opens straight to the chart, and public quotes/search need no account.
 - **Professional chart workspace** with zooming, panning, crosshair, timeframes, adjustments, indicators, and drawing tools.
 - **Read-only research panel**: fundamentals (market cap, P/E, P/B, 52-week range, SEC filing metrics) and a rule-based trade plan (bias, trigger, entry, stop, T1/T2, risk/reward) in one view with no input. Agent chat is a separate tab.
 - **Wyckoff Agent** for Phase A–E and events such as SC, AR, ST, Spring, SOS, LPS, UTAD, and SOW, rendered directly on the chart.
@@ -83,7 +83,8 @@ pnpm -F @wyckoff/server db:migrate
 pnpm dev
 ```
 
-- Web app: <http://localhost:5273>
+- Marketing site: <http://localhost:5273>
+- Workbench: <http://localhost:5273/app>
 - API server: <http://127.0.0.1:8787>
 - Wyckoff method reference: <http://localhost:5273/wyckoff.html>
 

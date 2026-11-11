@@ -45,10 +45,10 @@ export function App() {
   return (
     <div className="app-shell canvas-workbench flex h-full min-h-0 w-full flex-col overflow-hidden text-ink">
       <header className="canvas-topbar flex shrink-0 items-center gap-2 border-b-2 border-line bg-panel px-3 py-2">
-        <div className="canvas-brand flex items-center justify-center gap-1">
+        <a href="/" className="canvas-brand flex items-center justify-center gap-1" aria-label="EasyWyckoff home">
           <span className="text-accent">W</span>
           <span>WYCKOFF</span>
-        </div>
+        </a>
         <button
           type="button"
           className="canvas-action"

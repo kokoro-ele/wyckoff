@@ -8,6 +8,11 @@ import type { Coordinate, OverlayFigure, OverlayTemplate } from "klinecharts";
 import { registerOverlay } from "klinecharts";
 
 export const ZONE_OVERLAY = "wyckoffZone";
+
+let overlayLanguage: "zh" | "en" = "zh";
+export function setOverlayLanguage(language: "zh" | "en"): void {
+  overlayLanguage = language;
+}
 export const EVENT_TAG_OVERLAY = "wyckoffEventTag";
 
 /** 阶段配色。A/C 是转折段用暖色，B 是构建段用中性，D/E 是趋势确立段用冷色。 */
@@ -74,7 +79,9 @@ const zoneTemplate: OverlayTemplate<ZoneExtend> = {
 
     const extend = overlay.extendData;
     const color = extend?.phase ? PHASE_COLORS[extend.phase] : DEFAULT_ZONE_COLOR;
-    const caption = extend?.phase ? `${extend.label} · 阶段 ${extend.phase}` : (extend?.label ?? "交易区间");
+    const phaseCaption = overlayLanguage === "en" ? `Phase ${extend?.phase}` : `阶段 ${extend?.phase}`;
+    const rangeFallback = overlayLanguage === "en" ? "Trading range" : "交易区间";
+    const caption = extend?.phase ? `${extend.label} · ${phaseCaption}` : (extend.label ?? rangeFallback);
 
     const figures: OverlayFigure[] = [
       {

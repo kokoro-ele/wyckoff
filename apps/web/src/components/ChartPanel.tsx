@@ -5,7 +5,7 @@ import { Activity, Star } from "lucide-react";
 import type { Kline, StoredAnnotation } from "@wyckoff/shared";
 import { ApiError, fetchKlines } from "@/lib/api.js";
 import { overlayToAnnotation, renderAnnotations, USER_GROUP_ID } from "@/chart/annotations.js";
-import { registerWyckoffOverlays } from "@/chart/overlays.js";
+import { registerWyckoffOverlays, setOverlayLanguage } from "@/chart/overlays.js";
 import { barsForTimeSpan, timeSpanDays, toChartPeriod } from "@/chart/period.js";
 import { getChartStyles } from "@/chart/theme.js";
 import { INDICATORS, useWorkbench, type IndicatorId } from "@/store.js";
@@ -42,8 +42,11 @@ function toChartBar(k: Kline) {
 }
 
 export function ChartPanel() {
+  const { lang } = useI18n();
   const key = useWorkbench(chartContextKey);
-  return <ChartContextPanel key={key} />;
+  // Language changes reinitialize the chart so its locale and the annotation
+  // captions switch together.
+  return <ChartContextPanel key={`${key}|${lang}`} />;
 }
 
 function ChartContextPanel() {
@@ -84,7 +87,7 @@ function ChartContextPanel() {
     if (!el) return;
 
     registerWyckoffOverlays();
-    const chart = init(el, { styles: getChartStyles(theme), locale: "zh-CN", timezone: "Asia/Shanghai" });
+    const chart = init(el, { styles: getChartStyles(theme), locale: lang === "en" ? "en-US" : "zh-CN", timezone: "Asia/Shanghai" });
     if (!chart) { setError(t("chart.initError")); setStatus("error"); return; }
     chartRef.current = chart;
 
@@ -272,8 +275,9 @@ function ChartContextPanel() {
     const visibleIds = new Set(annotationGroups.filter((g) => g.visible).map((g) => g.groupId));
     const visible: StoredAnnotation[] = annotations.filter((a) => visibleIds.has(a.groupId));
 
-    renderAnnotations(chart, visible);
-  }, [annotations, annotationGroups, chartRevision, ready]);
+    setOverlayLanguage(lang);
+    renderAnnotations(chart, visible, lang);
+  }, [annotations, annotationGroups, chartRevision, ready, lang]);
 
   // —— Agent 请求聚焦某段区间 ——
   useEffect(() => {

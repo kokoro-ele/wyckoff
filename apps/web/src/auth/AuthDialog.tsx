@@ -205,7 +205,7 @@ export function AuthDialog({
                 onClick={() =>
                   void run(async () => {
                     if (invite) await prepareReferral(invite);
-                    check(await authClient.signIn.social({ provider: "google", callbackURL: window.location.origin }));
+                    check(await authClient.signIn.social({ provider: "google", callbackURL: `${window.location.origin}/app` }));
                   })
                 }
               >

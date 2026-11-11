@@ -19,6 +19,7 @@ export interface RunContext {
   symbol: string;
   period: Period;
   adjust: AdjustType;
+  language: "zh" | "en";
   /** 本轮对话内缓存的全量 K 线，供日期吸附与切片使用。 */
   klines(): Promise<Kline[]>;
 }
@@ -90,7 +91,7 @@ const annotationItemSchema = {
     },
     date: { ...dateParam, description: "kind=event 或 level 时的锚定日期。event 必填。" },
     price: { type: "number", description: "kind=event 或 level 时的价格。event 通常取该 K 线的最高价或最低价。" },
-    label: { type: "string", description: "kind=zone / level / trendline 的名称，用中文，例如「吸筹交易区间」「小溪(Creek)」" },
+    label: { type: "string", description: "kind=zone / level / trendline 的名称，使用与最终回答相同的语言，例如「吸筹交易区间」或「Accumulation range」" },
     phase: { type: "string", enum: ["A", "B", "C", "D", "E"], description: "仅 kind=zone，该区间对应的 Wyckoff 阶段" },
     start_date: { ...dateParam, description: "kind=zone 的起始日期（必填）；kind=level 的起始日期（可选）" },
     end_date: { ...dateParam, description: "kind=zone 的结束日期（必填）；kind=level 的结束日期（可选）" },
@@ -101,7 +102,7 @@ const annotationItemSchema = {
     to_date: { ...dateParam, description: "仅 kind=trendline，终点日期" },
     to_price: { type: "number", description: "仅 kind=trendline，终点价格" },
     extend: { type: "boolean", description: "仅 kind=trendline，是否向右延伸成射线" },
-    note: { type: "string", description: "该标注的说明，会显示在图上的悬浮提示里。写清判读依据。" },
+    note: { type: "string", description: "该标注的说明，使用与最终回答相同的语言，写清判读依据。" },
   },
   additionalProperties: false,
 } as const;
@@ -151,7 +152,7 @@ export const toolDefinitions = [
         type: "object",
         required: ["title", "annotations"],
         properties: {
-          title: { type: "string", description: "这组标注的标题，例如「2024 年吸筹结构」" },
+          title: { type: "string", description: "这组标注的标题，使用与最终回答相同的语言，例如「2024 年吸筹结构」" },
           annotations: { type: "array", items: annotationItemSchema, minItems: 1 },
         },
         additionalProperties: false,
@@ -352,7 +353,7 @@ interface NormalizeResult {
 }
 
 /** 把模型输出的扁平标注对象转成协议里的判别联合，逐条校验并收集错误。 */
-function normalizeAnnotations(raw: unknown, klines: Kline[]): NormalizeResult {
+function normalizeAnnotations(raw: unknown, klines: Kline[], language: "zh" | "en"): NormalizeResult {
   const items = Array.isArray(raw) ? raw : [];
   const annotations: WyckoffAnnotation[] = [];
   const errors: string[] = [];
@@ -382,7 +383,7 @@ function normalizeAnnotations(raw: unknown, klines: Kline[]): NormalizeResult {
         }
         candidate = {
           kind: "zone",
-          label: a.label ?? "交易区间",
+          label: a.label ?? (language === "en" ? "Trading range" : "交易区间"),
           phase: a.phase,
           startTime: Math.min(startTime, endTime),
           endTime: Math.max(startTime, endTime),
@@ -395,7 +396,7 @@ function normalizeAnnotations(raw: unknown, klines: Kline[]): NormalizeResult {
       case "level": {
         candidate = {
           kind: "level",
-          label: a.label ?? "关键价位",
+          label: a.label ?? (language === "en" ? "Key level" : "关键价位"),
           price: a.price,
           startTime: a.start_date ? snapToBar(klines, a.start_date) ?? undefined : undefined,
           endTime: a.end_date ? snapToBar(klines, a.end_date) ?? undefined : undefined,
@@ -412,7 +413,7 @@ function normalizeAnnotations(raw: unknown, klines: Kline[]): NormalizeResult {
         }
         candidate = {
           kind: "trendline",
-          label: a.label ?? "趋势线",
+          label: a.label ?? (language === "en" ? "Trendline" : "趋势线"),
           points: [
             { timestamp: fromTime, price: a.from_price },
             { timestamp: toTime, price: a.to_price },
@@ -437,8 +438,13 @@ function normalizeAnnotations(raw: unknown, klines: Kline[]): NormalizeResult {
 
 async function drawAnnotationsTool(args: Args, ctx: RunContext): Promise<ToolResult> {
   const klines = await ctx.klines();
-  const title = typeof args.title === "string" && args.title.trim() ? args.title.trim() : "Wyckoff 结构分析";
-  const { annotations, errors } = normalizeAnnotations(args.annotations, klines);
+  const title =
+    typeof args.title === "string" && args.title.trim()
+      ? args.title.trim()
+      : ctx.language === "en"
+        ? "Wyckoff structure"
+        : "Wyckoff 结构分析";
+  const { annotations, errors } = normalizeAnnotations(args.annotations, klines, ctx.language);
 
   if (annotations.length === 0) {
     return {
