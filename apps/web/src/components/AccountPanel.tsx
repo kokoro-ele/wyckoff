@@ -73,7 +73,7 @@ export function AccountPanel({
 
         {!isVerified ? (
           <div className="mt-5">
-            <div className="hand-doodle flex h-16 w-16 items-center justify-center rounded-full border-2 border-line bg-panel-2">
+            <div className="hand-doodle flex h-16 w-16 items-center justify-center rounded-full border border-line bg-panel-2">
               <LogIn size={24} />
             </div>
             <p className="mt-4 text-sm font-semibold">{t("account.guest")}</p>
@@ -86,7 +86,7 @@ export function AccountPanel({
         ) : (
           <div className="mt-5 space-y-4">
             <div className="flex items-center gap-3">
-              <div className="hand-doodle flex h-12 w-12 items-center justify-center rounded-full border-2 border-line bg-accent-soft text-lg font-semibold text-accent">
+              <div className="hand-doodle flex h-12 w-12 items-center justify-center rounded-full border border-line bg-accent-soft text-lg font-semibold text-accent">
                 {(session?.user.name || session?.user.email || "?").slice(0, 1).toUpperCase()}
               </div>
               <div className="min-w-0 flex-1">
@@ -98,7 +98,7 @@ export function AccountPanel({
               </div>
             </div>
 
-            <section className="rounded-2xl border-2 border-line bg-panel-2/70 p-4">
+            <section className="rounded-2xl border border-line bg-panel-2/70 p-4">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-ink-dim">{t("account.balance")}</span>
                 <button type="button" aria-label={t("action.refresh")} className="hand-icon" onClick={() => void reload()}>
@@ -113,7 +113,7 @@ export function AccountPanel({
             </section>
 
             {status && (
-              <section className="rounded-2xl border-2 border-line bg-panel-2/70 p-4">
+              <section className="rounded-2xl border border-line bg-panel-2/70 p-4">
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs text-ink-dim">{t("account.invite")}</span>
                   <span className="text-[11px] text-ink-faint">{t("account.inviteCount", { n: status.inviteCount })}</span>

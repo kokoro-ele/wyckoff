@@ -191,7 +191,7 @@ export function AuthDialog({
         {!providers ? (
           <p className="mt-6 text-sm text-ink-dim">{t("action.loading")}</p>
         ) : !providers.ready ? (
-          <div className="mt-5 rounded-xl border-2 border-line bg-panel-2/60 p-3 text-sm">
+          <div className="mt-5 rounded-xl border border-line bg-panel-2/60 p-3 text-sm">
             <p className="font-semibold">{t("auth.unavailable")}</p>
             <p className="mt-1 text-xs text-ink-dim">{t("auth.unavailableHint")}</p>
           </div>

@@ -160,7 +160,7 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
         </div>
 
         {error && (
-          <div role="alert" className="mt-4 rounded-xl border-2 border-warn/30 bg-warn/10 p-3 text-sm">
+          <div role="alert" className="mt-4 rounded-xl border border-warn/30 bg-warn/10 p-3 text-sm">
             {error}
             <button type="button" onClick={() => void reload()} className="hand-link ml-3">
               {t("action.refresh")}
@@ -169,7 +169,7 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
         )}
 
         {status && (
-          <section className="mt-4 rounded-2xl border-2 border-line bg-panel-2/70 p-4">
+          <section className="mt-4 rounded-2xl border border-line bg-panel-2/70 p-4">
             <div className="flex items-center justify-between">
               <p className="text-sm">
                 {t("membership.balance", { n: status.balance })}
@@ -206,10 +206,10 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
               </select>
             </div>
             {!catalog.providers[provider]?.available && (
-              <p className="mt-3 rounded-xl border-2 border-line bg-panel-2/60 p-3 text-sm text-ink-dim">{t("membership.unavailable")}</p>
+              <p className="mt-3 rounded-xl border border-line bg-panel-2/60 p-3 text-sm text-ink-dim">{t("membership.unavailable")}</p>
             )}
             {catalog.packs.length === 0 && (
-              <p className="mt-3 rounded-xl border-2 border-line p-4 text-sm text-ink-dim">{t("membership.noPacks")}</p>
+              <p className="mt-3 rounded-xl border border-line p-4 text-sm text-ink-dim">{t("membership.noPacks")}</p>
             )}
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {catalog.packs.map((pack) => (
@@ -247,7 +247,7 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
         )}
 
         {order && (
-          <div className="mt-5 rounded-2xl border-2 border-line p-4 text-center">
+          <div className="mt-5 rounded-2xl border border-line p-4 text-center">
             <h3 className="inline-flex items-center gap-1.5 font-semibold">
               <Crown size={15} className="text-accent" />
               {order.status === "paid"

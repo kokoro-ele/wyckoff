@@ -30,13 +30,13 @@ vi.mock("./auth/AuthProvider.js", () => ({
 import { App } from "./App.js";
 import { I18nProvider } from "./i18n.js";
 
-it("exposes the five workbench rail actions", () => {
+it("renders the original three-column workbench without a top bar or rail", () => {
   const html = renderToStaticMarkup(
     <I18nProvider>
       <App />
     </I18nProvider>,
   );
-  const nav = html.match(/<nav\b[^>]*>([\s\S]*?)<\/nav>/)?.[1] ?? "";
-  const labels = [...nav.matchAll(/aria-label="([^"]+)"/g)].map((match) => match[1]);
-  expect(labels).toEqual(["搜索", "自选", "分析", "账户", "设置"]);
+  expect(html).toContain("app-stage");
+  expect(html).not.toContain("<header");
+  expect(html).not.toContain("<nav");
 });

@@ -9,6 +9,8 @@ import {
   GripVertical,
   FolderPlus,
   LockKeyhole,
+  Settings2,
+  UserRound,
 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import type { WatchItem } from "@wyckoff/shared";
@@ -17,7 +19,13 @@ import { cn, localizedInstrumentName } from "@/lib/utils.js";
 import { useAuth } from "@/auth/AuthProvider.js";
 import { useI18n } from "@/i18n.js";
 
-export function WatchlistSidebar() {
+export function WatchlistSidebar({
+  onOpenAccount,
+  onOpenSettings,
+}: {
+  onOpenAccount: () => void;
+  onOpenSettings: () => void;
+}) {
   const { t, lang } = useI18n();
   const { isVerified, openAuth } = useAuth();
   const symbol = useWorkbench((s) => s.symbol);
@@ -74,6 +82,12 @@ export function WatchlistSidebar() {
             <FolderPlus size={14} />
           </IconBtn>
         )}
+        <IconBtn title={t("action.account")} onClick={onOpenAccount}>
+          <UserRound size={14} />
+        </IconBtn>
+        <IconBtn title={t("action.settings")} onClick={onOpenSettings}>
+          <Settings2 size={14} />
+        </IconBtn>
       </div>
     </div>
   );
@@ -82,8 +96,8 @@ export function WatchlistSidebar() {
     return (
       <aside className="glass-panel side-panel flex h-full w-[226px] shrink-0 flex-col overflow-hidden rounded-[20px]">
         {header}
-        <div className="hand-doodle m-3 flex flex-1 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-line px-4 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-line bg-panel-2 text-accent">
+        <div className="hand-doodle m-3 flex flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-line px-4 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full border border-line bg-panel-2 text-accent">
             <LockKeyhole size={21} />
           </div>
           <p className="mt-3 text-xs font-semibold">{t("watch.login")}</p>

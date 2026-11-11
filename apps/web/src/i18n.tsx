@@ -211,7 +211,7 @@ const zh: Record<string, string> = {
   "toolbar.freePeriod": "免费档不支持分钟线，请升级 TickFlow",
 
   "watch.title": "自选观察",
-  "watch.count": "{n} 只标的 · 实时工作台",
+  "watch.count": "{n} 只标的",
   "watch.search": "搜索股票 ⌘K",
   "watch.newGroup": "新建分组",
   "watch.groupName": "分组名称",
@@ -501,7 +501,7 @@ const en: Record<string, string> = {
   "toolbar.freePeriod": "Intraday data requires a TickFlow upgrade",
 
   "watch.title": "Watchlist",
-  "watch.count": "{n} symbols · live desk",
+  "watch.count": "{n} symbols",
   "watch.search": "Search symbols ⌘K",
   "watch.newGroup": "New group",
   "watch.groupName": "Group name",

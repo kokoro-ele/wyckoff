@@ -17,8 +17,8 @@
   --color-down: #278268;
   --color-warn: #94661f;
 
-  --font-sans: "Nunito", "Kaiti SC", "STKaiti", "KaiTi", "PingFang SC", "Hiragino Sans GB", sans-serif;
-  --font-hand: "Chalkboard SE", "Kaiti SC", "STKaiti", "KaiTi", "LXGW WenKai", "Comic Sans MS", cursive;
+  --font-sans: "Outfit", "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", sans-serif;
+  --font-hand: "Klee", "Kaiti SC", "STKaiti", "KaiTi", "Comic Sans MS", cursive;
   --font-mono: "IBM Plex Mono", "SF Mono", ui-monospace, Menlo, monospace;
 
   --blur-glass: 26px;
@@ -352,193 +352,117 @@
 }
 
 
-/* ————————————————— Hand-drawn workbench skin ————————————————— */
-:root {
-  --hand-shadow: color-mix(in srgb, var(--color-line) 55%, transparent);
-  --hand-shadow-soft: color-mix(in srgb, var(--color-line) 28%, transparent);
+/* ————————————————— New workbench components ————————————————— */
+/* These components use the original Looseleaf type and paper treatment. */
+.hand-card {
+  background: var(--color-panel);
+  border: 1.5px solid var(--color-line);
+  border-radius: 9px 15px 11px 7px;
+  box-shadow: 3px 4px 0 var(--paper-shadow);
 }
-
-body {
-  font-family: var(--font-sans);
-  font-weight: 550;
-  letter-spacing: .005em;
-}
-
-h1, h2, h3, .hand-eyebrow, .hand-btn, .rail-brand, .chat-tab, .panel-header .font-semibold,
-.canvas-topbar, .auth-card h1, .auth-card h2 {
+.hand-card h2,
+.panel-header h1:not(.font-mono),
+.panel-header .font-semibold:not(.font-mono) {
   font-family: var(--font-hand);
   font-weight: 700;
 }
-
 .hand-eyebrow {
+  color: var(--color-ink-faint);
   font-family: var(--font-mono);
   font-size: 8px;
-  font-weight: 700;
-  letter-spacing: .18em;
-  color: var(--color-ink-faint);
-}
-
-.app-rail {
-  position: relative;
-  z-index: 20;
-  display: flex;
-  width: 54px;
-  flex: 0 0 54px;
-  flex-direction: column;
-  align-items: center;
-  gap: 7px;
-  border: 2px solid var(--color-line);
-  border-radius: 18px 14px 20px 12px;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--paper-yellow) 75%, var(--color-panel)) 0 64px, var(--color-panel) 64px);
-  box-shadow: 4px 5px 0 var(--hand-shadow);
-  padding: 8px 5px;
-}
-
-.rail-brand {
-  display: grid;
-  width: 36px;
-  height: 36px;
-  place-items: center;
-  border: 2px solid var(--color-ink-dim);
-  border-radius: 7px 11px 5px 10px;
-  background: var(--paper-yellow);
-  box-shadow: 2px 2px 0 var(--hand-shadow);
-  color: var(--color-accent);
-  font-size: 23px;
-  line-height: 1;
-  transform: rotate(-4deg);
-}
-
-.rail-btn {
-  position: relative;
-  display: grid;
-  width: 38px;
-  height: 38px;
-  place-items: center;
-  border: 2px solid transparent;
-  border-radius: 9px 13px 8px 12px;
-  color: var(--color-ink-dim);
-  background: transparent;
-  transition: background .15s ease, border-color .15s ease, transform .15s ease, box-shadow .15s ease;
-}
-.rail-btn:hover {
-  border-color: var(--color-line);
-  background: var(--color-panel-2);
-  color: var(--color-ink);
-  transform: translateY(-1px) rotate(-1deg);
-}
-.rail-btn[aria-pressed="true"] {
-  border-color: var(--color-accent);
-  background: var(--color-accent-soft);
-  color: var(--color-accent);
-  box-shadow: 2px 2px 0 var(--hand-shadow-soft);
-}
-.rail-spacer { flex: 1; }
-.rail-dot {
-  position: absolute;
-  right: 4px;
-  top: 4px;
-  width: 8px;
-  height: 8px;
-  border: 2px solid var(--color-panel);
-  border-radius: 50%;
-  background: var(--color-accent);
-}
-
-.hand-card {
-  background: var(--color-panel);
-  border: 2px solid var(--color-line);
-  border-radius: 18px 24px 15px 21px;
-  box-shadow: 5px 6px 0 var(--hand-shadow);
+  font-weight: 600;
+  letter-spacing: .16em;
 }
 .hand-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  border: 2px solid var(--color-line);
-  border-radius: 9px 13px 8px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 7px 10px 6px 9px;
   background: var(--color-panel-2);
   color: var(--color-ink);
-  padding: 6px 10px;
-  font-family: var(--font-hand);
+  padding: 7px 11px;
+  font-family: var(--font-sans);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.2;
-  box-shadow: 2px 3px 0 var(--hand-shadow-soft);
-  transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+  box-shadow: 1px 2px 0 var(--paper-shadow);
+  transition: background .15s ease, border-color .15s ease, transform .12s ease;
 }
 .hand-btn:hover:not(:disabled) {
+  border-color: var(--color-accent);
   background: var(--color-panel);
-  transform: translateY(-1px);
-  box-shadow: 3px 4px 0 var(--hand-shadow-soft);
 }
-.hand-btn:active:not(:disabled) {
-  transform: translateY(1px);
-  box-shadow: none;
-}
+.hand-btn:active:not(:disabled) { transform: translateY(1px); }
 .hand-btn-primary {
-  border-color: color-mix(in srgb, var(--color-accent) 70%, var(--color-ink));
+  border-color: var(--color-accent);
   background: var(--color-accent);
   color: var(--color-panel);
 }
-.hand-btn-primary:hover:not(:disabled) { background: var(--color-accent); filter: brightness(1.05); }
+.hand-btn-primary:hover:not(:disabled) { background: var(--color-accent); filter: brightness(1.06); }
 .hand-btn:disabled { opacity: .45; cursor: not-allowed; }
 
 .hand-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid transparent;
-  border-radius: 8px 11px 7px 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
   padding: 5px;
   color: var(--color-ink-faint);
   background: transparent;
 }
-.hand-icon:hover { border-color: var(--color-line); background: var(--color-panel-2); color: var(--color-ink); }
+.hand-icon:hover {
+  border-color: var(--color-line);
+  background: var(--color-panel-2);
+  color: var(--color-ink);
+}
 
 .hand-input {
   width: 100%;
-  border: 2px solid var(--color-line);
-  border-radius: 8px 12px 7px 11px;
-  background: var(--color-panel);
+  border: 1px solid var(--color-line);
+  border-radius: 6px 9px 5px 8px;
+  background: var(--color-panel-2);
   color: var(--color-ink);
   padding: 8px 10px;
   font-family: var(--font-sans);
-  font-weight: 550;
+  font-weight: 400;
 }
 .hand-input:focus { border-color: var(--color-accent); outline: 2px solid var(--color-accent-soft); }
-.hand-label { display: grid; gap: 5px; font-size: 12px; font-weight: 700; color: var(--color-ink-dim); }
+.hand-label { display: grid; gap: 5px; font-size: 12px; font-weight: 600; color: var(--color-ink-dim); }
 
 .hand-chip {
-  border: 2px solid var(--color-line);
-  border-radius: 7px 10px 6px 9px;
+  border: 1px solid var(--color-line);
+  border-radius: 5px 8px 6px 9px;
   background: var(--color-panel-2);
   padding: 4px 9px;
-  font-family: var(--font-hand);
-  font-weight: 700;
+  font-family: var(--font-sans);
+  font-weight: 600;
   font-size: 11px;
   color: var(--color-ink-dim);
 }
-.hand-chip-active { border-color: var(--color-accent); background: var(--color-accent-soft); color: var(--color-accent); }
+.hand-chip-active {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
 
 .hand-row {
-  border: 2px dashed var(--color-line);
-  border-radius: 11px 15px 10px 14px;
+  border: 1px dashed var(--color-line);
+  border-radius: 8px 12px 7px 11px;
   padding: 10px 11px;
-  background: color-mix(in srgb, var(--color-panel-2) 55%, transparent);
+  background: var(--color-panel-2);
 }
 .hand-empty {
-  border: 2px dashed var(--color-line);
-  border-radius: 15px 21px 13px 19px;
-  background: color-mix(in srgb, var(--paper-yellow) 55%, var(--color-panel));
-  box-shadow: 3px 4px 0 var(--hand-shadow-soft);
+  border: 1px dashed var(--color-line);
+  border-radius: 9px 15px 11px 7px;
+  background: var(--paper-yellow);
+  box-shadow: 2px 3px 0 var(--paper-shadow);
 }
 .hand-link {
   color: var(--color-accent);
-  font-weight: 700;
+  font-weight: 600;
   text-decoration: underline;
-  text-decoration-style: dotted;
   text-underline-offset: 3px;
 }
 
@@ -553,11 +477,12 @@ h1, h2, h3, .hand-eyebrow, .hand-btn, .rail-brand, .chat-tab, .panel-header .fon
   align-items: center;
   justify-content: center;
   gap: 4px;
-  border: 2px solid transparent;
-  border-radius: 8px 12px 7px 11px;
+  border: 1px solid transparent;
+  border-radius: 6px 9px 5px 8px;
   padding: 6px 4px;
+  font-family: var(--font-sans);
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--color-ink-dim);
   background: transparent;
   transition: background .15s ease, border-color .15s ease, color .15s ease;
@@ -565,25 +490,27 @@ h1, h2, h3, .hand-eyebrow, .hand-btn, .rail-brand, .chat-tab, .panel-header .fon
 .chat-tab:hover { background: var(--color-panel-2); }
 .chat-tab-active {
   border-color: var(--color-line);
-  background: var(--color-panel-2);
+  background: var(--color-accent-soft);
   color: var(--color-accent);
-  box-shadow: 2px 2px 0 var(--hand-shadow-soft);
 }
-.chat-head { border-bottom: 2px dashed var(--color-line); }
+.chat-head { border-bottom: 1px dashed var(--color-line); }
+.side-panel > .panel-header { background: var(--paper-mint); }
+.chat-panel > .panel-header { background: var(--paper-lilac); }
 
 .thinking-bubble {
   display: flex;
   align-items: center;
   gap: 8px;
   width: 100%;
-  border: 2px solid var(--color-line);
-  border-radius: 13px 19px 11px 17px;
+  border: 1px dashed var(--color-line);
+  border-radius: 8px 13px 6px 11px;
   background: var(--paper-yellow);
   padding: 8px 11px;
+  font-family: var(--font-sans);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--color-ink-dim);
-  box-shadow: 2px 3px 0 var(--hand-shadow-soft);
+  box-shadow: 2px 2px 0 var(--paper-shadow);
 }
 .thinking-pencil {
   display: inline-block;
@@ -610,35 +537,14 @@ h1, h2, h3, .hand-eyebrow, .hand-btn, .rail-brand, .chat-tab, .panel-header .fon
   0%, 60%, 100% { transform: translateY(0); opacity: .45; }
   30% { transform: translateY(-3px); opacity: 1; }
 }
-
-.glass-panel, .glass-panel-strong, .chart-panel, .side-panel, .chat-panel {
-  border-width: 2px;
-  box-shadow: 4px 5px 0 var(--hand-shadow);
-}
-.canvas-dock > aside { border-width: 2px; box-shadow: 4px 5px 0 var(--hand-shadow); }
-.panel-header { border-bottom-width: 2px; }
-.chart-toolbar { border-bottom-width: 2px; }
-.message-bubble { border-width: 2px; }
-.glass-btn-primary, .glass-chip, .glass-input { border-width: 2px; }
-.glass-input { border-radius: 8px 12px 7px 11px; }
-.glass-chip { border-radius: 7px 10px 6px 9px; }
+@keyframes hand-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes hand-pop { from { transform: translateY(6px) scale(.99); opacity: 0; } to { transform: none; opacity: 1; } }
 
 .auth-backdrop { animation: hand-fade .16s ease-out; }
+.auth-card.hand-card { box-shadow: 6px 7px 0 var(--paper-shadow); }
 .auth-card { animation: hand-pop .18s ease-out; }
-@keyframes hand-fade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes hand-pop { from { transform: translateY(6px) scale(.985) rotate(-.4deg); opacity: 0; } to { transform: none; opacity: 1; } }
 
-@media (max-width: 900px) {
-  .app-rail { width: 48px; flex-basis: 48px; padding-inline: 3px; }
-  .rail-btn { width: 34px; height: 34px; }
-  .rail-brand { width: 32px; height: 32px; font-size: 20px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .thinking-pencil, .thinking-dots i, .auth-card, .auth-backdrop { animation: none; }
-}
-
-/* Auth dialog keeps the paper look instead of inherited solid pill buttons. */
+/* The auth card's legacy solid-button rule needs to leave text links alone. */
 .auth-card .hand-link,
 .auth-card .hand-icon {
   background: transparent !important;
@@ -647,9 +553,13 @@ h1, h2, h3, .hand-eyebrow, .hand-btn, .rail-brand, .chat-tab, .panel-header .fon
   border-color: transparent !important;
 }
 .auth-card .hand-icon { color: var(--color-ink-dim) !important; }
-.auth-card .hand-link { padding: 2px 0; font-family: var(--font-hand); font-size: 12px; text-align: left; }
+.auth-card .hand-link { padding: 2px 0; font-family: var(--font-sans); font-size: 12px; text-align: left; }
 .auth-card .hand-btn:not(.hand-btn-primary) {
   background: var(--color-panel-2) !important;
   color: var(--color-ink) !important;
 }
 .auth-card .hand-btn-primary { color: var(--color-panel) !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .thinking-pencil, .thinking-dots i, .auth-card, .auth-backdrop { animation: none; }
+}

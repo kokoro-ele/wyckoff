@@ -276,8 +276,8 @@ export function ChatPanel() {
   const thinking = sendingMode ? t(THINKING_KEYS[sendingMode][thinkingIndex] ?? THINKING_KEYS[sendingMode][0]) : "";
 
   return (
-    <aside className="glass-panel side-panel chat-panel flex h-full w-[360px] shrink-0 flex-col overflow-hidden rounded-[22px]">
-      <div className="chat-head px-3.5 pb-2 pt-3">
+    <aside className="glass-panel side-panel chat-panel flex h-full w-[346px] shrink-0 flex-col overflow-hidden rounded-[22px]">
+      <div className="chat-head panel-header px-3.5 pb-2 pt-3">
         <div className="flex items-center justify-between gap-2">
           <div>
             <div className="hand-eyebrow">STRUCTURE INTELLIGENCE</div>
@@ -385,7 +385,7 @@ function TabIntro({
   const Icon = MODES.find((item) => item.id === mode)?.icon ?? Sparkles;
   return (
     <div className="hand-empty hand-doodle px-4 py-6 text-center">
-      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border-2 border-line bg-panel-2 text-accent">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-line bg-panel-2 text-accent">
         <Icon size={22} />
       </div>
       <p className="mt-3 text-[13px] font-semibold">{t(`chat.intro.${mode}`)}</p>
@@ -434,7 +434,7 @@ function MessageBubble({ message, showTrace }: { message: ChatEntry; showTrace: 
       {message.context && <ContextTag context={message.context} />}
       <div
         className={cn(
-          "message-bubble max-w-[95%] rounded-[16px] border-2 px-3 py-2 text-[13px] leading-relaxed",
+          "message-bubble max-w-[95%] rounded-[16px] border px-3 py-2 text-[13px] leading-relaxed",
           isUser ? "border-accent/30 bg-accent-soft text-ink" : "border-line-soft bg-panel-2 text-ink",
           message.streaming && "streaming-caret",
         )}
@@ -481,7 +481,7 @@ function MessageBubble({ message, showTrace }: { message: ChatEntry; showTrace: 
 function ContextCapsule({ context, onClear }: { context: ChatContext; onClear: () => void }) {
   const { t } = useI18n();
   return (
-    <div className="mb-2 flex items-center gap-2 rounded-[12px] border-2 border-accent/35 bg-accent-soft px-2.5 py-1.5 text-[11px]">
+    <div className="mb-2 flex items-center gap-2 rounded-[12px] border border-accent/35 bg-accent-soft px-2.5 py-1.5 text-[11px]">
       <span className="min-w-0 flex-1 truncate">{describeContext(context, t)}</span>
       <button type="button" aria-label={t("chat.context.clear")} className="text-ink-faint hover:text-ink" onClick={onClear}>
         <X size={12} />

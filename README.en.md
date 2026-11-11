@@ -23,7 +23,7 @@ Open **Analysis** to switch between Fundamentals, Agent and Trade plan. The Agen
 - **Credit-pack top-ups** configured by the operator through `ANALYSIS_CREDIT_PACKS`, with Stripe and WeChat Native payments.
 - **English and Chinese UI**: switch language in Settings; model answers, buttons, errors and chart controls follow it.
 - **Operator-only model credentials**: users cannot override the platform model URL or API key.
-- **Hand-drawn interface**: thick lines, paper texture, handwritten fonts and motion. The top bar is gone; controls live in a vertical left rail.
+- **Looseleaf paper UI**: warm paper, thin borders, handwritten headings and a clean sans body. The top bar stays removed; account, settings and search sit in the watchlist header.
 - **Encrypted workspaces**: each account's SQLite workspace is compressed and encrypted with AES-256-GCM before being stored in PostgreSQL.
 
 The recommendation, scanner, AI-backtest, and user-supplied model-key surfaces are no longer mounted. Historical database rows are preserved for compatibility and are not migrated to new accounts.
