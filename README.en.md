@@ -20,7 +20,7 @@ Open **Analysis** to switch between **Research** and **Agent**. Research merges 
 - **Separate account panel** for login status, credits, invite code and invited users; top-ups and invites live there.
 - **Permanent analysis credits**: one credit per user-initiated analysis or follow-up. Server/model failures refund automatically; history, charts, and manual annotations are free.
 - **Referrals**: a new verified user receives 3 credits; each verified invite awards the inviter another 3.
-- **Credit-pack top-ups** configured by the operator through `ANALYSIS_CREDIT_PACKS`, with Stripe and WeChat Native payments.
+- **Credit-pack top-ups** configured by the operator through `ANALYSIS_CREDIT_PACKS`, paid with Stripe Checkout.
 - **English and Chinese UI**: switch language in Settings; model answers, buttons, errors and chart controls follow it.
 - **Operator-only model credentials**: users cannot override the platform model URL or API key.
 - **Looseleaf paper UI**: warm paper, thin borders, handwritten headings and a clean sans body. The top bar stays removed; account, settings and search sit in the watchlist header.
@@ -97,10 +97,10 @@ Email registration requires SMTP; Google OAuth can be used on its own. If the da
 - Each user-initiated analysis or follow-up consumes 1 credit. Model/server failures refund it.
 - A successful request with the same `Idempotency-Key` never charges twice; a failed, refunded request may retry with the same key.
 - Credit-pack price and units come from the server-side order snapshot; clients cannot submit amounts.
-- Payment confirmation is based on verified Stripe/WeChat callbacks. Replays never add credits twice.
+- Payment confirmation is based on verified Stripe callbacks. Replays never add credits twice.
 - Purchases stay unavailable until a merchant is configured; free credits and referrals still work.
 
-See [payment setup](docs/payment-setup.md) for the full merchant checklist.
+See [Stripe payment setup](docs/payment-setup.md) for the full configuration and testing checklist.
 
 ## Environment variables
 
@@ -119,8 +119,7 @@ See [payment setup](docs/payment-setup.md) for the full merchant checklist.
 | `WORKSPACE_ENCRYPTION_KEY` | 32-byte hex; changing it makes old workspaces unreadable |
 | `ANALYSIS_CREDIT_PACKS` | JSON array; empty disables purchases |
 | `BILLING_PUBLIC_ORIGIN` | HTTPS origin for checkout returns and provider callbacks |
-| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | Stripe one-time Checkout |
-| `WECHAT_*` | WeChat Pay API v3 Native configuration |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | Stripe one-time Checkout; server-side only, no publishable key required |
 | `PG_POOL_MAX` | PostgreSQL pool size, default 10 |
 | `PORT` / `DATA_DIR` | Local port and SQLite directory |
 

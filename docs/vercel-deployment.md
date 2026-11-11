@@ -24,7 +24,7 @@ and the API never starts a persistent HTTP listener.
    - `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM` for email OTP; add `SMTP_USER`/`SMTP_PASS` only for authenticated relays. `SMTP_REQUIRE_TLS` overrides the default STARTTLS policy (587 requires it, 465 uses implicit TLS, local catchers usually use 1025 without TLS).
    - `SEC_USER_AGENT` with an operator contact address for SEC EDGAR fundamentals. The research endpoint uses Tencent quote data for valuation and SEC annual facts for US fundamentals; it does not consume model credits.
    - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` for Google OAuth.
-   - `ANALYSIS_CREDIT_PACKS`, `BILLING_PUBLIC_ORIGIN`, and Stripe/WeChat keys for top-ups.
+   - `ANALYSIS_CREDIT_PACKS`, `BILLING_PUBLIC_ORIGIN`, `STRIPE_SECRET_KEY`, and `STRIPE_WEBHOOK_SECRET` for Stripe Checkout top-ups.
    - `PG_POOL_MAX` (default 10) and `DEBUG_LLM=1` only for temporary diagnostics.
 
 4. Pull the project environment with `vercel env pull .env.local --yes`.

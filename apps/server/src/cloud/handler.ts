@@ -56,8 +56,8 @@ function trustedOrigin(request: Request): string {
 export async function cloudFetch(request: Request): Promise<Response> {
   const path = new URL(request.url).pathname;
   try {
-    if (path === "/api/billing/webhooks/stripe" || path === "/api/billing/webhooks/wechat") {
-      return await handleBillingWebhook(request, path.endsWith("wechat") ? "wechat" : "stripe", getPool());
+    if (path === "/api/billing/webhooks/stripe") {
+      return await handleBillingWebhook(request, getPool());
     }
 
     if (path.startsWith("/api/auth/")) return await handleAuthRequest(request);

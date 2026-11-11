@@ -1,7 +1,7 @@
 export type Plan = "free" | "pro" | "research";
 export type PaidPlan = Exclude<Plan, "free">;
 export type Period = "monthly" | "annual";
-export type Provider = "stripe" | "wechat";
+export type Provider = "stripe";
 
 /**
  * Legacy subscription plans are no longer sold. They remain in the schema so

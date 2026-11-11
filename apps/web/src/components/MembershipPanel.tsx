@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { QRCodeSVG } from "qrcode.react";
-import { Copy, Crown, RefreshCw, X } from "lucide-react";
+import { Copy, CreditCard, Crown, RefreshCw, X } from "lucide-react";
 import { translate, useI18n } from "@/i18n.js";
 
-type Provider = "wechat" | "stripe";
 interface Pack { id: string; name: string; credits: number; amount: number; currency: string }
-interface Catalog { packs: Pack[]; providers: Record<Provider, { available: boolean }> }
+interface Catalog { packs: Pack[]; providers: { stripe: { available: boolean } } }
 interface Status { balance: number; inviteCode: string; inviteCount: number }
-interface Order { status: string; orderId: string; checkoutUrl?: string; codeUrl?: string; expiresAt: string }
+interface Order { status: string; orderId: string; checkoutUrl?: string; expiresAt: string }
 type RequestError = Error & { code?: string };
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -27,7 +25,6 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
   const { t, lang } = useI18n();
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
-  const [provider, setProvider] = useState<Provider>("wechat");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -66,13 +63,6 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
   }, []);
 
   useEffect(() => {
-    if (!catalog) return;
-    if (catalog.providers[provider]?.available) return;
-    const fallback: Provider = provider === "wechat" ? "stripe" : "wechat";
-    if (catalog.providers[fallback]?.available) setProvider(fallback);
-  }, [catalog, provider]);
-
-  useEffect(() => {
     if (!order || terminal(order)) return;
     const timer = window.setInterval(() => {
       void Promise.all([
@@ -94,18 +84,20 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
     setBusy(true);
     setError("");
     if (order && terminal(order)) attempt.current = null;
-    const choice = `${packId}:${provider}`;
+    const choice = `${packId}:stripe`;
     if (attempt.current?.choice !== choice) attempt.current = { choice, key: crypto.randomUUID() };
     try {
       const result = await request<Order>("checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json", "Idempotency-Key": attempt.current.key },
-        body: JSON.stringify({ packId, provider }),
+        body: JSON.stringify({ packId, provider: "stripe" }),
       });
       setOrder(result);
       if (result.checkoutUrl) {
         const url = new URL(result.checkoutUrl);
-        if (url.protocol !== "https:" || url.hostname !== "checkout.stripe.com") throw new Error(t("error.SERVICE_UNAVAILABLE"));
+        if (url.protocol !== "https:" || url.hostname !== "checkout.stripe.com") {
+          throw new Error(t("error.SERVICE_UNAVAILABLE"));
+        }
         window.location.assign(url.href);
       }
     } catch (cause) {
@@ -171,9 +163,7 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
         {status && (
           <section className="mt-4 rounded-2xl border border-line bg-panel-2/70 p-4">
             <div className="flex items-center justify-between">
-              <p className="text-sm">
-                {t("membership.balance", { n: status.balance })}
-              </p>
+              <p className="text-sm">{t("membership.balance", { n: status.balance })}</p>
               <button type="button" aria-label={t("membership.refresh")} className="hand-icon" onClick={() => void reload()}>
                 <RefreshCw size={15} />
               </button>
@@ -198,15 +188,17 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
         {!catalog && !error && <p className="py-8 text-center text-ink-dim">{t("action.loading")}</p>}
         {catalog && (
           <>
-            <div className="mt-5 flex items-center gap-2">
-              <span className="text-sm">{t("membership.provider")}</span>
-              <select aria-label={t("membership.provider")} value={provider} onChange={(event) => setProvider(event.target.value as Provider)} className="hand-input px-2 py-1.5 text-sm">
-                <option value="wechat">{t("membership.wechat")}</option>
-                <option value="stripe">{t("membership.stripe")}</option>
-              </select>
+            <div className="mt-5 flex items-center justify-between gap-2 text-sm">
+              <span>{t("membership.provider")}</span>
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-panel-2 px-2.5 py-1 text-xs">
+                <CreditCard size={13} />
+                {t("membership.stripe")}
+              </span>
             </div>
-            {!catalog.providers[provider]?.available && (
-              <p className="mt-3 rounded-xl border border-line bg-panel-2/60 p-3 text-sm text-ink-dim">{t("membership.unavailable")}</p>
+            {!catalog.providers.stripe.available && (
+              <p className="mt-3 rounded-xl border border-line bg-panel-2/60 p-3 text-sm text-ink-dim">
+                {t("membership.stripeUnavailable")}
+              </p>
             )}
             {catalog.packs.length === 0 && (
               <p className="mt-3 rounded-xl border border-line p-4 text-sm text-ink-dim">{t("membership.noPacks")}</p>
@@ -227,13 +219,7 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
                   </p>
                   <button
                     type="button"
-                    disabled={
-                      busy ||
-                      orderLoading ||
-                      (!!order && !terminal(order)) ||
-                      !catalog.providers[provider]?.available ||
-                      (provider === "wechat" && pack.currency.toUpperCase() !== "CNY")
-                    }
+                    disabled={busy || orderLoading || (!!order && !terminal(order)) || !catalog.providers.stripe.available}
                     onClick={() => void buy(pack.id)}
                     className="hand-btn hand-btn-primary mt-4 w-full px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-40"
                   >
@@ -260,14 +246,6 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
               <button type="button" onClick={resumePayment} className="hand-btn mt-3 px-3 py-2 text-sm">
                 {t("membership.resume")}
               </button>
-            )}
-            {order.codeUrl && order.status === "pending" && (
-              <>
-                <div className="mx-auto my-4 w-fit rounded-xl bg-white p-3">
-                  <QRCodeSVG value={order.codeUrl} size={190} />
-                </div>
-                <p className="text-sm">{t("membership.scan", { time: new Date(order.expiresAt).toLocaleTimeString() })}</p>
-              </>
             )}
             <p className="mt-2 text-xs text-ink-faint">{t("membership.order", { id: order.orderId })}</p>
           </div>

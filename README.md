@@ -20,7 +20,7 @@
 - **独立账户面板**：查看登录状态、剩余次数、邀请码和邀请人数；充值/邀请从账户面板进入。
 - **永久分析次数**：每次主动分析或追问消耗 1 次；服务端失败自动返还；查看历史、图表和手动标注不扣次。
 - **邀请奖励**：新用户验证后获赠 3 次；每邀请一位完成验证的新用户，邀请人再获赠 3 次。
-- **充值次数包**：运营方通过 `ANALYSIS_CREDIT_PACKS` 配置永久次数包；支持 Stripe 与微信 Native 支付。
+- **充值次数包**：运营方通过 `ANALYSIS_CREDIT_PACKS` 配置永久次数包；使用 Stripe Checkout 信用卡支付。
 - **中英双语**：设置中切换简体中文 / English；模型回答、按钮、错误提示和图表控件跟随语言。
 - **安全边界**：模型凭据只存在于服务端环境变量，用户不能覆盖平台模型地址或密钥。
 - **Looseleaf 纸面界面**：暖纸色、细边框、手写标题与干净的无衬线正文；顶部横栏保持移除，账户、设置和搜索在自选面板顶部。
@@ -97,10 +97,10 @@ pnpm dev
 - 每次用户主动提交的分析或追问消耗 1 次；模型/服务端失败会返还。
 - 同一 `Idempotency-Key` 的成功请求不会重复扣次；失败并已返还的请求允许用同一 key 重试。
 - 充值次数包由运营方配置，价格和次数以服务端订单快照为准，客户端不能传金额。
-- 支付成功以验签后的 Stripe/微信回调为准；重复回调不会重复加次数。
+- 支付成功以验签后的 Stripe 回调为准；重复回调不会重复加次数。
 - 未配置商户时购买入口保持不可用，但免费次数与邀请仍然生效。
 
-完整配置和商户开通步骤见 [支付开通说明](docs/payment-setup.md)。
+完整 Stripe 配置、Webhook 和本地测试步骤见 [Stripe 支付配置](docs/payment-setup.md)。
 
 ## 环境变量
 
@@ -119,8 +119,7 @@ pnpm dev
 | `WORKSPACE_ENCRYPTION_KEY` | 32 字节 hex；变更后旧工作区无法解密 |
 | `ANALYSIS_CREDIT_PACKS` | JSON 数组；留空则关闭购买 |
 | `BILLING_PUBLIC_ORIGIN` | 支付回跳与回调使用的 HTTPS origin |
-| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | Stripe 一次性 Checkout |
-| `WECHAT_*` | 微信支付 API v3 Native 配置 |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | Stripe 一次性 Checkout；服务端密钥，不需要 publishable key |
 | `PG_POOL_MAX` | PostgreSQL 连接池大小，默认 10 |
 | `PORT` / `DATA_DIR` | 本地端口与 SQLite 目录 |
 

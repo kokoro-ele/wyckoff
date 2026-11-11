@@ -1,121 +1,135 @@
-# Payment activation and credit operations
+# Stripe payment configuration
 
-The product sells **permanent analysis credit packs**, not monthly plans. Payments are one-time WeChat Pay API v3 **Native** QR payments in CNY or Stripe hosted Checkout payments in USD. There is no automatic debit or renewal.
+The product sells **permanent analysis credit packs**. Payment is a one-time **Stripe hosted Checkout** card payment; there is no automatic renewal or subscription mandate. WeChat Pay has been removed from the product and codebase.
 
-Legacy Pro/Research subscription orders are no longer sold, but already-paid subscriptions remain in `billing_subscriptions` and are consumed before permanent credits. The webhook still fulfills those historical orders.
+## Pricing and packs
 
-Accounts/merchant approval and real payment acceptance have not been completed. Do not advertise working payments until the activation checklist below passes.
-
-## Pricing and entitlements
-
-- Prices and credit counts come **only** from the server-side `ANALYSIS_CREDIT_PACKS` JSON array. There are no built-in paid prices.
-- Amounts are minor units (cents/fen). WeChat packs must use `CNY`; Stripe packs use their configured currency.
-- A pack looks like:
+Prices and credit counts come only from the server-side `ANALYSIS_CREDIT_PACKS` JSON array. There are no built-in paid prices.
 
 ```json
 [
-  { "id": "ten", "name": "10 次", "credits": 10, "amount": 1000, "currency": "CNY" }
+  { "id": "credits_10", "name": "10 credits", "credits": 10, "amount": 500, "currency": "USD" },
+  { "id": "credits_50", "name": "50 credits", "credits": 50, "amount": 2000, "currency": "USD" }
 ]
 ```
 
-- New verified accounts receive 3 permanent credits; verified referrals award 3 to the inviter.
-- Each analysis or follow-up consumes 1 credit. Viewing history, charts, and manual annotations is free.
-- Credits **never expire**. Legacy monthly/annual quota rows expire at the UTC calendar-month boundary, as before.
-- Failed operations release reservations; successful operations consume them.
-- A retried successful request key never executes or charges twice. A refunded failed request may retry with the same key.
+- `amount` is in the currency's **minor unit** (cents for USD).
+- `id` must be unique and URL-safe; `credits` is a positive integer.
+- Use `USD` for standard Stripe card Checkout. If your Stripe account supports another currency, the pack currency must match what Checkout supports.
+- Leave `ANALYSIS_CREDIT_PACKS` empty to keep purchases unavailable.
+- New verified accounts still receive 3 permanent credits; referrals still award 3.
 
-There is no BYOK path and no `BILLING_ENFORCEMENT_ENABLED` bypass: the server always enforces credits, and users cannot supply model keys or prices.
+## Environment variables
 
-## Database and environment
+Set these on the server (Vercel Production/Preview or `.env.local` for local development):
 
-Run `pnpm -F @wyckoff/server db:migrate` against the deployment database using its owner/migration role. It creates:
-
-- Better Auth tables and `workspaces`
-- `billing_orders`, `billing_subscriptions`, `billing_events`, `billing_usage` (legacy orders remain compatible)
-- `credit_accounts`, `credit_ledger`, `credit_usage`, `credit_meta`, `auth_referral_intents`
-
-The server connection must have owner or explicit privileged server access; public, `anon`, and `authenticated` roles cannot access these RLS-protected tables. Never place provider secrets in `VITE_*` variables or browser settings.
-
-All provider availability checks require `BILLING_PUBLIC_ORIGIN=https://your-domain.example` (HTTPS origin, no trailing slash/path), plus the provider keys below.
-
-## Authenticated endpoints
-
-All endpoints require a verified session and are mounted by the cloud handler:
-
-- `GET /api/credits/catalog` — packs and provider availability
-- `GET /api/credits/status` — balance, invite code, invite count
-- `GET /api/credits/orders/current` — the latest pending checkout
-- `GET /api/credits/orders/:id` — owner-only order polling
-- `POST /api/credits/checkout` — `{ packId, provider }` with `Idempotency-Key`
-
-Order creation is server-priced. The client cannot submit an amount or credit count. There is at most one creating/pending checkout per account; abandoned checkouts expire after 35 minutes. A provider timeout may leave a real remote order, which is retained locally so a later verified callback can still credit it.
-
-## Stripe
-
-Server-only variables:
-
-- `STRIPE_SECRET_KEY`: secret/restricted API key with Checkout Session creation permissions; start with test mode.
-- `STRIPE_WEBHOOK_SECRET`: signing secret for this deployment's endpoint.
-
-Register `POST https://your-domain.example/api/billing/webhooks/stripe` as an account-level **snapshot** webhook for `checkout.session.completed` and `checkout.session.async_payment_succeeded`. Connect-account events are rejected. Use API version `2025-02-24.acacia`, matching the adapter's pinned version.
-
-Test and live webhook secrets differ. Event `livemode` must match the API key mode. Hosted Checkout uses card-only payments, fixed server-side prices, no coupons/automatic tax. Decide taxes and required invoicing before live activation; this implementation does not calculate tax.
-
-## WeChat Pay
-
-Server-only variables:
-
-- `WECHAT_MCH_ID`: approved direct merchant number with Native Pay enabled.
-- `WECHAT_APP_ID`: merchant-associated approved app ID.
-- `WECHAT_MERCHANT_SERIAL`: merchant API certificate serial used to identify the request-signing key.
-- `WECHAT_PRIVATE_KEY`: merchant RSA private PEM, real newlines or literal `\n` supported.
-- `WECHAT_API_V3_KEY`: exactly 32 UTF-8 bytes, used for AES-256-GCM resource decryption.
-- `WECHAT_PLATFORM_KEY_ID`: pinned WeChat Pay public key ID (`PUB_KEY_ID_…`) or platform certificate serial.
-- `WECHAT_PLATFORM_PUBLIC_KEY`: matching WeChat Pay RSA public PEM/platform certificate PEM, real newlines or literal `\n` supported.
-
-Register/allow `POST https://your-domain.example/api/billing/webhooks/wechat`; this exact URL is sent in Native orders. Request signatures are RSA-SHA256; both Native API responses and callbacks require a matching pinned WeChat key ID and valid signature. Callback resources are AES-GCM-authenticated and decrypted, then merchant ID, app ID, Native trade type, success status, order, amount, and currency are checked.
-
-Public key/certificate rotation is **manual**: deploy the new matching ID/key pair in a maintenance window; no automatic certificate download is implemented. Host time synchronization matters: callback signatures allow five minutes of timestamp skew.
-
-## Activation checklist
-
-1. Finish merchant onboarding, business verification, payment permissions, approved domains, settlement account, customer support/refund terms, and tax/invoice policy.
-2. Set `BILLING_PUBLIC_ORIGIN`, provider keys, and `ANALYSIS_CREDIT_PACKS` in the server deployment secret store; run schema migrations.
-3. Verify `GET /api/credits/catalog` reports the intended packs and provider availability. Verify unauthenticated requests fail and another account cannot read an order.
-4. Stripe: complete test Checkout and replay its signed webhook. Verify exactly one grant; wrong amount, mode, signature, currency, or order must not grant. Then configure live keys and the live endpoint secret.
-5. WeChat: validate using an approved merchant and a controlled real payment; Native integration has no simulated success mode. Scan the generated QR, confirm the provider transaction and exactly one server grant. Retry the notification and confirm no extra credits.
-6. Check pending recovery after refresh, 35-minute expiry, successful retry with the same key, failed provider requests, and success/failure credit handling.
-7. Only after acceptance, advertise purchases publicly.
-
-## Operations and limits
-
-- One creating/pending checkout per account. Checkout requires `Idempotency-Key`; repeated keys cannot change pack/provider. Failed creation releases the slot; a timeout can still leave a real provider order, retained locally for a later verified callback.
-- Checkout creation is rate-limited to 10 attempts per 10 minutes per account. Referral-intent creation is limited to 10 requests per minute per IP.
-- All paid orders are credited once through unique provider-event and payment-transaction constraints.
-- A server-side failed checkout poisons its idempotency key; start a new checkout with a new key. The UI does this automatically when it receives `CHECKOUT_FAILED`.
-- Refunds, chargebacks, reconciliation of missing callbacks, receipts/invoices, customer support tooling, and automatic public-key rotation are **not automated**. Operators must review provider dashboards and perform audited manual corrections/refunds.
-- A process crash may leave a reservation until its 24-hour expiry. Usage and the encrypted workspace snapshot are separate rows; a failure saving an already-completed result may require an audited credit correction. This is not an exactly-once distributed job runner.
-- Free-credit abuse (many verified throwaway accounts) is an operator risk. Add email-domain, IP, or invite-rate controls before high-volume public launch.
-
-## Integration tests
-
-PostgreSQL tests require a dedicated disposable database:
-
-```bash
-TEST_DATABASE_URL=postgres://… pnpm -F @wyckoff/server test
+```env
+BILLING_PUBLIC_ORIGIN=https://your-domain.example
+ANALYSIS_CREDIT_PACKS=[{"id":"credits_10","name":"10 credits","credits":10,"amount":500,"currency":"USD"}]
+STRIPE_SECRET_KEY=sk_test_or_live_secret
+STRIPE_WEBHOOK_SECRET=whsec_test_or_live_secret
 ```
 
-The suites truncate their fixture tables. Never point them at production. Regular test runs skip these suites when the variable is absent; CI runs them with a disposable service.
+- `BILLING_PUBLIC_ORIGIN` must be an HTTPS origin with no path or trailing slash in production. Local development may use `http://localhost:5273`; the availability check allows this only when `NODE_ENV !== "production"`.
+- `STRIPE_SECRET_KEY`: use `sk_test_…` while testing and `sk_live_…` in production. A restricted key (`rk_…`) is fine if it can create Checkout Sessions.
+- `STRIPE_WEBHOOK_SECRET`: the signing secret for the endpoint below. Test and live mode have different secrets.
+- No Stripe publishable key is needed: Checkout is hosted by Stripe and the server creates the session.
 
-Official references: [Stripe Checkout Sessions](https://docs.stripe.com/api/checkout/sessions/create), [Stripe signed webhook handling](https://docs.stripe.com/webhooks), [WeChat official API v3 SDK, signing and callback decryption](https://github.com/wechatpay-apiv3/wechatpay-go), [WeChat Native merchant API](https://pay.weixin.qq.com/doc/v3/merchant/4012791900).
+Never put any Stripe secret in a `VITE_*` variable or in the browser.
 
-## 中文开通速查
+## Stripe Dashboard setup
 
-当前产品卖的是**永久次数包**，不是月/年套餐；价格和次数只由服务端 `ANALYSIS_CREDIT_PACKS` 决定，客户端不能传金额。次数不会清零，分析/追问每次扣 1 次，失败返还，成功请求的同一 Idempotency-Key 不会重复扣次。
+1. Create/activate a Stripe account. Use **Test mode** first.
+2. Developers → API keys → copy the secret key into `STRIPE_SECRET_KEY`.
+3. Developers → Webhooks → **Add endpoint**:
+   - URL: `https://your-domain.example/api/billing/webhooks/stripe`
+   - Events: `checkout.session.completed` and `checkout.session.async_payment_succeeded`
+   - API version: `2025-02-24.acacia` (the server pins this version)
+4. Copy the endpoint's **Signing secret** into `STRIPE_WEBHOOK_SECRET`.
+5. Run the schema migration once: `pnpm -F @wyckoff/server db:migrate`.
+6. Deploy/restart, then open Account → Top up and confirm the packs appear.
 
-1. 国内申请微信支付商户并开通 Native 扫码，准备商户号、AppID、API v3 密钥、商户私钥和微信支付公钥。
-2. 海外信用卡使用 Stripe；先用测试模式验证 Checkout 与 Webhook，再切换正式密钥。
-3. 将 `BILLING_PUBLIC_ORIGIN`、`ANALYSIS_CREDIT_PACKS`、Stripe/微信密钥放入服务端 Secret，绝不放入前端变量。
-4. 回调地址分别为 `/api/billing/webhooks/wechat` 与 `/api/billing/webhooks/stripe`。
-5. 验收成功付款、重复回调、错误金额、跨账号查订单、失败任务退次数、失败后换 key 重试。
-6. 退款、争议、发票、漏回调对账目前需要人工处理；开卖前确定客服与操作流程。
+The checkout session uses:
+- `mode=payment` (one-time, not subscription)
+- server-side `price_data` from the configured pack (the browser cannot submit an amount)
+- `client_reference_id` and `metadata.order_id` set to the internal order ID
+- `success_url` / `cancel_url` derived from `BILLING_PUBLIC_ORIGIN`
+- card-only payment methods
+
+## Local testing
+
+The server can create Checkout Sessions with a local success URL, but Stripe cannot reach `localhost` for webhooks. Forward signed webhooks with the Stripe CLI:
+
+```bash
+brew install stripe/stripe-cli/stripe   # or see Stripe CLI docs
+stripe login
+stripe listen --forward-to localhost:5273/api/billing/webhooks/stripe
+```
+
+The CLI prints a `whsec_…` value. Put it in `.env.local`:
+
+```env
+BILLING_PUBLIC_ORIGIN=http://localhost:5273
+ANALYSIS_CREDIT_PACKS=[{"id":"credits_10","name":"10 credits","credits":10,"amount":500,"currency":"USD"}]
+STRIPE_SECRET_KEY=sk_test_…
+STRIPE_WEBHOOK_SECRET=whsec_…   # from stripe listen
+```
+
+Restart the dev server with `PORT=8788 pnpm dev`, then:
+
+1. Open `http://localhost:5273`.
+2. Sign in and go to Account → Top up.
+3. Buy a pack.
+4. Use Stripe's test card `4242 4242 4242 4242`, any future expiry date, any CVC, any postal code.
+5. After redirect, the order should show `paid`, and the balance should increase exactly once.
+6. Replay the event with `stripe events resend <event_id>` (or the CLI's replay) and confirm the balance does not change.
+
+If you do not use the Stripe CLI, expose the app through an HTTPS tunnel (ngrok, Cloudflare Tunnel, etc.) and register the tunnel URL as the webhook endpoint and `BILLING_PUBLIC_ORIGIN`.
+
+## API flow
+
+Authenticated endpoints:
+
+- `GET /api/credits/catalog` — packs and `providers.stripe.available`
+- `GET /api/credits/status` — balance, invite code, invite count
+- `GET /api/credits/orders/current` — pending order recovery
+- `GET /api/credits/orders/:id` — owner-only order polling
+- `POST /api/credits/checkout` — `{ packId, provider: "stripe" }` with `Idempotency-Key`
+
+Public webhook:
+
+- `POST /api/billing/webhooks/stripe`
+
+## Security and idempotency
+
+- Checkout amounts and credits come from the server snapshot, never the client.
+- The webhook verifies the raw Stripe signature, timestamp skew, livemode, Checkout `mode=payment`, payment intent, metadata/order match, currency and amount.
+- `billing_events` has unique provider/event and transaction constraints; a replay or duplicate delivery grants credits at most once.
+- There is at most one creating/pending checkout per account. Checkout requires an `Idempotency-Key`; failed creation can be retried with a new key.
+- Checkout creation is rate-limited to 10 attempts per 10 minutes per account.
+- Credits are persisted in the same Postgres transaction that finishes the analysis; wallet top-ups add credits through the same ledger.
+
+## Production checklist
+
+1. Complete Stripe business verification, bank account, statement descriptor, support/refund policy, and tax/invoice decisions.
+2. Switch to live keys and a live webhook endpoint/signing secret.
+3. Set `BILLING_PUBLIC_ORIGIN` to the production HTTPS origin.
+4. Run `db:migrate` and verify `GET /api/credits/catalog` reports Stripe available.
+5. Complete a real low-value payment, confirm the webhook grant, replay the event, and check the Stripe dashboard.
+6. Keep refunds, chargebacks, receipts/invoices, and missed-webhook reconciliation as manual operator procedures. They are not automated in this codebase.
+7. Monitor webhook failures and paid orders without entitlements.
+
+## Historical data
+
+Existing WeChat orders and events may remain in the database for audit and manual reconciliation. They are not processed by the server anymore, because the WeChat adapter and webhook route have been removed. Do not delete historical rows blindly.
+
+Official references: [Stripe Checkout Sessions](https://docs.stripe.com/api/checkout/sessions/create), [Stripe webhooks](https://docs.stripe.com/webhooks), [Stripe CLI](https://docs.stripe.com/stripe-cli).
+
+## 中文速查
+
+1. 在 Stripe 后台创建账户，先切到测试模式。
+2. 把 `STRIPE_SECRET_KEY`、`STRIPE_WEBHOOK_SECRET` 和 `BILLING_PUBLIC_ORIGIN` 放进服务端环境变量。
+3. 在 `ANALYSIS_CREDIT_PACKS` 配置次数包；金额单位是分，例如 $5.00 写 `500`。
+4. Webhook 地址：`https://你的域名/api/billing/webhooks/stripe`；订阅事件 `checkout.session.completed` 和 `checkout.session.async_payment_succeeded`。
+5. 本地测试用 Stripe CLI 转发回调，测试卡 `4242 4242 4242 4242`。
+6. 微信支付已从代码、UI 和环境变量中移除；历史微信订单保留在数据库里，但不再自动处理。

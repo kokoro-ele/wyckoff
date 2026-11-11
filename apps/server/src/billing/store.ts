@@ -34,7 +34,6 @@ interface StoredOrder extends CheckoutOrder {
   status: string;
   provider_id: string | null;
   checkout_url: string | null;
-  code_url: string | null;
 }
 
 function publicOrder(order: StoredOrder) {
@@ -43,7 +42,6 @@ function publicOrder(order: StoredOrder) {
     provider: order.provider,
     status: order.status,
     checkoutUrl: order.checkout_url ?? undefined,
-    codeUrl: order.code_url ?? undefined,
     expiresAt: order.expires_at.toISOString(),
   };
 }
@@ -164,14 +162,10 @@ export async function checkoutCreditPack(
     throw new BillingError("RATE_LIMITED", "操作过于频繁，请稍后再试", 429);
   }
   const pack = creditPacks().find((p) => p.id === input.packId);
-  if (
-    !pack ||
-    !["stripe", "wechat"].includes(input.provider) ||
-    (input.provider === "wechat" && pack.currency !== "CNY")
-  ) {
+  if (!pack || input.provider !== "stripe") {
     throw new BillingError("INVALID_CHECKOUT", "充值次数包或支付方式不可用");
   }
-  const provider = input.provider as Provider;
+  const provider: Provider = "stripe";
   if (!/^[a-zA-Z0-9_-]{8,128}$/.test(key)) {
     throw new BillingError("INVALID_IDEMPOTENCY_KEY", "Provide an Idempotency-Key");
   }
@@ -253,14 +247,9 @@ export async function checkoutCreditPack(
   try {
     const remote = await createProviderCheckout(result.order);
     const updated = await pool.query<StoredOrder>(
-      `UPDATE billing_orders SET provider_id=$2,checkout_url=$3,code_url=$4,
+      `UPDATE billing_orders SET provider_id=$2,checkout_url=$3,
        status=CASE WHEN status='paid' THEN 'paid' ELSE 'pending' END WHERE id=$1 RETURNING *`,
-      [
-        result.order.id,
-        remote.providerId,
-        "checkoutUrl" in remote ? remote.checkoutUrl : null,
-        "codeUrl" in remote ? remote.codeUrl : null,
-      ],
+      [result.order.id, remote.providerId, remote.checkoutUrl],
     );
     return publicOrder(updated.rows[0]);
   } catch (error) {

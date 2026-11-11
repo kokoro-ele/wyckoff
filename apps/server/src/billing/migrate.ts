@@ -2,6 +2,7 @@ import type { Pool } from 'pg';
 /** Run with the owner/migration role; API users receive no table policies or grants. */
 export async function migrateBilling(pool:Pool) {
   await pool.query(`
+-- Historical WeChat rows remain readable; new checkouts are Stripe-only.
 CREATE TABLE IF NOT EXISTS billing_orders (
  id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
  idempotency_key TEXT NOT NULL, provider TEXT NOT NULL CHECK(provider IN ('stripe','wechat')),
