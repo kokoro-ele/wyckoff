@@ -20,6 +20,8 @@ export default defineConfig({
         // Keep the browser's Host so Origin/Host checks and Better Auth's
         // canonical BETTER_AUTH_URL agree during local development.
         changeOrigin: false,
+        // Let Better Auth resolve a per-client rate-limit bucket in local dev.
+        xfwd: true,
       },
     },
   },
