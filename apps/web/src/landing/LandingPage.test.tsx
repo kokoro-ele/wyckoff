@@ -4,14 +4,21 @@ vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {} });
 import { I18nProvider } from "../i18n.js";
 import { LandingPage } from "./LandingPage.js";
 
-it("renders the hand-drawn product site with a workbench entry", () => {
+it("renders a compact intro, one non-AAPL chart and the glossary", () => {
   const html = renderToStaticMarkup(
     <I18nProvider>
       <LandingPage />
     </I18nProvider>,
   );
   expect(html).toContain("看见价格背后的结构");
-  expect(html).toContain("Wyckoff 是价格和成交量讲的故事");
+  expect(html).toContain("现在开始");
+  expect(html).toContain("600519.SH");
+  expect(html).toContain("Spring");
+  expect(html).toContain("SOS");
+  expect(html).toContain("LPS");
+  expect(html).toContain("UT");
   expect(html).toContain('href="/app"');
-  expect(html).toContain("AAPL.US");
+  expect(html).not.toContain("AAPL.US");
+  expect(html).not.toContain("打开工作台");
+  expect(html).not.toContain("一张书桌");
 });
