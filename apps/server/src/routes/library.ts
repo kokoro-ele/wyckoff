@@ -6,7 +6,8 @@ import * as watchlist from "../services/watchlist.js";
 /** 标的检索与收藏。 */
 export const libraryRoutes = new Hono();
 
-libraryRoutes.get("/search", (c) => {
+libraryRoutes.get("/search", async (c) => {
+  if (isSyncNeeded()) await syncInstruments();
   const q = c.req.query("q") ?? "";
   const limit = Number(c.req.query("limit") ?? 30);
   return c.json({

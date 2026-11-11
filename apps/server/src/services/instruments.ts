@@ -1,3 +1,4 @@
+import { workspaceContext } from "../cloud/context.js";
 import type { Instrument, InstrumentDetail } from "@wyckoff/shared";
 import { pinyin } from "pinyin-pro";
 import { db, getState, setState } from "../db/index.js";
@@ -24,7 +25,16 @@ interface IndexedInstrument extends Instrument {
  * 五个交易所加起来约 2.3 万条、几 MB 而已，全量放进内存换来的是完全可控的
  * 排序策略和亚毫秒响应；用 SQL 的 LIKE 反而既慢又难做加权。
  */
-let index: IndexedInstrument[] = [];
+let localIndex: IndexedInstrument[] = [];
+function getIndex(): IndexedInstrument[] {
+  const context = workspaceContext.getStore();
+  if (!context) return localIndex;
+  const cached = context.state.get("instrument-index") as IndexedInstrument[] | undefined;
+  if (cached) return cached;
+  // Only search/instrument routes pay for loading the full directory.
+  loadIndex();
+  return (context.state.get("instrument-index") as IndexedInstrument[] | undefined) ?? [];
+}
 
 const upsertInstrument = db.prepare(`
   INSERT INTO instruments (symbol, exchange, code, name, region, type, pinyin_full, pinyin_abbr, ext)
@@ -71,7 +81,7 @@ export function loadIndex(): void {
     )
     .all();
 
-  index = rows.map((r) => ({
+  const index = rows.map((r) => ({
     symbol: r.symbol,
     exchange: r.exchange,
     code: r.code,
@@ -84,14 +94,17 @@ export function loadIndex(): void {
     lowerCode: r.code.toLowerCase(),
     lowerName: (r.name ?? "").toLowerCase(),
   }));
+  const context = workspaceContext.getStore();
+  if (context) context.state.set("instrument-index", index);
+  else localIndex = index;
 }
 
 export function indexSize(): number {
-  return index.length;
+  return getIndex().length;
 }
 
 export function isSyncNeeded(): boolean {
-  if (index.length === 0) return true;
+  if (getIndex().length === 0) return true;
   const syncedAt = Number(getState(SYNC_STATE_KEY) ?? 0);
   return Date.now() - syncedAt > SYNC_TTL_MS;
 }
@@ -100,7 +113,7 @@ let syncing: Promise<void> | null = null;
 
 /** 拉取五个交易所的全量标的。并发上限设为 2，避免免费服务被打限流。 */
 export function syncInstruments(): Promise<void> {
-  if (syncing) return syncing;
+  if (!workspaceContext.getStore() && syncing) return syncing;
 
   syncing = (async () => {
     console.log("[instruments] 开始同步标的清单…");
@@ -111,6 +124,7 @@ export function syncInstruments(): Promise<void> {
       try {
         const rows = await fetchExchangeInstruments(exchange);
         storeInstruments(rows);
+        if (exchange === "US" && rows.length) setState("us_instruments_synced_at", String(Date.now()));
         total += rows.length;
         console.log(`[instruments] ${exchange} 收录 ${rows.length} 条`);
       } catch (error) {
@@ -142,7 +156,7 @@ export function searchInstruments(query: string, limit = 30): (Instrument & { sc
 
   const results: (Instrument & { score: number })[] = [];
 
-  for (const item of index) {
+  for (const item of getIndex()) {
     let score = 0;
 
     if (item.lowerSymbol === q) score = 1000;
@@ -176,27 +190,6 @@ export function searchInstruments(query: string, limit = 30): (Instrument & { sc
   }
 
   return results.sort((a, b) => b.score - a.score).slice(0, limit);
-}
-
-/** 把舆情里的代码/名称解析成本地美股个股。ETF、指数、非美股一律丢掉。 */
-export function resolveUsStock(raw: string): Instrument | null {
-  const cleaned = raw
-    .replace(/^\$/, "")
-    .replace(/\.US$/i, "")
-    .replace(/[^A-Za-z0-9.\- ]/g, " ")
-    .trim();
-  if (!cleaned) return null;
-
-  const needle = cleaned.toUpperCase();
-  const hits = searchInstruments(cleaned, 40).filter(
-    (item) => item.region === "US" && item.exchange === "US" && item.type === "stock",
-  );
-  if (hits.length === 0) return null;
-
-  const exact = hits.find(
-    (item) => item.code.toUpperCase() === needle || item.symbol.toUpperCase() === `${needle}.US`,
-  );
-  return exact ?? hits[0];
 }
 
 /** 取单个标的的详情，本地没有就回源一次。 */

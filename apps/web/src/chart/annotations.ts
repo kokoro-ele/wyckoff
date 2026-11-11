@@ -141,11 +141,13 @@ export function overlayToAnnotation(overlay: Overlay): WyckoffAnnotation | null 
   }
 }
 
-/** 把一批标注同步到图上：先按 id 清掉旧的，再重新创建。 */
+const renderedIds = new WeakMap<Chart, Set<string>>();
+
+/** 替换上一批语义标注，包括此次列表中已经消失的标注。 */
 export function renderAnnotations(chart: Chart, annotations: StoredAnnotation[]): void {
-  for (const annotation of annotations) {
-    chart.removeOverlay({ id: annotation.id });
-  }
+  const ids = new Set([...(renderedIds.get(chart) ?? []), ...annotations.map(a => a.id)]);
+  for (const id of ids) chart.removeOverlay({ id });
+  renderedIds.set(chart, new Set(annotations.map(a => a.id)));
   const creates = annotations.map(annotationToOverlay);
   if (creates.length > 0) chart.createOverlay(creates);
 }

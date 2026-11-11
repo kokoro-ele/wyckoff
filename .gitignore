@@ -14,3 +14,9 @@ data/
 .vite/
 coverage/
 *.tsbuildinfo
+.vercel
+
+# Local design/review artifacts and scratch output
+.lavish/
+output/
+tmp/

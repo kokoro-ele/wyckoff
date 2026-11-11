@@ -8,14 +8,11 @@ import {
   Pencil,
   GripVertical,
   FolderPlus,
-  Sparkles,
-  Loader2,
-  History,
 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import type { WatchItem } from "@wyckoff/shared";
 import { useWorkbench } from "@/store.js";
-import { cn, formatDuration } from "@/lib/utils.js";
+import { cn } from "@/lib/utils.js";
 
 export function WatchlistSidebar() {
   const symbol = useWorkbench((s) => s.symbol);
@@ -31,22 +28,7 @@ export function WatchlistSidebar() {
   const renameWatchGroup = useWorkbench((s) => s.renameWatchGroup);
   const removeWatchGroup = useWorkbench((s) => s.removeWatchGroup);
   const setSearchOpen = useWorkbench((s) => s.setSearchOpen);
-  const recommendBook = useWorkbench((s) => s.recommendBook);
-  const recommendHistory = useWorkbench((s) => s.recommendHistory);
-  const recommendRun = useWorkbench((s) => s.recommendRun);
-  const recommendRunning = useWorkbench((s) => s.recommendRunning);
-  const runRecommend = useWorkbench((s) => s.runRecommend);
-  const setRecommendOpen = useWorkbench((s) => s.setRecommendOpen);
-
-  const bookBySymbol = useMemo(() => {
-    const map = new Map(recommendBook.map((item) => [item.symbol, item]));
-    return map;
-  }, [recommendBook]);
-
-  const bucketCounts = useMemo(() => {
-    const watch = recommendBook.filter((b) => b.bucket === "watch").length;
-    return { watch, enter: recommendBook.length - watch };
-  }, [recommendBook]);
+  const displayGroups = useMemo(() => groups.filter(group => !group.managed), [groups]);
 
   const [adding, setAdding] = useState(false);
   const [groupName, setGroupName] = useState("");
@@ -66,7 +48,7 @@ export function WatchlistSidebar() {
     return map;
   }, [groups, items]);
 
-  const total = items.length;
+  const total = items.filter(item => displayGroups.some(group => group.id === item.groupId)).length;
 
   return (
     <aside className="glass-panel side-panel flex h-full w-[226px] shrink-0 flex-col overflow-hidden rounded-[20px]">
@@ -111,8 +93,8 @@ export function WatchlistSidebar() {
         </form>
       )}
 
-      <div className="flex-1 overflow-y-auto px-1.5 py-2">
-        {groups.length === 0 && (
+      <div className="min-h-0 flex-1 overflow-y-auto px-1.5 py-2">
+        {displayGroups.length === 0 && (
           <div className="px-3 py-10 text-center">
             <p className="text-xs text-ink-dim">还没有分组</p>
             <button
@@ -126,7 +108,7 @@ export function WatchlistSidebar() {
           </div>
         )}
 
-        {groups.map((group) => {
+        {displayGroups.map((group) => {
           const groupItems = itemsByGroup.get(group.id) ?? [];
           const isCollapsed = collapsed[group.id] === true;
           const isTarget = !group.managed && activeWatchGroupId === group.id;
@@ -173,7 +155,7 @@ export function WatchlistSidebar() {
                 ) : (
                   <button
                     type="button"
-                    title={group.managed ? "系统托管分组" : "点击设为默认收藏分组"}
+                    title="点击设为默认收藏分组"
                     className="min-w-0 flex-1 truncate text-left text-[11px] font-medium text-ink-dim hover:text-ink"
                     onClick={() => {
                       if (!group.managed) setActiveWatchGroup(group.id);
@@ -182,7 +164,7 @@ export function WatchlistSidebar() {
                     {group.name}
                     <span className="ml-1.5 text-ink-faint">{groupItems.length}</span>
                     {isTarget && <span className="ml-1.5 text-[10px] text-accent">默认</span>}
-                    {group.managed && <span className="ml-1.5 text-[10px] text-accent">系统</span>}
+
                   </button>
                 )}
 
@@ -208,7 +190,7 @@ export function WatchlistSidebar() {
                 <ul className="mt-0.5 space-y-0.5 px-0.5">
                   {groupItems.length === 0 ? (
                     <li className="px-3 py-2 text-[11px] text-ink-faint">
-                      {group.managed ? "等待下一轮荐股更新" : "空分组 · 搜索后点星标加入"}
+                      空分组 · 搜索后点星标加入
                     </li>
                   ) : (
                     groupItems.map((item, index) => {
@@ -256,15 +238,7 @@ export function WatchlistSidebar() {
                               </div>
                               <div className="truncate text-[10px] text-ink-faint">
                                 {item.name ?? item.symbol}
-                                {bookBySymbol.get(item.symbol) && (
-                                  <span className="ml-1 text-accent">
-                                    期望 {signedPct(bookBySymbol.get(item.symbol)!.expectedReturnPct)}
-                                    {bookBySymbol.get(item.symbol)!.actualReturnPct !== null &&
-                                      ` · 现 ${signedPct(bookBySymbol.get(item.symbol)!.actualReturnPct!)}`}
-                                    {bookBySymbol.get(item.symbol)!.featureMs != null &&
-                                      ` · 快照 ${formatDuration(bookBySymbol.get(item.symbol)!.featureMs!)}`}
-                                  </span>
-                                )}
+
                               </div>
                             </button>
 
@@ -307,52 +281,6 @@ export function WatchlistSidebar() {
         })}
       </div>
 
-      <div className="border-t border-line-soft px-3 py-2.5">
-        <button
-          type="button"
-          disabled={recommendRunning}
-          onClick={() => void runRecommend()}
-          className="mb-1.5 flex w-full items-center justify-center gap-1.5 rounded-[10px] border border-line px-2 py-1.5 text-[11px] text-ink-dim transition-colors hover:border-accent/40 hover:bg-accent-soft/40 hover:text-ink disabled:opacity-50"
-        >
-          {recommendRunning ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
-          {recommendRunning ? "扫描美股舆情中…" : "立即扫描美股荐股"}
-        </button>
-        <button
-          type="button"
-          onClick={() => setRecommendOpen(true)}
-          className="mb-1.5 flex w-full items-center justify-center gap-1.5 rounded-[10px] border border-line px-2 py-1.5 text-[11px] text-ink-dim transition-colors hover:border-accent/40 hover:bg-accent-soft/40 hover:text-ink"
-        >
-          <History size={12} />
-          查看记录 · 观察 {bucketCounts.watch} / 下手 {bucketCounts.enter}
-        </button>
-        {recommendRun && (
-          <p className="mb-1.5 text-[10px] leading-relaxed text-ink-faint">{recommendRun.summary}</p>
-        )}
-        {recommendRun && recommendRun.featureCount > 0 && (
-          <p className="mb-1.5 font-mono text-[10px] text-ink-faint">
-            特征快照 {recommendRun.featureCount} 次 {formatDuration(recommendRun.featureMs)}
-            {recommendRun.featureCount > 0
-              ? ` · 均 ${formatDuration(Math.round(recommendRun.featureMs / recommendRun.featureCount))}`
-              : ""}
-            {" · "}LLM {formatDuration(recommendRun.llmMs)}
-            {" · "}整轮 {formatDuration(recommendRun.durationMs)}
-          </p>
-        )}
-        {recommendHistory[0] && (
-          <p className="mb-2 text-[10px] text-ink-faint">
-            最近出局 {recommendHistory[0].symbol} 期望 {signedPct(recommendHistory[0].expectedReturnPct)} / 实际{" "}
-            {signedPct(recommendHistory[0].actualReturnPct)}
-          </p>
-        )}
-        <button
-          type="button"
-          onClick={() => setSearchOpen(true)}
-          className="flex w-full items-center justify-center gap-1.5 rounded-[10px] border border-dashed border-line px-2 py-2 text-[11px] text-ink-dim transition-colors hover:border-accent/40 hover:bg-accent-soft/40 hover:text-ink"
-        >
-          <Search size={12} />
-          搜索并收藏 · ⌘K
-        </button>
-      </div>
     </aside>
   );
 }
@@ -376,9 +304,4 @@ function IconBtn({
       {children}
     </button>
   );
-}
-
-function signedPct(value: number): string {
-  const abs = Math.abs(value).toFixed(1);
-  return `${value >= 0 ? "+" : "-"}${abs}%`;
 }

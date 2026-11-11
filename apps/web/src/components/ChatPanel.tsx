@@ -4,12 +4,12 @@ import {
   MessageSquarePlus,
   Send,
   Sparkles,
+  Square,
   X,
   BookOpen,
-  KeyRound,
 } from "lucide-react";
 import type { AgentEvent, ChatContext } from "@wyckoff/shared";
-import { streamChat } from "@/lib/api.js";
+import { ApiError, streamChat } from "@/lib/api.js";
 import { cn, formatDate, formatDuration, formatPrice } from "@/lib/utils.js";
 import { useWorkbench, type ChatEntry, type ToolTraceItem } from "@/store.js";
 import { MarkdownContent } from "./MarkdownContent.js";
@@ -34,12 +34,13 @@ export function ChatPanel() {
   const pendingContext = useWorkbench((s) => s.pendingContext);
   const setPendingContext = useWorkbench((s) => s.setPendingContext);
   const resetSession = useWorkbench((s) => s.resetSession);
-  const setSettingsOpen = useWorkbench((s) => s.setSettingsOpen);
 
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
@@ -50,8 +51,7 @@ export function ChatPanel() {
     if (!content || sending) return;
     const state = useWorkbench.getState();
     if (!state.llmReady) {
-      state.setSettingsOpen(true);
-      state.notify("请先在连接设置中配置 API Key。", "error");
+      state.notify("分析服务暂不可用，请稍后重试。", "error");
       return;
     }
 
@@ -81,7 +81,21 @@ export function ChatPanel() {
     const controller = new AbortController();
     abortRef.current = controller;
 
+    const current = () => {
+      const wb = useWorkbench.getState();
+      return !controller.signal.aborted && wb.chartRevision === state.chartRevision && wb.sessionId === state.sessionId;
+    };
+    let abortedByContext = false;
+    const unsubscribe = useWorkbench.subscribe(() => {
+      if (!current()) {
+        abortedByContext = true;
+        controller.abort();
+        setSending(false);
+      }
+    });
+
     const onEvent = (event: AgentEvent) => {
+      if (!current()) return;
       const wb = useWorkbench.getState();
       switch (event.type) {
         case "text":
@@ -161,8 +175,11 @@ export function ChatPanel() {
         controller.signal,
       );
     } catch (err) {
-      if ((err as Error).name === "AbortError") return;
+      if ((err as Error).name === "AbortError" || !current()) return;
       const message = err instanceof Error ? err.message : "对话失败";
+      if (err instanceof ApiError && err.code === "QUOTA_EXCEEDED") {
+        window.dispatchEvent(new Event("credits:exhausted"));
+      }
       useWorkbench.getState().updateLastAssistant((entry) => ({
         ...entry,
         streaming: false,
@@ -170,10 +187,32 @@ export function ChatPanel() {
       }));
       useWorkbench.getState().notify(message, "error");
     } finally {
-      setSending(false);
-      abortRef.current = null;
-      useWorkbench.getState().updateLastAssistant((entry) => ({ ...entry, streaming: false }));
+      window.dispatchEvent(new Event("credits:changed"));
+      unsubscribe();
+      if (abortRef.current === controller) {
+        setSending(false);
+        abortRef.current = null;
+      }
+      // Context switches already stop messages in the store; manual stops are
+      // handled by stop(). Do not resurrect a message from an old chart.
+      if (!abortedByContext && current()) {
+        useWorkbench.getState().updateLastAssistant((entry) => ({ ...entry, streaming: false }));
+      }
     }
+  };
+
+  const stop = () => {
+    abortRef.current?.abort();
+    abortRef.current = null;
+    setSending(false);
+    useWorkbench.getState().updateLastAssistant((entry) => ({
+      ...entry,
+      streaming: false,
+      liveTrace: entry.liveTrace?.map((trace) =>
+        trace.running ? { ...trace, running: false, ok: false, summary: "已停止输出" } : trace,
+      ),
+    }));
+    useWorkbench.getState().notify("已停止接收输出；服务端可能仍会保存本次分析。", "info");
   };
 
   return (
@@ -184,19 +223,10 @@ export function ChatPanel() {
           <div className="mt-0.5 text-[14px] font-semibold tracking-wide text-ink">Wyckoff Agent</div>
           <div className="mt-0.5 flex items-center gap-1.5 text-[10px] text-ink-faint">
             <span className={cn("h-1.5 w-1.5 rounded-full", llmReady ? "bg-down shadow-[0_0_8px_rgba(45,212,168,.8)]" : "bg-warn")} />
-            {llmReady ? "模型在线" : "未配置 API Key"}
+            {llmReady ? "模型在线" : "服务暂不可用"}
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <button
-            type="button"
-            title="API Key 与模型设置"
-            aria-label="API Key 与模型设置"
-            className="rounded-lg p-1.5 text-ink-faint hover:bg-panel-2 hover:text-ink"
-            onClick={() => setSettingsOpen(true)}
-          >
-            <KeyRound size={14} />
-          </button>
           <button
             type="button"
             title="自动读图分析"
@@ -228,7 +258,7 @@ export function ChatPanel() {
 
       <div ref={listRef} className="chat-stream flex-1 space-y-3 overflow-y-auto px-3 py-3">
         {messages.length === 0 && (
-          <EmptyState llmReady={llmReady} onAnalyze={() => void send(AUTO_PROMPT)} onSettings={() => setSettingsOpen(true)} />
+          <EmptyState llmReady={llmReady} onAnalyze={() => void send(AUTO_PROMPT)} />
         )}
         {messages.map((msg) => (
           <MessageBubble key={msg.id} message={msg} />
@@ -239,6 +269,7 @@ export function ChatPanel() {
         {pendingContext && (
           <ContextCapsule context={pendingContext} onClear={() => setPendingContext(null)} />
         )}
+        <p className="mb-2 text-[10px] text-ink-faint">每次分析或追问消耗 1 次；失败自动返还。</p>
         <form
           className="flex items-end gap-2"
           onSubmit={(e) => {
@@ -264,20 +295,32 @@ export function ChatPanel() {
             }
             className="glass-input min-h-[52px] flex-1 resize-none px-2.5 py-2 text-sm text-ink placeholder:text-ink-faint disabled:opacity-50"
           />
-          <button
-            type="submit"
-            disabled={sending || !input.trim() || !llmReady}
-            className="glass-btn-primary inline-flex h-[52px] w-10 items-center justify-center rounded-[10px] disabled:opacity-40"
-          >
-            {sending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-          </button>
+          {sending ? (
+            <button
+              type="button"
+              onClick={stop}
+              aria-label="停止分析"
+              title="停止接收输出"
+              className="glass-btn-primary inline-flex h-[52px] w-10 items-center justify-center rounded-[10px]"
+            >
+              <Square size={16} />
+            </button>
+          ) : (
+            <button
+              type="submit"
+              disabled={!input.trim() || !llmReady}
+              className="glass-btn-primary inline-flex h-[52px] w-10 items-center justify-center rounded-[10px] disabled:opacity-40"
+            >
+              <Send size={16} />
+            </button>
+          )}
         </form>
       </div>
     </aside>
   );
 }
 
-function EmptyState({ llmReady, onAnalyze, onSettings }: { llmReady: boolean; onAnalyze: () => void; onSettings: () => void }) {
+function EmptyState({ llmReady, onAnalyze }: { llmReady: boolean; onAnalyze: () => void }) {
   return (
     <div className="rounded-[14px] border border-dashed border-line px-3 py-7 text-center">
       <p className="text-sm text-ink-dim">让 Agent 读图并标注 Wyckoff 结构</p>
@@ -294,7 +337,7 @@ function EmptyState({ llmReady, onAnalyze, onSettings }: { llmReady: boolean; on
           一键自动分析
         </button>
       ) : (
-        <button type="button" onClick={onSettings} className="glass-chip mt-3 rounded-[9px] px-3 py-1.5 text-[11px] text-warn">配置 API Key 后开始</button>
+        <p className="mt-3 text-[11px] text-warn">分析服务暂不可用，请稍后重试。</p>
       )}
     </div>
   );

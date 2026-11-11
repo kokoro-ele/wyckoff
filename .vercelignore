@@ -1,0 +1,16 @@
+.git
+.env
+.env.*
+.vercel
+node_modules
+data
+**/node_modules
+**/dist
+**/*.test.ts
+docs
+.claude
+.cursor
+.lavish
+output
+tmp
+**/*.test.tsx

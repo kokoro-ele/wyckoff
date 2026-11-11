@@ -3,56 +3,6 @@ import type { WyckoffAnnotation } from "./annotation.js";
 import type { Instrument, InstrumentDetail, Kline } from "./market.js";
 import { adjustTypeSchema, periodSchema } from "./market.js";
 
-// ————————————————— 运行时设置 —————————————————
-
-export type RuntimeSettingsSource = "local" | "environment" | "none";
-
-/**
- * 可安全返回浏览器的 LLM 配置视图。
- *
- * API Key 只用 configured/source 表达状态，绝不进入响应体。
- */
-export interface RuntimeLlmSettings {
-  configured: boolean;
-  source: RuntimeSettingsSource;
-  baseUrl: string;
-  model: string;
-  webSearch: boolean;
-}
-
-export interface RuntimeSettingsResponse {
-  llm: RuntimeLlmSettings;
-}
-
-const httpUrlSchema = z
-  .string()
-  .trim()
-  .min(1, "接口地址不能为空")
-  .max(2048, "接口地址过长")
-  .pipe(z.url({ protocol: /^https?$/, error: "接口地址必须是 HTTP 或 HTTPS URL" }));
-
-export const updateLlmSettingsRequestSchema = z
-  .object({
-    /** 空字符串表示保留当前 Key；清除必须显式传 removeLocalKey。 */
-    apiKey: z.string().max(8192, "API Key 过长").transform((value) => value.trim()).optional(),
-    baseUrl: httpUrlSchema.optional(),
-    model: z.string().trim().min(1, "模型名称不能为空").max(200, "模型名称过长").optional(),
-    webSearch: z.boolean().optional(),
-    removeLocalKey: z.boolean().optional(),
-  })
-  .strict()
-  .superRefine((value, ctx) => {
-    if (value.removeLocalKey && value.apiKey) {
-      ctx.addIssue({
-        code: "custom",
-        path: ["apiKey"],
-        message: "不能同时设置和清除 API Key",
-      });
-    }
-  });
-
-export type UpdateLlmSettingsRequest = z.infer<typeof updateLlmSettingsRequestSchema>;
-
 // ————————————————— 行情接口 —————————————————
 
 export const klineQuerySchema = z.object({
@@ -155,72 +105,6 @@ export interface ChatMessage {
   toolTrace?: { name: string; summary: string; ok: boolean; args?: unknown; durationMs?: number }[];
   context?: ChatContext;
   createdAt: number;
-}
-
-export type RecommendBucket = "watch" | "enter";
-
-export interface RecommendBookItem {
-  symbol: string;
-  name: string | null;
-  bucket: RecommendBucket;
-  thesis: string;
-  expectedReturnPct: number;
-  stopPct: number;
-  entryPrice: number;
-  lastPrice: number | null;
-  actualReturnPct: number | null;
-  horizonDays: number;
-  conviction: number;
-  openedAt: number;
-  /** 最近一次特征快照（行情读取 + 计算）耗时。 */
-  featureMs: number | null;
-  /** 最近一次改变该条推荐的运行，可用于回溯运行记录。 */
-  lastRunId: string | null;
-  /** 当次决策所依据的特征引擎与人类可读快照。 */
-  featureEngineVersion: string | null;
-  featureSummary: string | null;
-  /** 新候选被发现时的舆情方向与理由。 */
-  sourceNote: string | null;
-}
-
-export interface RecommendHistoryItem {
-  id: string;
-  symbol: string;
-  name: string | null;
-  bucket: RecommendBucket;
-  openedAt: number;
-  closedAt: number;
-  entryPrice: number;
-  exitPrice: number;
-  expectedReturnPct: number;
-  actualReturnPct: number;
-  thesis: string;
-  closeReason: string;
-}
-
-export interface RecommendRunSummary {
-  id: string;
-  ranAt: number;
-  status: "ok" | "error" | "running";
-  summary: string;
-  emailSent: boolean;
-  addedWatch: string[];
-  addedEnter: string[];
-  dropped: string[];
-  upgraded: string[];
-  downgraded: string[];
-  durationMs: number;
-  featureMs: number;
-  featureCount: number;
-  llmMs: number;
-}
-
-export interface RecommendSnapshot {
-  running: boolean;
-  lastRun: RecommendRunSummary | null;
-  book: RecommendBookItem[];
-  history: RecommendHistoryItem[];
-  runs: RecommendRunSummary[];
 }
 
 export type { Instrument, InstrumentDetail, Kline };

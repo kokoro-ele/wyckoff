@@ -5,9 +5,6 @@ import type {
   ChatMessage,
   Instrument,
   Period,
-  RecommendBookItem,
-  RecommendHistoryItem,
-  RecommendRunSummary,
   StoredAnnotation,
   TimeSpanId,
   WatchGroup,
@@ -17,6 +14,7 @@ import { create } from "zustand";
 import * as api from "./lib/api.js";
 
 const LAST_SYMBOL_KEY = "wyckoff:last-symbol";
+let annotationLoadSequence = 0;
 
 /** 图表上可用的手动绘图工具，值即 KLineChart 的内置覆盖物名。 */
 export const DRAWING_TOOLS = [
@@ -63,6 +61,8 @@ export interface ChatEntry extends ChatMessage {
 interface WorkbenchState {
   // —— 标的与图表参数 ——
   symbol: string;
+  chartRevision: number;
+  symbolRevision: number;
   instrumentName: string | null;
   period: Period;
   adjust: AdjustType;
@@ -77,16 +77,6 @@ interface WorkbenchState {
   watchItems: WatchItem[];
   /** 新增收藏时落到哪个分组。 */
   activeWatchGroupId: number | null;
-  recommendBook: RecommendBookItem[];
-  recommendHistory: RecommendHistoryItem[];
-  recommendRun: RecommendRunSummary | null;
-  recommendRunning: boolean;
-  recommendRuns: RecommendRunSummary[];
-  /** 记录页是否打开。 */
-  recommendOpen: boolean;
-  /** 回测工作台是否打开。 */
-  backtestOpen: boolean;
-  /** 本地 API Key 与模型连接设置是否打开。 */
   settingsOpen: boolean;
 
   // —— 标注 ——
@@ -128,10 +118,6 @@ interface WorkbenchState {
   addWatchGroup: (name: string) => Promise<void>;
   renameWatchGroup: (id: number, name: string) => Promise<void>;
   removeWatchGroup: (id: number) => Promise<void>;
-  refreshRecommend: () => Promise<void>;
-  runRecommend: () => Promise<void>;
-  setRecommendOpen: (open: boolean) => void;
-  setBacktestOpen: (open: boolean) => void;
   setSettingsOpen: (open: boolean) => void;
   refreshRuntimeStatus: () => Promise<void>;
 
@@ -152,6 +138,14 @@ interface WorkbenchState {
   restoreSessionForSymbol: (symbol: string) => Promise<void>;
 }
 
+function stopStreaming(messages: ChatEntry[]): ChatEntry[] {
+  return messages.map(message => message.streaming ? {
+    ...message, streaming: false,
+    liveTrace: message.liveTrace?.map(trace => trace.running
+      ? { ...trace, running: false, ok: false, summary: "已停止：图表上下文已切换" } : trace),
+  } : message);
+}
+
 function newSessionId(): string {
   return `ses_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -162,6 +156,8 @@ function firstUserGroup(groups: WatchGroup[]): WatchGroup | undefined {
 
 export const useWorkbench = create<WorkbenchState>((set, get) => ({
   symbol: localStorage.getItem(LAST_SYMBOL_KEY) ?? "AAPL.US",
+  chartRevision: 0,
+  symbolRevision: 0,
   instrumentName: null,
   period: "1d",
   adjust: "forward",
@@ -174,13 +170,6 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   watchGroups: [],
   watchItems: [],
   activeWatchGroupId: null,
-  recommendBook: [],
-  recommendHistory: [],
-  recommendRun: null,
-  recommendRunning: false,
-  recommendRuns: [],
-  recommendOpen: false,
-  backtestOpen: false,
   settingsOpen: false,
   annotationGroups: [],
   annotations: [],
@@ -199,8 +188,15 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
     if (get().symbol === symbol) return;
     localStorage.setItem(LAST_SYMBOL_KEY, symbol);
     // 换标的等于换一个分析对象，会话与标注都要跟着切换。
+    const chartRevision = get().chartRevision + 1;
+    const symbolRevision = get().symbolRevision + 1;
     set({
       symbol,
+      chartRevision,
+      symbolRevision,
+      activeTool: null,
+      selectionMode: false,
+      focusRequest: null,
       instrumentName: name ?? null,
       annotations: [],
       annotationGroups: [],
@@ -214,7 +210,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
     if (!name) {
       try {
         const { instrument } = await api.fetchInstrument(symbol);
-        set({ instrumentName: instrument.name });
+        if (get().symbolRevision === symbolRevision) set({ instrumentName: instrument.name });
       } catch {
         /* 名称拿不到不影响看图 */
       }
@@ -223,11 +219,16 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
 
   setPeriod(period) {
     if (get().period === period) return;
-    set({ period, annotations: [], annotationGroups: [] });
+    set({ period, messages: stopStreaming(get().messages), chartRevision: get().chartRevision + 1, annotations: [], annotationGroups: [],
+      activeTool: null, selectionMode: false, focusRequest: null, pendingContext: null, viewport: null });
     void get().loadAnnotations();
   },
 
-  setAdjust: (adjust) => set({ adjust }),
+  setAdjust(adjust) {
+    if (get().adjust === adjust) return;
+    set({ adjust, messages: stopStreaming(get().messages), chartRevision: get().chartRevision + 1, pendingContext: null, focusRequest: null, viewport: null, activeTool: null, selectionMode: false });
+    void get().loadAnnotations();
+  },
   setTimeSpan: (timeSpan) => set({ timeSpan }),
 
   toggleIndicator: (id) =>
@@ -240,7 +241,6 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   setActiveTool: (tool) => set({ activeTool: tool, selectionMode: false }),
   toggleSelectionMode: () => set((state) => ({ selectionMode: !state.selectionMode, activeTool: null })),
   setSearchOpen: (searchOpen) => set({ searchOpen }),
-  setBacktestOpen: (backtestOpen) => set({ backtestOpen }),
   setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
 
   notify(message, tone = "info") {
@@ -260,14 +260,14 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
     await Promise.allSettled([
       get().refreshRuntimeStatus(),
       get().refreshWatchlist(),
-      get().refreshRecommend(),
       get().loadAnnotations(),
       get().restoreSessionForSymbol(get().symbol),
     ]);
 
     try {
-      const { instrument } = await api.fetchInstrument(get().symbol);
-      set({ instrumentName: instrument.name });
+      const { symbol, symbolRevision } = get();
+      const { instrument } = await api.fetchInstrument(symbol);
+      if (get().symbolRevision === symbolRevision) set({ instrumentName: instrument.name });
     } catch {
       /* 名称拿不到不影响看图 */
     }
@@ -277,8 +277,8 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
     const { groups, items } = await api.fetchWatchlist();
     const active = get().activeWatchGroupId;
     set({
-      watchGroups: groups,
-      watchItems: items,
+      watchGroups: groups.filter(group => !group.managed),
+      watchItems: items.filter(item => groups.some(group => group.id === item.groupId && !group.managed)),
       activeWatchGroupId:
         active && groups.some((g) => g.id === active && !g.managed) ? active : (firstUserGroup(groups)?.id ?? null),
     });
@@ -341,7 +341,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   async moveWatchItem(symbol, fromGroupId, toGroupId) {
     if (fromGroupId === toGroupId) return;
     if (get().watchGroups.some((group) => (group.id === fromGroupId || group.id === toGroupId) && group.managed)) {
-      get().notify("系统荐股分组不能手动调整", "error");
+      get().notify("此分组不能手动调整", "error");
       return;
     }
     await api.addToWatchlist(symbol, toGroupId);
@@ -380,70 +380,15 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
     });
   },
 
-  async refreshRecommend() {
-    try {
-      const snap = await api.fetchRecommend();
-      set({
-        recommendBook: snap.book,
-        recommendHistory: snap.history,
-        recommendRun: snap.lastRun,
-        recommendRunning: snap.running,
-        recommendRuns: snap.runs,
-      });
-    } catch {
-      /* 荐股接口未就绪时不影响看图 */
-    }
-  },
-
-  setRecommendOpen(open) {
-    set({ recommendOpen: open });
-    // 打开记录页时刷新一次，保证现价与最新一轮运行记录都是新的。
-    if (open) void get().refreshRecommend();
-  },
-
-  async runRecommend() {
-    if (get().recommendRunning) {
-      get().notify("荐股任务正在运行");
-      return;
-    }
-    set({ recommendRunning: true });
-    get().notify("开始扫描美股舆情，完成后会写入观察/下手并刷新列表");
-    const startedAt = Date.now();
-    try {
-      await api.runRecommend();
-    } catch (error) {
-      const code = (error as { code?: string }).code;
-      if (code === "BUSY") {
-        get().notify("荐股任务正在运行");
-      } else {
-        set({ recommendRunning: false });
-        get().notify((error as Error).message || "无法启动扫描", "error");
-        return;
-      }
-    }
-
-    const deadline = Date.now() + 6 * 60 * 60_000;
-    while (Date.now() < deadline) {
-      await sleep(Date.now() - startedAt < 20 * 60_000 ? 4000 : 30_000);
-      await get().refreshRecommend();
-      const run = get().recommendRun;
-      if (!get().recommendRunning && run && run.ranAt >= startedAt - 2000) {
-        await get().refreshWatchlist();
-        get().notify(run.summary || "荐股扫描完成");
-        return;
-      }
-    }
-    set({ recommendRunning: false });
-    get().notify("后台扫描超过 6 小时，已停止自动等待；可稍后手动刷新", "info");
-  },
-
   async loadAnnotations() {
-    const { symbol, period } = get();
+    const { symbol, period, chartRevision } = get();
+    const sequence = ++annotationLoadSequence;
+    const current = () => get().chartRevision === chartRevision && sequence === annotationLoadSequence;
     try {
       const { groups, annotations } = await api.fetchAnnotations(symbol, period);
-      set({ annotationGroups: groups, annotations });
+      if (current()) set({ annotationGroups: groups, annotations });
     } catch {
-      set({ annotationGroups: [], annotations: [] });
+      if (current()) set({ annotationGroups: [], annotations: [] });
     }
   },
 
@@ -478,20 +423,23 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   },
 
   async clearAllAnnotations() {
-    const { symbol, period } = get();
+    const { symbol, period, chartRevision } = get();
     await api.clearAnnotations(symbol, period);
-    set({ annotations: [], annotationGroups: [] });
+    if (get().chartRevision === chartRevision) {
+      ++annotationLoadSequence;
+      set({ annotations: [], annotationGroups: [] });
+    }
   },
 
   async registerUserAnnotation(annotation) {
-    const { symbol, period } = get();
+    const { symbol, period, chartRevision } = get();
     const { groupId, annotations } = await api.saveAnnotations({
       symbol,
       period,
       title: "手绘标注",
       annotations: [annotation],
     });
-    get().applyAnnotationBatch(groupId, "手绘标注", annotations);
+    if (get().chartRevision === chartRevision) get().applyAnnotationBatch(groupId, "手绘标注", annotations);
   },
 
   setPendingContext: (pendingContext) => set({ pendingContext }),
@@ -514,12 +462,14 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   resetSession: () => set({ sessionId: newSessionId(), messages: [], pendingContext: null }),
 
   async restoreSessionForSymbol(symbol) {
+    const { chartRevision, sessionId } = get();
+    const current = () => get().symbol === symbol && get().chartRevision === chartRevision && get().sessionId === sessionId && get().messages.length === 0;
     try {
       const { sessions } = await api.fetchSessions(symbol);
       const latest = sessions[0];
-      if (!latest) return;
+      if (!latest || !current()) return;
       const { messages } = await api.fetchSessionMessages(latest.id);
-      if (messages.length === 0) return;
+      if (messages.length === 0 || !current()) return;
       set({
         sessionId: latest.id,
         messages: messages.map((m) => ({ ...m })),
@@ -532,9 +482,5 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
 
 /** 收藏状态在多个组件里都要判断，抽成一个选择器。 */
 export function useIsWatched(symbol: string): boolean {
-  return useWorkbench((state) => state.watchItems.some((item) => item.symbol === symbol));
-}
-
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return useWorkbench((state) => state.watchItems.some((item) => item.symbol === symbol && state.watchGroups.some(group => group.id === item.groupId && !group.managed)));
 }

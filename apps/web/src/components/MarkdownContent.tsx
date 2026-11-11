@@ -1,7 +1,6 @@
 import type { Components } from "react-markdown";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { splitStreamingMarkdown } from "@/lib/streamingMarkdown.js";
 
 const components: Components = {
   a: ({ href, children }) => (
@@ -36,11 +35,14 @@ const components: Components = {
   h1: ({ children }) => <h1 className="mb-1.5 mt-2 text-[15px] font-semibold first:mt-0">{children}</h1>,
   h2: ({ children }) => <h2 className="mb-1.5 mt-2 text-[14px] font-semibold first:mt-0">{children}</h2>,
   h3: ({ children }) => <h3 className="mb-1 mt-2 text-[13px] font-semibold first:mt-0">{children}</h3>,
+  h4: ({ children }) => <h4 className="mb-1 mt-2 text-[13px] font-semibold first:mt-0">{children}</h4>,
+  h5: ({ children }) => <h5 className="mb-1 mt-2 text-[12px] font-semibold first:mt-0">{children}</h5>,
+  h6: ({ children }) => <h6 className="mb-1 mt-2 text-[12px] font-semibold text-ink-dim first:mt-0">{children}</h6>,
   blockquote: ({ children }) => (
     <blockquote className="my-1.5 border-l-2 border-accent/50 pl-2.5 text-ink-dim">{children}</blockquote>
   ),
   table: ({ children }) => (
-    <div className="my-2 overflow-x-auto">
+    <div className="my-2 min-w-0 max-w-full overflow-x-auto">
       <table className="w-full border-collapse text-[12px]">{children}</table>
     </div>
   ),
@@ -56,16 +58,13 @@ export function MarkdownContent({ source, streaming = false }: { source: string;
   if (!source && streaming) return null;
   if (!source) return <>…</>;
 
-  const { ready, tail } = streaming ? splitStreamingMarkdown(source) : { ready: source, tail: "" };
-
+  // Parse the whole stream: counting Markdown punctuation mistakes list bullets
+  // and code fences for incomplete emphasis and turns valid blocks into raw text.
   return (
-    <div className="md-chat">
-      {ready ? (
-        <Markdown remarkPlugins={[remarkGfm]} components={components}>
-          {ready}
-        </Markdown>
-      ) : null}
-      {tail ? <span className="whitespace-pre-wrap text-ink-dim">{tail}</span> : null}
+    <div className="md-chat min-w-0 max-w-full break-words">
+      <Markdown remarkPlugins={[remarkGfm]} components={components}>
+        {source}
+      </Markdown>
     </div>
   );
 }

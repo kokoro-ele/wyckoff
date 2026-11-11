@@ -2,23 +2,13 @@ import type {
   AdjustType,
   AgentEvent,
   AnnotationGroup,
-  BacktestHistoryResponse,
-  BacktestRequestInput,
-  BacktestResult,
-  AiWyckoffBacktestDetailResponse,
-  AiWyckoffBacktestHistoryResponse,
-  AiWyckoffBacktestRequestInput,
-  AiWyckoffBacktestStartResponse,
   ChatContext,
   ChatMessage,
   Instrument,
   InstrumentDetail,
   Kline,
   Period,
-  RecommendSnapshot,
-  RuntimeSettingsResponse,
   StoredAnnotation,
-  UpdateLlmSettingsRequest,
   WatchGroup,
   WatchItem,
   WyckoffAnnotation,
@@ -46,11 +36,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   const text = await response.text();
-  const body = text ? (JSON.parse(text) as unknown) : {};
+  let body: unknown;
+  try { body = text ? JSON.parse(text) : {}; }
+  catch { throw new ApiError("SERVICE_UNAVAILABLE", "服务暂时不可用，请稍后重试"); }
 
   if (!response.ok) {
-    const err = body as { code?: string; message?: string };
-    throw new ApiError(err.code ?? "HTTP_ERROR", err.message ?? `请求失败（${response.status}）`);
+    const err = body as { code?: string; message?: string; error?: string };
+    throw new ApiError(err.code ?? "HTTP_ERROR", err.message ?? err.error ?? `请求失败（${response.status}）`);
   }
   return body as T;
 }
@@ -129,52 +121,6 @@ export function reorderWatchlist(groupId: number, symbols: string[]): Promise<Wa
   return request("/watchlist/reorder", { method: "POST", body: JSON.stringify({ groupId, symbols }) });
 }
 
-export function fetchRecommend(): Promise<RecommendSnapshot> {
-  return request("/recommend");
-}
-
-export function runRecommend(): Promise<{ started: boolean; running: boolean }> {
-  return request("/recommend/run", { method: "POST" });
-}
-
-// ————————————————— 回测 —————————————————
-
-export function runBacktest(payload: BacktestRequestInput): Promise<{ result: BacktestResult }> {
-  return request("/backtests/run", { method: "POST", body: JSON.stringify(payload) });
-}
-
-export function fetchBacktests(limit = 20): Promise<BacktestHistoryResponse> {
-  const query = new URLSearchParams({ limit: String(limit) });
-  return request(`/backtests?${query}`);
-}
-
-export function fetchBacktest(id: string): Promise<{ result: BacktestResult }> {
-  return request(`/backtests/${encodeURIComponent(id)}`);
-}
-
-export function deleteBacktest(id: string): Promise<{ ok: true }> {
-  return request(`/backtests/${encodeURIComponent(id)}`, { method: "DELETE" });
-}
-
-// ————————————————————— Wyckoff AI 计划回测 —————————————————————
-
-export function runAiWyckoffBacktest(payload: AiWyckoffBacktestRequestInput): Promise<AiWyckoffBacktestStartResponse> {
-  return request("/wyckoff-ai-backtests/run", { method: "POST", body: JSON.stringify(payload) });
-}
-
-export function fetchAiWyckoffBacktests(limit = 20): Promise<AiWyckoffBacktestHistoryResponse> {
-  const query = new URLSearchParams({ limit: String(limit) });
-  return request(`/wyckoff-ai-backtests?${query}`);
-}
-
-export function fetchAiWyckoffBacktest(id: string): Promise<AiWyckoffBacktestDetailResponse> {
-  return request(`/wyckoff-ai-backtests/${encodeURIComponent(id)}`);
-}
-
-export function deleteAiWyckoffBacktest(id: string): Promise<{ ok: true }> {
-  return request(`/wyckoff-ai-backtests/${encodeURIComponent(id)}`, { method: "DELETE" });
-}
-
 // ————————————————— 标注 —————————————————
 
 export function fetchAnnotations(
@@ -224,16 +170,6 @@ export function fetchChatStatus(): Promise<{ configured: boolean }> {
   return request("/chat/status");
 }
 
-// ————————————————— 本地连接设置 —————————————————
-
-export function fetchRuntimeSettings(): Promise<RuntimeSettingsResponse> {
-  return request("/settings");
-}
-
-export function updateLlmSettings(payload: UpdateLlmSettingsRequest): Promise<RuntimeSettingsResponse> {
-  return request("/settings/llm", { method: "PUT", body: JSON.stringify(payload) });
-}
-
 export interface ChatStreamParams {
   sessionId: string;
   symbol: string;
@@ -257,7 +193,7 @@ export async function streamChat(
 ): Promise<void> {
   const response = await fetch("/api/chat", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "Idempotency-Key": crypto.randomUUID() },
     body: JSON.stringify(params),
     signal,
   });
@@ -265,12 +201,15 @@ export async function streamChat(
   if (!response.ok || !response.body) {
     const text = await response.text().catch(() => "");
     let message = `对话请求失败（${response.status}）`;
+    let code = "CHAT_FAILED";
     try {
-      message = (JSON.parse(text) as { message?: string }).message ?? message;
+      const body = JSON.parse(text) as { message?: string; code?: string };
+      message = body.message ?? message;
+      code = body.code ?? code;
     } catch {
       /* 保持默认文案 */
     }
-    throw new ApiError("CHAT_FAILED", message);
+    throw new ApiError(code, message);
   }
 
   const reader = response.body.pipeThrough(new TextDecoderStream()).getReader();

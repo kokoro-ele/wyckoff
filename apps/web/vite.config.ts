@@ -17,7 +17,9 @@ export default defineConfig({
     proxy: {
       "/api": {
         target: `http://127.0.0.1:${SERVER_PORT}`,
-        changeOrigin: true,
+        // Keep the browser's Host so Origin/Host checks and Better Auth's
+        // canonical BETTER_AUTH_URL agree during local development.
+        changeOrigin: false,
       },
     },
   },

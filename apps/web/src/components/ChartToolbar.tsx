@@ -21,7 +21,7 @@ import { cn } from "@/lib/utils.js";
 const ALL_PERIODS = Object.keys(PERIOD_LABELS) as Period[];
 const ADJUSTS: AdjustType[] = ["forward", "backward", "none"];
 
-export function ChartToolbar() {
+export function ChartToolbar({ dataReady = true }: { dataReady?: boolean }) {
   const period = useWorkbench((s) => s.period);
   const adjust = useWorkbench((s) => s.adjust);
   const timeSpan = useWorkbench((s) => s.timeSpan);
@@ -102,18 +102,20 @@ export function ChartToolbar() {
         <ToolGroup label="绘图">
           <Chip
             active={!activeTool && !selectionMode}
+            disabled={!dataReady}
             title="选择 / 平移"
             onClick={() => setActiveTool(null)}
           >
             <MousePointer2 size={12} />
           </Chip>
-          <Chip active={selectionMode} title="框选区间提问" onClick={() => toggleSelectionMode()}>
+          <Chip disabled={!dataReady} active={selectionMode} title="框选区间提问" onClick={() => toggleSelectionMode()}>
             <Crosshair size={12} />
             <span>框选</span>
           </Chip>
           {DRAWING_TOOLS.map((tool) => (
             <Chip
               key={tool.id}
+              disabled={!dataReady}
               active={activeTool === tool.id}
               title={tool.label}
               onClick={() => setActiveTool(activeTool === tool.id ? null : tool.id)}

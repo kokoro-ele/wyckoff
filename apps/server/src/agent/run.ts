@@ -15,7 +15,7 @@ import type {
   ResponseInputItem,
   ResponseStreamEvent,
 } from "openai/resources/responses/responses";
-import { config, isLlmConfigured } from "../config.js";
+import { config, hasLlmConfiguration } from "../config.js";
 import { getOpenAiClient } from "../llm/client.js";
 import { listAnnotations } from "../services/annotations.js";
 import { getInstrument } from "../services/instruments.js";
@@ -30,6 +30,9 @@ const MAX_ITERATIONS = 8;
 const HISTORY_LIMIT = 20;
 
 function logJson(label: string, payload: unknown): void {
+  // Prompts and histories may contain private user research. Only emit them
+  // when an operator explicitly enables diagnostics.
+  if (process.env.DEBUG_LLM !== "1") return;
   console.log(`[llm] → ${label}\n${JSON.stringify(payload, null, 2)}`);
 }
 
@@ -40,10 +43,10 @@ function logJson(label: string, payload: unknown): void {
  * 若当前网关没有 `/v1/responses`，再回退到 Chat Completions（无联网搜索）。
  */
 export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent> {
-  if (!isLlmConfigured) {
+  if (!hasLlmConfiguration()) {
     yield {
       type: "error",
-      message: "尚未配置 LLM。请在右上角 API Key 设置中配置，或使用 .env 环境变量。",
+      message: "分析服务尚未配置。请联系运营方检查服务端模型凭据。",
     };
     return;
   }

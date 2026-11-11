@@ -5,23 +5,28 @@
   "type": "module",
   "packageManager": "pnpm@9.15.4",
   "engines": {
-    "node": ">=20.11"
+    "node": ">=22"
   },
   "scripts": {
     "dev": "concurrently -n server,web -c cyan,magenta \"pnpm -F @wyckoff/server dev\" \"pnpm -F @wyckoff/web dev\"",
     "dev:server": "pnpm -F @wyckoff/server dev",
     "dev:web": "pnpm -F @wyckoff/web dev",
-    "build": "pnpm -F @wyckoff/web build",
-    "typecheck": "pnpm -r typecheck",
+    "build": "pnpm -F @wyckoff/web build && node scripts/build-server.mjs",
+    "typecheck": "pnpm -r typecheck && tsc -p tsconfig.json",
     "test": "pnpm -r --if-present test",
     "lint": "eslint ."
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["better-sqlite3", "esbuild"]
+    "onlyBuiltDependencies": [
+      "better-sqlite3",
+      "esbuild"
+    ]
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",
+    "@types/node": "^22.10.7",
     "concurrently": "^9.1.2",
+    "esbuild": "^0.25.12",
     "eslint": "^9.18.0",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.21.0"

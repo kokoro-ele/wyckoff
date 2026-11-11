@@ -2,136 +2,103 @@
 
 **English** · [简体中文](./README.md)
 
-A local AI workspace for single-asset price-and-volume research: professional candlestick charts, Wyckoff structure analysis, semantic annotations, anonymous AI plan backtesting, and auditable deterministic trade replay.
+An AI workspace for single-asset price-and-volume research: professional candlestick charts, Wyckoff structure analysis, semantic annotations, per-account encrypted research workspaces, and permanent analysis credits with referrals.
 
 > This project is for research and education. It is not investment advice, a performance guarantee, or an automated trading service.
 
 ![Automated AAPL Wyckoff analysis with trading ranges, event markers, support and resistance, and trendlines](./docs/screenshots/workbench.jpg)
 
-The example above uses AAPL. After **Auto analysis**, the Agent draws trading ranges, Wyckoff events, support and resistance, and trendlines directly on the candlestick canvas while preserving the explanation and tool trace on the right.
-
-## Why this project exists
-
-Many technical-analysis products mix indicators, stock selection, rotation, model opinions, and execution rules into one opaque score. This workbench separates the workflow into three explicit layers:
-
-1. **Facts**: candlesticks, volume, swing points, and trading ranges.
-2. **Interpretation**: AI explains Wyckoff phases, events, and price-volume evidence.
-3. **Execution**: deterministic code handles triggers, sizing, costs, stops, and exits.
-
-Every conclusion can therefore be traced to specific bars, and every plan can be replayed on historical data.
+Open **Analysis**, then choose **Auto analysis**. The Agent draws trading ranges, Wyckoff events, support and resistance, and trendlines directly on the chart while keeping the explanation and tool trace on the right.
 
 ## Highlights
 
 - **Professional chart workspace** with zooming, panning, crosshair, timeframes, adjustments, indicators, and drawing tools.
 - **Wyckoff Agent** for Phase A–E and events such as SC, AR, ST, Spring, SOS, LPS, UTAD, and SOW, rendered directly on the chart.
-- **Anonymous AI backtesting** where one stock becomes `ASSET_001` and the model receives only normalized daily OHLCV and anonymous BAR identifiers.
-- **A plan for every reviewed point**: observe, enter, or exit, including entry, stop, target, evidence, missing confirmation, and invalidation conditions.
-- **Deterministic replay** from the next bar onward, including position sizing, commissions, slippage, maximum holding period, stop/target handling, and China A-share T+1.
-- **Full audit trail** with prompt version, model, anonymous-input hash, token usage, latency, cache hits, protocol failures, and a data fingerprint.
-- **Local API Key settings** that take effect immediately without manually editing configuration files; keys are never returned by the API.
-- **Search, favorites, and groups** using symbol, company name, or Chinese pinyin initials.
+- **Verified accounts** via email OTP or Google; watchlists, sessions, annotations, and market caches are isolated per account.
+- **Permanent analysis credits**: one credit per user-initiated analysis or follow-up. Server/model failures refund automatically; history, charts, and manual annotations are free.
+- **Referrals**: a new verified user receives 3 credits; each verified invite awards the inviter another 3.
+- **Credit-pack top-ups** configured by the operator through `ANALYSIS_CREDIT_PACKS`, with Stripe and WeChat Native payments.
+- **Operator-only model credentials**: users cannot override the platform model URL or API key.
+- **Encrypted workspaces**: each account's SQLite workspace is compressed and encrypted with AES-256-GCM before being stored in PostgreSQL.
 
-## Product views
-
-| Local API Key settings | Anonymous AI plan backtest |
-| --- | --- |
-| ![Secure API Key settings](./docs/screenshots/key-settings.jpg) | ![Anonymous AI Wyckoff backtest](./docs/screenshots/ai-backtest.jpg) |
-
-## How anonymous AI backtesting works
-
-```text
-Single-asset historical OHLCV
-        ↓
-Causal candidate scan using only information available at that point
-        ↓
-Remove symbol, name, exchange, and dates; normalize price and volume
-        ↓
-Run one isolated, pure-Wyckoff AI review per decision point
-        ↓
-Validate BAR evidence, phase, event, plan type, and price boundaries
-        ↓
-Execute plans bar by bar with a deterministic engine
-        ↓
-Equity curve, trades, plan states, and complete audit data
-```
-
-The model cannot see:
-
-- the ticker, company name, or exchange;
-- dates, news, earnings, sector, index, or macro information;
-- moving averages, MACD, RSI, KDJ, Bollinger Bands, ATR, or other indicators;
-- any bar after the current historical decision point.
-
-The model interprets structure only. It cannot control sizing, fees, or fills. Invalid model output is not repeatedly sampled until a favorable answer appears, and it never creates a synthetic trade.
+The recommendation, scanner, AI-backtest, and user-supplied model-key surfaces are no longer mounted. Historical database rows are preserved for compatibility and are not migrated to new accounts.
 
 ## Quick start
 
 ### Requirements
 
-- Node.js 20.11 or later
+- Node.js 22.x or later
 - pnpm 9
+- PostgreSQL (local development authenticates too)
 
 ### Install and run
 
 ```bash
 pnpm install
 cp .env.example .env
+```
+
+At minimum, configure:
+
+```env
+DATABASE_URL=postgres://...
+BETTER_AUTH_SECRET=<at least 32 random characters>
+BETTER_AUTH_URL=http://localhost:5273
+WORKSPACE_ENCRYPTION_KEY=<32 random bytes as hex>
+OPENAI_API_KEY=<operator model key>
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_FROM=
+# Only for authenticated relays; leave empty for a local catcher.
+SMTP_USER=
+SMTP_PASS=
+```
+
+Then initialize the database and start the app:
+
+```bash
+pnpm -F @wyckoff/server db:migrate
 pnpm dev
 ```
 
-- Web app: <http://127.0.0.1:5273>
+- Web app: <http://localhost:5273>
 - API server: <http://127.0.0.1:8787>
-- Wyckoff method reference: <http://127.0.0.1:5273/wyckoff.html>
+- Wyckoff method reference: <http://localhost:5273/wyckoff.html>
 
-On first launch, the app syncs its instrument index into local SQLite. The free TickFlow endpoint requires no key but supports daily and higher timeframes only.
+> The dev server and `db:migrate` both read `.env` and `.env.local`; the latter wins. You can also provide configuration only through the process environment. The first search syncs the instrument directory into the current account's workspace.
 
-## Configure an API Key
+Email registration requires SMTP; Google OAuth can be used on its own. If the database, auth secret, canonical URL, or workspace encryption key is missing, the UI reports that login is not configured instead of falling back to anonymous mode.
 
-Recommended: launch the app, click the key icon in the Agent header, and configure:
+## Credits and top-ups
 
-- an OpenAI or OpenAI-compatible API Key;
-- the Base URL;
-- the model ID;
-- whether the regular Agent may use web search.
+- A verified new account receives 3 permanent credits once; they do not reset monthly.
+- Each user-initiated analysis or follow-up consumes 1 credit. Model/server failures refund it.
+- A successful request with the same `Idempotency-Key` never charges twice; a failed, refunded request may retry with the same key.
+- Credit-pack price and units come from the server-side order snapshot; clients cannot submit amounts.
+- Payment confirmation is based on verified Stripe/WeChat callbacks. Replays never add credits twice.
+- Purchases stay unavailable until a merchant is configured; free credits and referrals still work.
 
-Settings saved from the page live in `data/runtime-settings.json` and take effect immediately. The password field is never prefilled, and the API never returns the key.
-
-You can also use a root `.env` file:
-
-```env
-OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-4o
-OPENAI_WEB_SEARCH=1
-```
-
-A non-empty key saved by the page overrides `.env`. Removing the page-saved key automatically falls back to the environment value.
-
-## Key security
-
-- `.env`, `.env.*`, `data/`, databases, build output, and local caches are excluded by `.gitignore`.
-- `.env.example` contains an empty key and safe defaults only.
-- The local settings file is written atomically and forced to permission mode `0600`.
-- Keys never enter Zustand, `localStorage`, `sessionStorage`, URLs, logs, or API responses.
-- The service binds to `127.0.0.1`, and the write endpoint accepts only strictly validated JSON.
-
-If a key has ever been committed, included in a screenshot, pasted into an issue, or sent to an untrusted service, adding it to `.gitignore` is not sufficient. Revoke and rotate it immediately at the provider.
+See [payment setup](docs/payment-setup.md) for the full merchant checklist.
 
 ## Environment variables
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `TICKFLOW_BASE_URL` | `https://free-api.tickflow.org` | TickFlow market-data endpoint |
-| `TICKFLOW_API_KEY` | empty | Paid data key for intraday and real-time capabilities |
-| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI-compatible API endpoint |
-| `OPENAI_API_KEY` | empty | Model key; it can also be configured in the UI |
-| `OPENAI_MODEL` | `gpt-4o` | Model ID |
-| `OPENAI_WEB_SEARCH` | `1` | Enables Responses `web_search` for the regular Agent; anonymous backtests always disable it |
-| `RECOMMEND_ENABLED` | `1` | Enables the post-close US stock scan |
-| `RECOMMEND_CONCURRENCY` | `3` | Concurrent recommendation reviews |
-| `SMTP_*` / `MAIL_TO` | empty | Optional email delivery |
-| `PORT` | `8787` | API server port |
-| `DATA_DIR` | `./data` | Local SQLite and runtime-settings directory |
+| Variable | Purpose |
+| --- | --- |
+| `TICKFLOW_BASE_URL` / `TICKFLOW_API_KEY` | Market-data endpoint and optional paid key |
+| `OPENAI_BASE_URL` / `OPENAI_API_KEY` / `OPENAI_MODEL` | Operator-only model configuration |
+| `OPENAI_WEB_SEARCH` | Enables Responses `web_search` |
+| `DEBUG_LLM` | Set to `1` only to log full prompts/history; off by default |
+| `DATABASE_URL` / `DATABASE_SSL_CA` | PostgreSQL connection and optional CA |
+| `BETTER_AUTH_SECRET` / `BETTER_AUTH_URL` | Auth secret and canonical site origin |
+| `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth |
+| `SMTP_HOST` / `SMTP_PORT` / `SMTP_USER` / `SMTP_PASS` / `SMTP_FROM` | OTP email and password reset |
+| `WORKSPACE_ENCRYPTION_KEY` | 32-byte hex; changing it makes old workspaces unreadable |
+| `ANALYSIS_CREDIT_PACKS` | JSON array; empty disables purchases |
+| `BILLING_PUBLIC_ORIGIN` | HTTPS origin for checkout returns and provider callbacks |
+| `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | Stripe one-time Checkout |
+| `WECHAT_*` | WeChat Pay API v3 Native configuration |
+| `PG_POOL_MAX` | PostgreSQL pool size, default 10 |
+| `PORT` / `DATA_DIR` | Local port and SQLite directory |
 
 See [`.env.example`](./.env.example) for the complete template.
 
@@ -139,28 +106,39 @@ See [`.env.example`](./.env.example) for the complete template.
 
 ```bash
 pnpm dev          # run web and API services
+pnpm -F @wyckoff/server db:migrate  # auth, workspace, billing, and credit tables
 pnpm typecheck    # TypeScript checks for the whole workspace
 pnpm test         # all tests
 pnpm lint         # ESLint
-pnpm build        # production web build
+pnpm build        # production build
+```
+
+PostgreSQL integration tests need a disposable database:
+
+```bash
+TEST_DATABASE_URL=postgres://... pnpm -F @wyckoff/server test
 ```
 
 ## Repository layout
 
 ```text
 apps/web                 React + Vite product UI
-apps/server              Hono API, model calls, jobs, and SQLite
+apps/server              Hono API, auth, credits, payments, encrypted workspaces
 packages/shared          Shared types, Zod protocols, and API contracts
-packages/wyckoff         Features, structures, candidate scan, and backtest engine
-docs/screenshots         README product screenshots
-data                     Local database and runtime keys (Git ignored)
+packages/wyckoff         Features, structures, and deterministic backtest engine (library)
+docs/                    Deployment, account, payment, and screenshot docs
+data/                    Local SQLite cache (Git ignored)
 ```
 
 ## Implementation principles
 
 - The Agent returns domain semantics rather than pixel coordinates; the frontend maps them onto chart overlays.
-- Anonymous backtest plans are created after a bar closes and can trigger no earlier than the next bar, preventing look-ahead execution.
-- If a daily bar touches both stop and target, the conservative stop-first assumption is used because intrabar order is unknowable.
-- Shanghai, Shenzhen, and Beijing stocks follow a T+1 rule: a position cannot be exited on its entry bar.
-- Identical model, prompt version, and anonymous input reuse cached decisions to reduce repeated cost.
-- AI plan backtest endpoints live under `/api/wyckoff-ai-backtests`; local connection settings live under `/api/settings`.
+- Credits are reserved, consumed, or refunded in the same transaction that persists the workspace snapshot.
+- Workspace writes use PostgreSQL row locks and a version CAS; read-only requests do not reserialize unchanged data.
+- Near the 64 MiB cap, re-fetchable market caches are evicted automatically; user annotations, sessions, and favorites are never discarded.
+- Payment amounts, credits, currency, and orders are server-snapshotted; callbacks must pass signature and amount checks.
+- Users cannot override the model URL, model ID, or API key; operator credentials come only from the environment.
+
+## Deployment
+
+See [Vercel deployment](docs/vercel-deployment.md) for deployment, migrations, environment variables, and concurrency limits, and [account setup](docs/account-setup.md) for login and referral behavior.

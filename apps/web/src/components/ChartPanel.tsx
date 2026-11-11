@@ -1,16 +1,19 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Chart, DataLoaderGetBarsParams, Overlay } from "klinecharts";
 import { dispose, init } from "klinecharts";
-import { Activity, ChartNoAxesCombined, Star } from "lucide-react";
+import { Activity, Star } from "lucide-react";
 import { ADJUST_LABELS, PERIOD_LABELS, TIME_SPANS, type Kline, type StoredAnnotation } from "@wyckoff/shared";
 import { ApiError, fetchKlines } from "@/lib/api.js";
 import { overlayToAnnotation, renderAnnotations, USER_GROUP_ID } from "@/chart/annotations.js";
 import { registerWyckoffOverlays } from "@/chart/overlays.js";
 import { barsForTimeSpan, timeSpanDays, toChartPeriod } from "@/chart/period.js";
-import { chartStyles } from "@/chart/theme.js";
+import { getChartStyles } from "@/chart/theme.js";
 import { INDICATORS, useWorkbench, type IndicatorId } from "@/store.js";
 import { cn } from "@/lib/utils.js";
 import { ChartToolbar } from "./ChartToolbar.js";
+
+import { chartContextKey } from "@/chart/context.js";
+import { useTheme } from "@/theme.js";
 
 interface SelectionRect {
   x0: number;
@@ -37,6 +40,15 @@ function toChartBar(k: Kline) {
 }
 
 export function ChartPanel() {
+  const key = useWorkbench(chartContextKey);
+  return <ChartContextPanel key={key} />;
+}
+
+function ChartContextPanel() {
+  const { theme } = useTheme();
+  const [status, setStatus] = useState<"loading" | "ready" | "empty" | "error">("loading");
+  const readyRef = useRef(false);
+  const ready = status === "ready";
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<Chart | null>(null);
   const paneIds = useRef<Map<IndicatorId, string>>(new Map());
@@ -46,6 +58,7 @@ export function ChartPanel() {
   const [marketSnapshot, setMarketSnapshot] = useState<MarketSnapshot | null>(null);
 
   const symbol = useWorkbench((s) => s.symbol);
+  const chartRevision = useWorkbench((s) => s.chartRevision);
   const instrumentName = useWorkbench((s) => s.instrumentName);
   const period = useWorkbench((s) => s.period);
   const adjust = useWorkbench((s) => s.adjust);
@@ -61,7 +74,6 @@ export function ChartPanel() {
   const consumeFocus = useWorkbench((s) => s.consumeFocus);
   const notify = useWorkbench((s) => s.notify);
   const setActiveTool = useWorkbench((s) => s.setActiveTool);
-  const setBacktestOpen = useWorkbench((s) => s.setBacktestOpen);
 
   // —— 初始化图表 ——
   useEffect(() => {
@@ -69,15 +81,16 @@ export function ChartPanel() {
     if (!el) return;
 
     registerWyckoffOverlays();
-    const chart = init(el, { styles: chartStyles, locale: "zh-CN", timezone: "Asia/Shanghai" });
-    if (!chart) return;
+    const chart = init(el, { styles: getChartStyles(theme), locale: "zh-CN", timezone: "Asia/Shanghai" });
+    if (!chart) { setError("无法初始化图表，请刷新页面重试。"); setStatus("error"); return; }
     chartRef.current = chart;
 
     chart.setDataLoader({
       getBars: async (params: DataLoaderGetBarsParams) => {
         const state = useWorkbench.getState();
-        const key = `${state.symbol}|${state.period}|${state.adjust}`;
+        const key = chartContextKey(state);
         loadingKey.current = key;
+        const current = () => chartRef.current === chart && chartContextKey(useWorkbench.getState()) === key && loadingKey.current === key;
         try {
           let bars: Kline[] = [];
           if (params.type === "init" || params.type === "update") {
@@ -103,7 +116,7 @@ export function ChartPanel() {
             return;
           }
 
-          if (loadingKey.current !== key) return;
+          if (!current()) return;
           setError(null);
           if ((params.type === "init" || params.type === "update") && bars.length > 0) {
             const latest = bars[bars.length - 1];
@@ -117,11 +130,16 @@ export function ChartPanel() {
           }
           const moreForward = bars.length >= 500;
           params.callback(bars.map(toChartBar), { forward: moreForward });
+          if (params.type === "init" || params.type === "update") {
+            readyRef.current = bars.length > 0;
+            setStatus(bars.length ? "ready" : "empty");
+            if (!bars.length) setMarketSnapshot(null);
+          }
 
           // 数据到位后按时间跨度调整可视密度
-          requestAnimationFrame(() => fitTimeSpan(chart, state.timeSpan));
+          requestAnimationFrame(() => { if (current()) fitTimeSpan(chart, state.timeSpan); });
         } catch (err) {
-          if (loadingKey.current !== key) return;
+          if (!current()) return;
           const message =
             err instanceof ApiError
               ? err.message
@@ -129,6 +147,11 @@ export function ChartPanel() {
                 ? err.message
                 : "加载行情失败";
           setError(message);
+          if (params.type === "init" || params.type === "update") {
+            readyRef.current = false;
+            setMarketSnapshot(null);
+            setStatus("error");
+          }
           params.callback([], false);
           notify(message, "error");
         }
@@ -136,7 +159,7 @@ export function ChartPanel() {
     });
 
     const onBarClick = (raw: unknown) => {
-      if (useWorkbench.getState().selectionMode) return;
+      if (!readyRef.current || useWorkbench.getState().selectionMode) return;
       const payload = raw as { data?: { current?: { timestamp?: number } }; timestamp?: number };
       const ts = payload?.data?.current?.timestamp ?? payload?.timestamp;
       if (typeof ts === "number") {
@@ -147,6 +170,7 @@ export function ChartPanel() {
     chart.subscribeAction("onCandleBarClick", onBarClick);
 
     const onVisibleRange = () => {
+      if (!readyRef.current) return;
       const data = chart.getDataList();
       const range = chart.getVisibleRange();
       if (!data.length) return;
@@ -173,6 +197,15 @@ export function ChartPanel() {
     };
   }, []);
 
+  useEffect(() => { chartRef.current?.setStyles(getChartStyles(theme)); }, [theme]);
+
+  // Clear every overlay before painting a different analysis context, including unfinished drawings.
+  useLayoutEffect(() => {
+    chartRef.current?.removeOverlay();
+    setSelecting(null);
+    setError(null);
+  }, [chartRevision]);
+
   // —— 标的 / 周期变化时触发 DataLoader 重新拉取 ——
   useEffect(() => {
     const chart = chartRef.current;
@@ -181,18 +214,6 @@ export function ChartPanel() {
     chart.setSymbol({ ticker: symbol, pricePrecision: 2, volumePrecision: 0 });
     chart.setPeriod(toChartPeriod(period));
   }, [symbol, period]);
-
-  // —— 时间跨度或复权变化：在同一标的上重载数据（跳过首次挂载，避免与 setSymbol 双拉） ——
-  const spanReady = useRef(false);
-  useEffect(() => {
-    const chart = chartRef.current;
-    if (!chart) return;
-    if (!spanReady.current) {
-      spanReady.current = true;
-      return;
-    }
-    chart.resetData();
-  }, [timeSpan, adjust]);
 
   // —— 指标 ——
   useEffect(() => {
@@ -220,12 +241,14 @@ export function ChartPanel() {
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
-    if (!activeTool) return;
+    if (!activeTool || !ready) return;
 
+    const drawingRevision = useWorkbench.getState().chartRevision;
     chart.createOverlay({
       name: activeTool,
       groupId: USER_GROUP_ID,
       onDrawEnd: (event) => {
+        if (useWorkbench.getState().chartRevision !== drawingRevision) return true;
         const overlay = event.overlay as Overlay;
         const annotation = overlayToAnnotation(overlay);
         if (annotation) {
@@ -237,26 +260,22 @@ export function ChartPanel() {
         return true;
       },
     });
-  }, [activeTool, registerUserAnnotation, setActiveTool, notify]);
+  }, [activeTool, registerUserAnnotation, setActiveTool, notify, ready]);
 
   // —— 语义标注渲染 ——
   useEffect(() => {
     const chart = chartRef.current;
-    if (!chart) return;
+    if (!chart || !ready) return;
     const visibleIds = new Set(annotationGroups.filter((g) => g.visible).map((g) => g.groupId));
     const visible: StoredAnnotation[] = annotations.filter((a) => visibleIds.has(a.groupId));
 
-    // 清掉所有已知标注 id，再按可见性重绘（手绘临时 overlay 不在 annotations 里的保留）
-    for (const a of annotations) {
-      chart.removeOverlay({ id: a.id });
-    }
     renderAnnotations(chart, visible);
-  }, [annotations, annotationGroups]);
+  }, [annotations, annotationGroups, chartRevision, ready]);
 
   // —— Agent 请求聚焦某段区间 ——
   useEffect(() => {
     const chart = chartRef.current;
-    if (!chart || !focusRequest) return;
+    if (!chart || !focusRequest || !ready) return;
     const { startTime, endTime } = focusRequest;
     const mid = (startTime + endTime) / 2;
     const data = chart.getDataList();
@@ -267,11 +286,11 @@ export function ChartPanel() {
     }
     chart.scrollToTimestamp(mid, 200);
     consumeFocus();
-  }, [focusRequest, consumeFocus]);
+  }, [focusRequest, consumeFocus, ready]);
 
   // —— 框选模式 ——
   const onSelectStart = (e: React.MouseEvent) => {
-    if (!selectionMode || !containerRef.current) return;
+    if (!ready || !selectionMode || !containerRef.current) return;
     const rect = containerRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -326,7 +345,7 @@ export function ChartPanel() {
 
   return (
     <main className="glass-panel chart-panel flex min-w-0 flex-1 flex-col overflow-hidden rounded-[20px]">
-      <div className="panel-header flex min-h-[67px] items-center justify-between gap-4 border-b border-line-soft px-4 py-2.5">
+      <div className="panel-header flex min-h-[67px] flex-wrap items-center justify-between gap-2 border-b border-line-soft px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-3">
           <div className="market-mark" aria-hidden="true">
             <Activity size={15} />
@@ -346,8 +365,8 @@ export function ChartPanel() {
             </div>
           </div>
         </div>
-        <div className="flex shrink-0 items-center gap-3">
-          {marketSnapshot && (
+        <div className="flex flex-wrap items-center gap-2">
+          {ready && marketSnapshot && (
             <div className="market-quote text-right">
               <div className="font-mono text-[17px] font-medium tabular-nums text-ink">
                 {marketSnapshot.price.toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -364,31 +383,22 @@ export function ChartPanel() {
               )}
             </div>
           )}
-          {selectionMode && (
+          {ready && selectionMode && (
             <span className="rounded-[8px] border border-accent/30 bg-accent-soft px-2.5 py-1 text-[11px] text-accent">
               框选模式：拖拽矩形选区
             </span>
           )}
-          <button
-            type="button"
-            title="用当前标的运行匿名 Wyckoff AI 计划回测"
-            className="glass-icon-btn inline-flex items-center gap-1.5 rounded-[11px] border border-line bg-panel-2 px-2.5 py-1.5 text-[11px] text-ink-dim transition-colors hover:border-accent/30 hover:text-ink"
-            onClick={() => setBacktestOpen(true)}
-          >
-            <ChartNoAxesCombined size={13} />
-            AI 计划回测
-          </button>
           <WatchStarButton />
         </div>
       </div>
 
-      <ChartToolbar />
+      <ChartToolbar dataReady={ready} />
 
       <div className="chart-surface relative min-h-0 flex-1">
         <div className="chart-reflection pointer-events-none absolute inset-0 z-[1]" />
-        <div ref={containerRef} className="absolute inset-0" />
+        <div ref={containerRef} className="absolute inset-0" style={{ visibility: ready ? "visible" : "hidden" }} aria-hidden={!ready} />
 
-        {selectionMode && (
+        {ready && selectionMode && (
           <div
             className="absolute inset-0 z-10 cursor-crosshair"
             onMouseDown={onSelectStart}
@@ -410,11 +420,15 @@ export function ChartPanel() {
           </div>
         )}
 
-        {error && (
-          <div className="absolute inset-x-0 top-4 z-20 flex justify-center">
-            <div className="glass-panel-strong rounded-[10px] px-3 py-2 text-xs text-up">{error}</div>
+        {!ready && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-panel px-8 text-center" role="status" aria-live="polite" aria-busy={status === "loading"}>
+            {status === "loading" && <div className="h-6 w-6 animate-spin rounded-full border-2 border-line border-t-accent" />}
+            <p className="text-sm text-ink">{status === "loading" ? `正在加载 ${symbol} 行情…` : status === "empty" ? "当前标的在此区间暂无行情" : "行情加载失败"}</p>
+            <p className="max-w-md text-xs text-ink-dim">{status === "error" ? error : status === "empty" ? "请尝试其他周期，或稍后重新加载。" : `${PERIOD_LABELS[period]} · ${ADJUST_LABELS[adjust]}`}</p>
+            {status !== "loading" && <button className="glass-btn-primary rounded-lg px-4 py-2 text-xs" onClick={() => { setError(null); setStatus("loading"); chartRef.current?.resetData(); }}>重新加载</button>}
           </div>
         )}
+        {ready && error && <div role="status" className="absolute inset-x-0 top-4 z-20 flex justify-center"><div className="glass-panel-strong rounded-lg px-3 py-2 text-xs text-up">加载历史行情失败：{error}</div></div>}
       </div>
     </main>
   );
