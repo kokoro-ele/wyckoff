@@ -8,6 +8,7 @@ import type {
   InstrumentDetail,
   Kline,
   Period,
+  ResearchResponse,
   StoredAnnotation,
   WatchGroup,
   WatchItem,
@@ -86,6 +87,19 @@ export function fetchInstrument(symbol: string): Promise<{ instrument: Instrumen
 
 export function fetchCapabilities(): Promise<{ freeTier: boolean; note: string }> {
   return request("/capabilities");
+}
+
+export function fetchResearch(params: {
+  symbol: string;
+  period: Period;
+  adjust: AdjustType;
+}): Promise<ResearchResponse> {
+  const query = new URLSearchParams({
+    symbol: params.symbol,
+    period: params.period,
+    adjust: params.adjust,
+  });
+  return request(`/research?${query}`);
 }
 
 export interface CreditStatus {

@@ -8,13 +8,13 @@ An AI workspace for single-asset price-and-volume research: professional candles
 
 ![Wyckoff workbench with the chart, research tabs, watchlist and account rail](./docs/screenshots/workbench-en.jpg)
 
-Open **Analysis** to switch between Fundamentals, Agent and Trade plan. The Agent draws trading ranges, Wyckoff events, support and resistance, and trendlines directly on the chart. Production shows friendly animated progress hints; detailed tool traces are development-only.
+Open **Analysis** to switch between **Research** and **Agent**. Research merges fundamentals and a rule-based trade plan into a read-only view; Agent reads the chart, annotates structure and answers questions. Production shows friendly animated progress hints; detailed tool traces are development-only.
 
 ## Highlights
 
 - **Browse without signing in**: the chart and workbench are the landing page; public quotes and search need no account.
 - **Professional chart workspace** with zooming, panning, crosshair, timeframes, adjustments, indicators, and drawing tools.
-- **Three research views**: fundamental brief, Wyckoff Agent, and a concrete trade plan with levels and entries.
+- **Read-only research panel**: fundamentals (market cap, P/E, P/B, 52-week range, SEC filing metrics) and a rule-based trade plan (bias, trigger, entry, stop, T1/T2, risk/reward) in one view with no input. Agent chat is a separate tab.
 - **Wyckoff Agent** for Phase A–E and events such as SC, AR, ST, Spring, SOS, LPS, UTAD, and SOW, rendered directly on the chart.
 - **Verified accounts** via email OTP or Google; watchlists, sessions, annotations, and market caches are isolated per account.
 - **Separate account panel** for login status, credits, invite code and invited users; top-ups and invites live there.
@@ -30,11 +30,16 @@ The recommendation, scanner, AI-backtest, and user-supplied model-key surfaces a
 
 ## Research views
 
-| View | Purpose |
+| Tab | Purpose |
 | --- | --- |
-| Fundamentals | Business, moat, financials and valuation, catalysts, risks; no drawing, short brief. |
-| Agent | Read Wyckoff structure, annotate ranges/events/support-resistance, and answer questions. |
-| Trade plan | One compact table: bias, trigger, entry zone, stop, T1/T2, risk-reward, invalidation and position size. |
+| Research | Read-only. Fundamentals combine Tencent valuation data with SEC EDGAR annual facts; the trade plan is computed deterministically from Wyckoff structure, swings, ranges and ATR. |
+| Agent | Interactive chart reading, annotations for ranges/events/support-resistance, and price-volume Q&A. |
+
+Research data sources:
+- Tencent quote: market cap, P/E, P/B, 52-week range (no API key).
+- SEC EDGAR: US annual revenue, net income, gross/net margin, ROE, EPS and dividends (set `SEC_USER_AGENT` with contact details).
+- TickFlow: candle prices shared by the chart and research panel.
+- The trade plan is rule-based, not model opinion; research only, not investment advice.
 
 New visitors see the chart and workbench first. Login appears only when they analyze, save to the watchlist, or open account credits; after signing in the pending action continues. Registration needs only email, password and an optional name; the OTP arrives by email.
 
@@ -106,6 +111,7 @@ See [payment setup](docs/payment-setup.md) for the full merchant checklist.
 | `OPENAI_WEB_SEARCH` | Enables Responses `web_search` |
 | `DEBUG_LLM` | Set to `1` only to log full prompts/history; off by default |
 | `ALLOW_AGENT_TRACE` | Set to `1` only in development to stream tool traces; keep `0` in production |
+| `SEC_USER_AGENT` | SEC EDGAR identifying string with contact details; empty disables SEC filing data |
 | `DATABASE_URL` / `DATABASE_SSL_CA` | PostgreSQL connection and optional CA |
 | `BETTER_AUTH_SECRET` / `BETTER_AUTH_URL` | Auth secret and canonical site origin |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth |
@@ -157,6 +163,7 @@ data/                    Local SQLite cache (Git ignored)
 - Payment amounts, credits, currency, and orders are server-snapshotted; callbacks must pass signature and amount checks.
 - Users cannot override the model URL, model ID, or API key; operator credentials come only from the environment.
 - Production Agent responses contain only text, annotations and progress; `tool_start`/`tool_end` and tool arguments are filtered by the server.
+- The research panel is a read-only data view; it never calls the model and does not consume analysis credits.
 - Language and theme are stored in the browser; previews accept `?lang=zh|en`, `?theme=light|dark`, `?auth=1` and `?account=1`.
 
 ## Deployment

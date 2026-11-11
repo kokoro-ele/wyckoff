@@ -9,8 +9,6 @@ import {
   GripVertical,
   FolderPlus,
   LockKeyhole,
-  Settings2,
-  UserRound,
 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import type { WatchItem } from "@wyckoff/shared";
@@ -19,13 +17,7 @@ import { cn, localizedInstrumentName } from "@/lib/utils.js";
 import { useAuth } from "@/auth/AuthProvider.js";
 import { useI18n } from "@/i18n.js";
 
-export function WatchlistSidebar({
-  onOpenAccount,
-  onOpenSettings,
-}: {
-  onOpenAccount: () => void;
-  onOpenSettings: () => void;
-}) {
+export function WatchlistSidebar() {
   const { t, lang } = useI18n();
   const { isVerified, openAuth } = useAuth();
   const symbol = useWorkbench((s) => s.symbol);
@@ -82,12 +74,6 @@ export function WatchlistSidebar({
             <FolderPlus size={14} />
           </IconBtn>
         )}
-        <IconBtn title={t("action.account")} onClick={onOpenAccount}>
-          <UserRound size={14} />
-        </IconBtn>
-        <IconBtn title={t("action.settings")} onClick={onOpenSettings}>
-          <Settings2 size={14} />
-        </IconBtn>
       </div>
     </div>
   );

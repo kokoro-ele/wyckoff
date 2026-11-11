@@ -65,3 +65,38 @@ export function localizedInstrumentName(
   if (lang === "en" && /[\u3400-\u9fff]/.test(name)) return fallback;
   return name;
 }
+
+export function formatCompactCurrency(
+  value: number | null | undefined,
+  currency: string | null | undefined,
+  lang: "zh" | "en",
+): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "—";
+  if (!currency) return formatCompactNumber(value, lang);
+  try {
+    return new Intl.NumberFormat(lang === "zh" ? "zh-CN" : "en-US", {
+      style: "currency",
+      currency,
+      notation: "compact",
+      maximumFractionDigits: 2,
+    }).format(value);
+  } catch {
+    return formatCompactNumber(value, lang);
+  }
+}
+
+export function formatCompactNumber(value: number | null | undefined, lang: "zh" | "en"): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "—";
+  return new Intl.NumberFormat(lang === "zh" ? "zh-CN" : "en-US", {
+    notation: "compact",
+    maximumFractionDigits: 2,
+  }).format(value);
+}
+
+export function formatRatio(value: number | null | undefined, digits = 2): string {
+  return value === null || value === undefined || !Number.isFinite(value) ? "—" : `${value.toFixed(digits)}×`;
+}
+
+export function formatPct(value: number | null | undefined, digits = 2): string {
+  return value === null || value === undefined || !Number.isFinite(value) ? "—" : `${value.toFixed(digits)}%`;
+}

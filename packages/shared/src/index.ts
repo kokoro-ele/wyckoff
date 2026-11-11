@@ -4,3 +4,4 @@ export * from "./annotation.js";
 export * from "./api.js";
 export * from "./backtest.js";
 export * from "./ai-backtest.js";
+export * from "./research.js";

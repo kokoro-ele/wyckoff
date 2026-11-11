@@ -30,6 +30,7 @@ const PUBLIC_GET_PATHS = new Set([
   "/api/klines",
   "/api/capabilities",
   "/api/search",
+  "/api/research",
   "/api/chat/status",
 ]);
 

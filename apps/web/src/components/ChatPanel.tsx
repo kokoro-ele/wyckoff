@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpen,
-  Landmark,
-  LineChart,
   Loader2,
   LockKeyhole,
   MessageSquarePlus,
@@ -11,75 +9,65 @@ import {
   Square,
   X,
 } from "lucide-react";
-import type { AgentEvent, AnalysisMode, ChatContext } from "@wyckoff/shared";
+import type { AgentEvent, ChatContext } from "@wyckoff/shared";
 import { ApiError, streamChat } from "@/lib/api.js";
 import { cn, formatDate, formatDuration, formatPrice } from "@/lib/utils.js";
 import { useWorkbench, type ChatEntry, type ToolTraceItem } from "@/store.js";
 import { MarkdownContent } from "./MarkdownContent.js";
+import { ResearchPanel } from "./ResearchPanel.js";
 import { useAuth } from "@/auth/AuthProvider.js";
 import { useI18n } from "@/i18n.js";
 
-const MODES: { id: AnalysisMode; icon: typeof Sparkles }[] = [
-  { id: "fundamental", icon: Landmark },
-  { id: "agent", icon: Sparkles },
-  { id: "trade", icon: LineChart },
+const THINKING_KEYS = [
+  "chat.thinking.agent.1",
+  "chat.thinking.agent.2",
+  "chat.thinking.agent.3",
+  "chat.thinking.agent.4",
 ];
-
-const AUTO_PROMPT_KEYS: Record<AnalysisMode, string> = {
-  fundamental: "chat.autoPrompt.fundamental",
-  agent: "chat.autoPrompt.agent",
-  trade: "chat.autoPrompt.trade",
-};
-
-const THINKING_KEYS: Record<AnalysisMode, string[]> = {
-  fundamental: [
-    "chat.thinking.fundamental.1",
-    "chat.thinking.fundamental.2",
-    "chat.thinking.fundamental.3",
-    "chat.thinking.fundamental.4",
-  ],
-  agent: ["chat.thinking.agent.1", "chat.thinking.agent.2", "chat.thinking.agent.3", "chat.thinking.agent.4"],
-  trade: ["chat.thinking.trade.1", "chat.thinking.trade.2", "chat.thinking.trade.3", "chat.thinking.trade.4"],
-};
-
 
 const SHOW_TRACE = import.meta.env.DEV || import.meta.env.VITE_SHOW_AGENT_TRACE === "1";
 
 export function ChatPanel() {
   const { t, lang } = useI18n();
   const { isVerified, requireAuth, openAuth } = useAuth();
+  const symbol = useWorkbench((s) => s.symbol);
+  const period = useWorkbench((s) => s.period);
+  const adjust = useWorkbench((s) => s.adjust);
   const messages = useWorkbench((s) => s.messages);
   const llmReady = useWorkbench((s) => s.llmReady);
   const resetSession = useWorkbench((s) => s.resetSession);
   const pendingContext = useWorkbench((s) => s.pendingContext);
   const setPendingContext = useWorkbench((s) => s.setPendingContext);
-  const [mode, setMode] = useState<AnalysisMode>("agent");
+  const [dockTab, setDockTab] = useState<"research" | "agent">(() =>
+    new URLSearchParams(window.location.search).get("tab") === "agent" ? "agent" : "research",
+  );
   const [input, setInput] = useState("");
-  const [sendingMode, setSendingMode] = useState<AnalysisMode | null>(null);
+  const [sending, setSending] = useState(false);
   const [thinkingIndex, setThinkingIndex] = useState(0);
   const sendingRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   const visible = useMemo(
-    () => messages.filter((message) => (message.mode ?? "agent") === mode),
-    [messages, mode],
+    () => messages.filter((message) => (message.mode ?? "agent") === "agent"),
+    [messages],
   );
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
   useEffect(() => {
+    if (dockTab !== "agent") return;
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
-  }, [visible, sendingMode]);
+  }, [visible, sending, dockTab]);
 
   useEffect(() => {
-    if (!sendingMode) return;
+    if (!sending) return;
     setThinkingIndex(0);
     const timer = window.setInterval(() => setThinkingIndex((index) => (index + 1) % 4), 1800);
     return () => window.clearInterval(timer);
-  }, [sendingMode]);
+  }, [sending]);
 
-  const execute = async (text: string, targetMode: AnalysisMode) => {
+  const execute = async (text: string) => {
     const content = text.trim();
     if (!content || sendingRef.current) return;
     const state = useWorkbench.getState();
@@ -92,14 +80,13 @@ export function ChatPanel() {
     state.setPendingContext(null);
     setInput("");
     sendingRef.current = true;
-    setSendingMode(targetMode);
-    setMode(targetMode);
+    setSending(true);
 
     const userMsg: ChatEntry = {
       id: `u_${Date.now()}`,
       role: "user",
       content,
-      mode: targetMode,
+      mode: "agent",
       context,
       createdAt: Date.now(),
     };
@@ -107,7 +94,7 @@ export function ChatPanel() {
       id: `a_${Date.now()}`,
       role: "assistant",
       content: "",
-      mode: targetMode,
+      mode: "agent",
       streaming: true,
       liveTrace: [],
       createdAt: Date.now(),
@@ -128,7 +115,7 @@ export function ChatPanel() {
         abortedByContext = true;
         controller.abort();
         sendingRef.current = false;
-        setSendingMode(null);
+        setSending(false);
       }
     });
 
@@ -206,7 +193,7 @@ export function ChatPanel() {
           period: state.period,
           adjust: state.adjust,
           message: content,
-          mode: targetMode,
+          mode: "agent",
           language: lang,
           showTrace: SHOW_TRACE,
           context,
@@ -237,7 +224,7 @@ export function ChatPanel() {
       unsubscribe();
       if (abortRef.current === controller) {
         sendingRef.current = false;
-        setSendingMode(null);
+        setSending(false);
         abortRef.current = null;
       }
       if (!abortedByContext && current()) {
@@ -246,22 +233,20 @@ export function ChatPanel() {
     }
   };
 
-  const send = (text: string, targetMode: AnalysisMode = mode) => {
+  const send = (text: string) => {
     if (!text.trim() || sendingRef.current) return;
     if (!isVerified) {
-      // The pending callback intentionally calls execute(), not send(), so the
-      // stale pre-login isVerified closure cannot reopen the dialog.
-      requireAuth(() => void execute(text, targetMode));
+      requireAuth(() => void execute(text));
       return;
     }
-    void execute(text, targetMode);
+    void execute(text);
   };
 
   const stop = () => {
     abortRef.current?.abort();
     abortRef.current = null;
     sendingRef.current = false;
-    setSendingMode(null);
+    setSending(false);
     useWorkbench.getState().updateLastAssistant((entry) => ({
       ...entry,
       streaming: false,
@@ -272,8 +257,8 @@ export function ChatPanel() {
     useWorkbench.getState().notify(t("chat.stopped"), "info");
   };
 
-  const sendingHere = sendingMode === mode;
-  const thinking = sendingMode ? t(THINKING_KEYS[sendingMode][thinkingIndex] ?? THINKING_KEYS[sendingMode][0]) : "";
+  const thinking = t(THINKING_KEYS[thinkingIndex] ?? THINKING_KEYS[0]);
+  const agent = dockTab === "agent";
 
   return (
     <aside className="glass-panel side-panel chat-panel flex h-full w-[346px] shrink-0 flex-col overflow-hidden rounded-[22px]">
@@ -281,114 +266,109 @@ export function ChatPanel() {
         <div className="flex items-center justify-between gap-2">
           <div>
             <div className="hand-eyebrow">STRUCTURE INTELLIGENCE</div>
-            <div className="mt-0.5 text-[15px] font-semibold tracking-wide">Wyckoff Agent</div>
+            <div className="mt-0.5 text-[15px] font-semibold tracking-wide">
+              {agent ? "Wyckoff Agent" : t("research.title")}
+            </div>
           </div>
           <div className="flex items-center gap-1">
-            <button type="button" title={t("chat.method")} aria-label={t("chat.method")} className="hand-icon" onClick={() => window.open("/wyckoff.html", "_blank", "noopener")}>
-              <BookOpen size={15} />
-            </button>
-            <button type="button" title={t("chat.newSession")} aria-label={t("chat.newSession")} className="hand-icon" onClick={resetSession}>
-              <MessageSquarePlus size={15} />
-            </button>
+            {agent && (
+              <>
+                <button type="button" title={t("chat.method")} aria-label={t("chat.method")} className="hand-icon" onClick={() => window.open("/wyckoff.html", "_blank", "noopener")}>
+                  <BookOpen size={15} />
+                </button>
+                <button type="button" title={t("chat.newSession")} aria-label={t("chat.newSession")} className="hand-icon" onClick={resetSession}>
+                  <MessageSquarePlus size={15} />
+                </button>
+              </>
+            )}
           </div>
         </div>
 
-        <div className="chat-tabs mt-3" role="tablist" aria-label="analysis mode">
-          {MODES.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                role="tab"
-                aria-selected={mode === item.id}
-                className={cn("chat-tab", mode === item.id && "chat-tab-active")}
-                onClick={() => setMode(item.id)}
-              >
-                <Icon size={14} />
-                <span>{t(`chat.tabs.${item.id}`)}</span>
-              </button>
-            );
-          })}
+        <div className="chat-tabs chat-tabs-two mt-3" role="tablist" aria-label="research and agent">
+          <button type="button" role="tab" aria-selected={dockTab === "research"} className={cn("chat-tab", dockTab === "research" && "chat-tab-active")} onClick={() => setDockTab("research")}>
+            <BookOpen size={14} />
+            <span>{t("research.tab")}</span>
+          </button>
+          <button type="button" role="tab" aria-selected={dockTab === "agent"} className={cn("chat-tab", dockTab === "agent" && "chat-tab-active")} onClick={() => setDockTab("agent")}>
+            <Sparkles size={14} />
+            <span>{t("research.agentTab")}</span>
+          </button>
         </div>
       </div>
 
-      <div ref={listRef} className="chat-stream flex-1 space-y-3 overflow-y-auto px-3 py-3">
-        {visible.length === 0 && (
-          <TabIntro
-            mode={mode}
-            verified={isVerified}
-            llmReady={llmReady}
-            onLogin={openAuth}
-            onRun={() => void send(t(AUTO_PROMPT_KEYS[mode]), mode)}
-          />
-        )}
-        {visible.map((message) => (
-          <MessageBubble key={message.id} message={message} showTrace={SHOW_TRACE} />
-        ))}
-        {sendingHere && <ThinkingBubble label={thinking ?? ""} />}
-      </div>
+      {dockTab === "research" ? (
+        <ResearchPanel symbol={symbol} period={period} adjust={adjust} />
+      ) : (
+        <>
+          <div ref={listRef} className="chat-stream flex-1 space-y-3 overflow-y-auto px-3 py-3">
+            {visible.length === 0 && (
+              <TabIntro verified={isVerified} llmReady={llmReady} onLogin={openAuth} onRun={() => void send(t("chat.autoPrompt.agent"))} />
+            )}
+            {visible.map((message) => (
+              <MessageBubble key={message.id} message={message} showTrace={SHOW_TRACE} />
+            ))}
+            {sending && <ThinkingBubble label={thinking} />}
+          </div>
 
-      <div className="chat-composer border-t-2 border-line-soft p-3">
-        {pendingContext && <ContextCapsule context={pendingContext} onClear={() => setPendingContext(null)} />}
-        <p className="mb-2 text-[10px] text-ink-faint">{t("chat.creditsNote")}</p>
-        <form
-          className="flex items-end gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void send(input, mode);
-          }}
-        >
-          <textarea
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
+          <div className="chat-composer border-t border-line-soft p-3">
+            {pendingContext && <ContextCapsule context={pendingContext} onClear={() => setPendingContext(null)} />}
+            <p className="mb-2 text-[10px] text-ink-faint">{t("chat.creditsNote")}</p>
+            <form
+              className="flex items-end gap-2"
+              onSubmit={(event) => {
                 event.preventDefault();
-                void send(input, mode);
-              }
-            }}
-            rows={2}
-            disabled={Boolean(sendingMode) || !llmReady}
-            placeholder={isVerified ? t(`chat.placeholder.${mode}`) : t("chat.loginHint")}
-            className="hand-input min-h-[56px] flex-1 resize-none px-2.5 py-2 text-sm disabled:opacity-60"
-          />
-          {sendingMode ? (
-            <button type="button" onClick={stop} aria-label={t("chat.stop")} title={t("chat.stop")} className="hand-btn hand-btn-primary h-[56px] w-11 justify-center">
-              <Square size={16} />
-            </button>
-          ) : (
-            <button type="submit" disabled={!input.trim() || !llmReady} className="hand-btn hand-btn-primary h-[56px] w-11 justify-center disabled:opacity-40">
-              <Send size={16} />
-            </button>
-          )}
-        </form>
-      </div>
+                void send(input);
+              }}
+            >
+              <textarea
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    void send(input);
+                  }
+                }}
+                rows={2}
+                disabled={sending || !llmReady}
+                placeholder={isVerified ? t("chat.placeholder.agent") : t("chat.loginHint")}
+                className="hand-input min-h-[56px] flex-1 resize-none px-2.5 py-2 text-sm disabled:opacity-60"
+              />
+              {sending ? (
+                <button type="button" onClick={stop} aria-label={t("chat.stop")} title={t("chat.stop")} className="hand-btn hand-btn-primary h-[56px] w-11 justify-center">
+                  <Square size={16} />
+                </button>
+              ) : (
+                <button type="submit" disabled={!input.trim() || !llmReady} className="hand-btn hand-btn-primary h-[56px] w-11 justify-center disabled:opacity-40">
+                  <Send size={16} />
+                </button>
+              )}
+            </form>
+          </div>
+        </>
+      )}
     </aside>
   );
 }
 
 function TabIntro({
-  mode,
   verified,
   llmReady,
   onLogin,
   onRun,
 }: {
-  mode: AnalysisMode;
   verified: boolean;
   llmReady: boolean;
   onLogin: () => void;
   onRun: () => void;
 }) {
   const { t } = useI18n();
-  const Icon = MODES.find((item) => item.id === mode)?.icon ?? Sparkles;
   return (
     <div className="hand-empty hand-doodle px-4 py-6 text-center">
       <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-line bg-panel-2 text-accent">
-        <Icon size={22} />
+        <Sparkles size={22} />
       </div>
-      <p className="mt-3 text-[13px] font-semibold">{t(`chat.intro.${mode}`)}</p>
+      <p className="mt-3 text-[13px] font-semibold">{t("chat.intro.agent")}</p>
       {!verified ? (
         <>
           <p className="mt-1.5 text-[11px] text-ink-dim">{t("chat.loginHint")}</p>
@@ -400,7 +380,7 @@ function TabIntro({
       ) : llmReady ? (
         <button type="button" className="hand-btn hand-btn-primary mt-4 inline-flex items-center gap-1.5 px-3 py-2 text-xs" onClick={onRun}>
           <Sparkles size={13} />
-          {t(`chat.cta.${mode}`)}
+          {t("chat.cta.agent")}
         </button>
       ) : (
         <p className="mt-3 text-[11px] text-warn">{t("error.SERVICE_UNAVAILABLE")}</p>

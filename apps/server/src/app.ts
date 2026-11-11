@@ -4,6 +4,7 @@ import { annotationRoutes } from "./routes/annotations.js";
 import { chatRoutes } from "./routes/chat.js";
 import { libraryRoutes } from "./routes/library.js";
 import { marketRoutes } from "./routes/market.js";
+import { researchRoutes } from "./routes/research.js";
 import { sessionRoutes } from "./routes/sessions.js";
 import { indexSize } from "./services/instruments.js";
 
@@ -19,6 +20,7 @@ app.get("/api/health", (c) =>
 );
 
 app.route("/api", marketRoutes);
+app.route("/api/research", researchRoutes);
 app.route("/api", libraryRoutes);
 app.route("/api/annotations", annotationRoutes);
 app.route("/api/sessions", sessionRoutes);
