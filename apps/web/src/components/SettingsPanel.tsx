@@ -1,28 +1,42 @@
-import { useEffect, useRef, useState } from "react";
-import { X, LogOut } from "lucide-react";
+import { X } from "lucide-react";
 import { ThemeSelector } from "../theme.js";
-import { authClient } from "../lib/auth.js";
-import { EffectsToggle } from "./CanvasSurface.js";
+import { useI18n } from "../i18n.js";
 
 export function SettingsPanel({ onClose }: { onClose: () => void }) {
-  const dialog = useRef<HTMLDialogElement>(null);
-  const { data: session } = authClient.useSession();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  useEffect(() => { const el = dialog.current; el?.showModal(); return () => el?.close(); }, []);
-  const logout = async () => {
-    setBusy(true); setError("");
-    try {
-      const result = await authClient.signOut();
-      if (result.error) throw new Error(result.error.message || "退出失败，请重试");
-      window.location.reload();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "退出失败，请重试"); setBusy(false); }
-  };
-  return <dialog ref={dialog} onCancel={onClose} aria-labelledby="settings-title" className="m-auto w-[min(460px,94vw)] rounded-2xl border border-line bg-panel p-6 text-ink shadow-2xl backdrop:bg-black/50">
-    <div className="flex items-center justify-between"><h2 id="settings-title" className="text-xl font-semibold">设置</h2><button aria-label="关闭设置" onClick={onClose} className="rounded p-2"><X size={20} /></button></div>
-    <div className="mt-6 flex items-center justify-between gap-3"><span className="text-sm">界面主题</span><ThemeSelector /></div>
-    <div className="mt-4 flex items-center justify-between gap-3"><span className="text-sm">纸面动效</span><EffectsToggle /></div>
-    <section className="mt-6 border-t border-line pt-5"><h3 className="text-sm font-medium">账号</h3><p className="mt-2 break-all text-sm text-ink-muted">{session?.user.email ?? "正在读取账号…"}</p><p className="mt-1 text-xs text-ink-muted">{session?.user.emailVerified ? "邮箱已验证" : "邮箱待验证"}</p><button disabled={busy} onClick={() => void logout()} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-sm disabled:opacity-50"><LogOut size={14} />{busy ? "正在退出…" : "退出登录"}</button></section>
-    {error && <p role="alert" className="mt-4 text-sm text-warn">{error}</p>}
-  </dialog>;
+  const { t, lang, setLang } = useI18n();
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-start justify-center bg-ink/35 px-4 pt-[10vh] backdrop-blur-[3px]"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section role="dialog" aria-modal="true" aria-labelledby="settings-title" className="hand-card w-full max-w-[420px] p-5">
+        <div className="flex items-center justify-between">
+          <h2 id="settings-title" className="text-[22px] font-semibold">{t("settings.title")}</h2>
+          <button type="button" aria-label={t("action.close")} className="hand-icon" onClick={onClose}>
+            <X size={17} />
+          </button>
+        </div>
+
+        <div className="mt-5 space-y-3">
+          <div className="hand-row flex items-center justify-between gap-3">
+            <span className="text-sm">{t("settings.language")}</span>
+            <div className="flex gap-1">
+              <button type="button" className={`hand-chip ${lang === "zh" ? "hand-chip-active" : ""}`} onClick={() => setLang("zh")}>
+                {t("settings.zh")}
+              </button>
+              <button type="button" className={`hand-chip ${lang === "en" ? "hand-chip-active" : ""}`} onClick={() => setLang("en")}>
+                {t("settings.en")}
+              </button>
+            </div>
+          </div>
+          <div className="hand-row flex items-center justify-between gap-3">
+            <span className="text-sm">{t("settings.theme")}</span>
+            <ThemeSelector />
+          </div>
+        </div>
+      </section>
+    </div>
+  );
 }

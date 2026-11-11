@@ -1,5 +1,6 @@
 import {
   type AgentEvent,
+  type AnalysisMode,
   type ChatMessage,
   type ChatRequest,
   type Kline,
@@ -22,7 +23,7 @@ import { getInstrument } from "../services/instruments.js";
 import { getKlines } from "../services/market.js";
 import * as sessions from "../services/sessions.js";
 import { buildSystemPrompt } from "./prompt.js";
-import { executeTool, type RunContext, responseTools, toolDefinitions } from "./tools.js";
+import { executeTool, type RunContext, responseTools, toolDefinitionsForMode } from "./tools.js";
 
 /** Agent 每轮最多来回调用几次本地工具，防止模型陷入循环。 */
 const MAX_ITERATIONS = 8;
@@ -52,6 +53,9 @@ export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent
   }
 
   const { sessionId, symbol, period, adjust, message, context, viewport } = request;
+  const mode: AnalysisMode = request.mode ?? "agent";
+  const showTrace = request.showTrace === true && process.env.ALLOW_AGENT_TRACE === "1";
+  const language = request.language ?? "zh";
   sessions.ensureSession(sessionId, symbol, period);
   sessions.titleFromFirstMessage(sessionId, message);
 
@@ -59,6 +63,7 @@ export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent
     id: makeId("msg"),
     role: "user",
     content: message,
+    mode,
     context,
     createdAt: Date.now(),
   };
@@ -72,64 +77,83 @@ export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent
     klines: () => (klinesPromise ??= getKlines({ symbol, period, adjust })),
   };
 
-  const history = sessions.getMessages(sessionId).slice(-HISTORY_LIMIT - 1, -1);
+  const history = sessions
+    .getMessages(sessionId)
+    .filter((entry) => (entry.mode ?? "agent") === mode)
+    .slice(-HISTORY_LIMIT - 1, -1);
   const situation = await buildSituationPrompt(ctx, viewport);
   const contextNote = await buildContextNote(ctx, context);
   const userContent = contextNote ? `${contextNote}\n\n${message}` : message;
-  const instructions = `${buildSystemPrompt()}\n\n${situation}`;
+  const languageRule =
+    language === "en"
+      ? "CRITICAL: Write the entire final answer in English, including headings and tables. Do not switch to Chinese."
+      : "CRITICAL: 最终回答必须全部使用中文，包括标题和表格，不要切换成英文。";
+  const instructions = `${buildSystemPrompt(mode, language)}\n\n${languageRule}\n\n${situation}`;
 
   const toolTrace: NonNullable<ChatMessage["toolTrace"]> = [];
   let answer = "";
 
   try {
     try {
-      yield* runResponsesLoop({
+      yield* visibleEvents(runResponsesLoop({
         ctx,
         history,
         userContent,
         instructions,
+        mode,
         webSearch: config.llm.webSearch,
         toolTrace,
         onText: (delta) => {
           answer += delta;
         },
-      });
+      }), showTrace);
     } catch (error) {
       if (config.llm.webSearch && isWebSearchUnsupported(error)) {
         console.warn("[agent] 当前模型/网关不支持 web_search，关闭联网后重试");
-        yield* runResponsesLoop({
+        yield* visibleEvents(runResponsesLoop({
           ctx,
           history,
           userContent,
           instructions,
+          mode,
           webSearch: false,
           toolTrace,
           onText: (delta) => {
             answer += delta;
           },
-        });
+        }), showTrace);
       } else if (isResponsesUnsupported(error)) {
         console.warn("[agent] Responses API 不可用，回退 Chat Completions（无联网搜索）：", (error as Error).message);
-        yield* runCompletionsLoop({
+        yield* visibleEvents(runCompletionsLoop({
           ctx,
           history,
           userContent,
           instructions,
+          mode,
           toolTrace,
           onText: (delta) => {
             answer += delta;
           },
-        });
+        }), showTrace);
       } else {
         throw error;
       }
+    }
+
+    if (!answer.trim()) {
+      throw new Error(
+        language === "en"
+          ? "The model returned no answer. Please retry."
+          : "模型没有返回有效回答，请重试。",
+      );
     }
 
     const assistantMessage: ChatMessage = {
       id: makeId("msg"),
       role: "assistant",
       content: answer,
-      toolTrace: toolTrace.length > 0 ? toolTrace : undefined,
+      mode,
+      toolTrace: showTrace && toolTrace.length > 0 ? toolTrace : undefined,
       createdAt: Date.now(),
     };
     sessions.appendMessage(sessionId, assistantMessage);
@@ -140,17 +164,25 @@ export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent
   }
 }
 
+async function* visibleEvents(events: AsyncGenerator<AgentEvent>, showTrace: boolean): AsyncGenerator<AgentEvent> {
+  for await (const event of events) {
+    if (!showTrace && (event.type === "tool_start" || event.type === "tool_end")) continue;
+    yield event;
+  }
+}
+
 interface LoopArgs {
   ctx: RunContext;
   history: ChatMessage[];
   userContent: string;
   instructions: string;
+  mode: AnalysisMode;
   toolTrace: NonNullable<ChatMessage["toolTrace"]>;
   onText: (delta: string) => void;
 }
 
 async function* runResponsesLoop(args: LoopArgs & { webSearch: boolean }): AsyncGenerator<AgentEvent> {
-  const { ctx, history, userContent, instructions, webSearch, toolTrace, onText } = args;
+  const { ctx, history, userContent, instructions, mode, webSearch, toolTrace, onText } = args;
   const input: ResponseInputItem[] = [
     ...history.map((m) => ({ role: m.role, content: m.content, type: "message" as const })),
     { role: "user", content: userContent, type: "message" },
@@ -166,7 +198,7 @@ async function* runResponsesLoop(args: LoopArgs & { webSearch: boolean }): Async
       model: config.llm.model,
       instructions,
       input,
-      tools: responseTools(webSearch),
+      tools: responseTools(webSearch, mode),
       include: webSearch ? ["web_search_call.action.sources"] : undefined,
       stream: true,
       store: false,
@@ -180,7 +212,9 @@ async function* runResponsesLoop(args: LoopArgs & { webSearch: boolean }): Async
       for (const emitted of handleResponseEvent(event, { searchStarted, searchStartedAt, toolTrace, onText })) {
         yield emitted;
       }
-      if (event.type === "response.completed") completed = event.response;
+      if (event.type === "response.completed" || event.type === "response.incomplete") {
+        completed = event.response;
+      }
       if (event.type === "response.failed") {
         throw new Error(event.response.error?.message ?? "Responses API 失败");
       }
@@ -243,7 +277,7 @@ function* handleResponseEvent(
 }
 
 async function* runCompletionsLoop(args: LoopArgs): AsyncGenerator<AgentEvent> {
-  const { ctx, history, userContent, instructions, toolTrace, onText } = args;
+  const { ctx, history, userContent, instructions, mode, toolTrace, onText } = args;
   const messages: ChatCompletionMessageParam[] = [
     { role: "system", content: instructions },
     ...history.map((m) => ({ role: m.role, content: m.content }) as ChatCompletionMessageParam),
@@ -256,7 +290,8 @@ async function* runCompletionsLoop(args: LoopArgs): AsyncGenerator<AgentEvent> {
     const stream = await getOpenAiClient().chat.completions.create({
       model: config.llm.model,
       messages,
-      tools: toolDefinitions,
+      tools: toolDefinitionsForMode(mode),
+      max_tokens: mode === "fundamental" ? 1_000 : 1_600,
       stream: true,
     });
 

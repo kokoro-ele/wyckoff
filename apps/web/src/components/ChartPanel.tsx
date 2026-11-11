@@ -2,18 +2,20 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Chart, DataLoaderGetBarsParams, Overlay } from "klinecharts";
 import { dispose, init } from "klinecharts";
 import { Activity, Star } from "lucide-react";
-import { ADJUST_LABELS, PERIOD_LABELS, TIME_SPANS, type Kline, type StoredAnnotation } from "@wyckoff/shared";
+import type { Kline, StoredAnnotation } from "@wyckoff/shared";
 import { ApiError, fetchKlines } from "@/lib/api.js";
 import { overlayToAnnotation, renderAnnotations, USER_GROUP_ID } from "@/chart/annotations.js";
 import { registerWyckoffOverlays } from "@/chart/overlays.js";
 import { barsForTimeSpan, timeSpanDays, toChartPeriod } from "@/chart/period.js";
 import { getChartStyles } from "@/chart/theme.js";
 import { INDICATORS, useWorkbench, type IndicatorId } from "@/store.js";
-import { cn } from "@/lib/utils.js";
+import { cn, localizedInstrumentName } from "@/lib/utils.js";
 import { ChartToolbar } from "./ChartToolbar.js";
 
 import { chartContextKey } from "@/chart/context.js";
 import { useTheme } from "@/theme.js";
+import { useI18n } from "@/i18n.js";
+import { useAuth } from "@/auth/AuthProvider.js";
 
 interface SelectionRect {
   x0: number;
@@ -46,6 +48,7 @@ export function ChartPanel() {
 
 function ChartContextPanel() {
   const { theme } = useTheme();
+  const { t, lang } = useI18n();
   const [status, setStatus] = useState<"loading" | "ready" | "empty" | "error">("loading");
   const readyRef = useRef(false);
   const ready = status === "ready";
@@ -82,7 +85,7 @@ function ChartContextPanel() {
 
     registerWyckoffOverlays();
     const chart = init(el, { styles: getChartStyles(theme), locale: "zh-CN", timezone: "Asia/Shanghai" });
-    if (!chart) { setError("无法初始化图表，请刷新页面重试。"); setStatus("error"); return; }
+    if (!chart) { setError(t("chart.initError")); setStatus("error"); return; }
     chartRef.current = chart;
 
     chart.setDataLoader({
@@ -145,7 +148,7 @@ function ChartContextPanel() {
               ? err.message
               : err instanceof Error
                 ? err.message
-                : "加载行情失败";
+                : t("chart.error");
           setError(message);
           if (params.type === "init" || params.type === "update") {
             readyRef.current = false;
@@ -164,7 +167,7 @@ function ChartContextPanel() {
       const ts = payload?.data?.current?.timestamp ?? payload?.timestamp;
       if (typeof ts === "number") {
         useWorkbench.getState().setPendingContext({ kind: "bar", timestamp: ts });
-        useWorkbench.getState().notify("已选中一根 K 线，可在对话中提问");
+        useWorkbench.getState().notify(t("chart.barSelected"));
       }
     };
     chart.subscribeAction("onCandleBarClick", onBarClick);
@@ -253,7 +256,7 @@ function ChartContextPanel() {
         const annotation = overlayToAnnotation(overlay);
         if (annotation) {
           void registerUserAnnotation(annotation).catch((err: unknown) => {
-            notify(err instanceof Error ? err.message : "保存手绘标注失败", "error");
+            notify(err instanceof Error ? err.message : t("chart.annotationError"), "error");
           });
         }
         setActiveTool(null);
@@ -339,7 +342,7 @@ function ChartContextPanel() {
       priceLow: prices.length ? Math.min(...prices) : undefined,
       priceHigh: prices.length ? Math.max(...prices) : undefined,
     });
-    notify("已框选区间，可在对话中提问");
+    notify(t("chart.selected"));
     useWorkbench.getState().toggleSelectionMode();
   };
 
@@ -353,15 +356,17 @@ function ChartContextPanel() {
           <div className="min-w-0">
             <div className="flex items-baseline gap-2.5">
               <h1 className="truncate font-mono text-[18px] font-semibold tracking-[-0.03em] text-ink">{symbol}</h1>
-              <span className="truncate text-[12px] text-ink-dim">{instrumentName ?? ""}</span>
+              <span className="truncate text-[12px] text-ink-dim">
+                {localizedInstrumentName(instrumentName, lang)}
+              </span>
             </div>
             <div className="mt-1 flex items-center gap-1.5 text-[10px] text-ink-faint">
               <span className="market-status-dot" />
-              <span>{PERIOD_LABELS[period]}</span>
+              <span>{t(`period.${period}`)}</span>
               <span className="text-line">/</span>
-              <span>{ADJUST_LABELS[adjust]}</span>
+              <span>{t(`adjust.${adjust}`)}</span>
               <span className="text-line">/</span>
-              <span>{TIME_SPANS.find((span) => span.id === timeSpan)?.label ?? timeSpan}</span>
+              <span>{t(`span.${timeSpan}`)}</span>
             </div>
           </div>
         </div>
@@ -385,7 +390,7 @@ function ChartContextPanel() {
           )}
           {ready && selectionMode && (
             <span className="rounded-[8px] border border-accent/30 bg-accent-soft px-2.5 py-1 text-[11px] text-accent">
-              框选模式：拖拽矩形选区
+              {t("chart.selecting")}
             </span>
           )}
           <WatchStarButton />
@@ -423,39 +428,77 @@ function ChartContextPanel() {
         {!ready && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-panel px-8 text-center" role="status" aria-live="polite" aria-busy={status === "loading"}>
             {status === "loading" && <div className="h-6 w-6 animate-spin rounded-full border-2 border-line border-t-accent" />}
-            <p className="text-sm text-ink">{status === "loading" ? `正在加载 ${symbol} 行情…` : status === "empty" ? "当前标的在此区间暂无行情" : "行情加载失败"}</p>
-            <p className="max-w-md text-xs text-ink-dim">{status === "error" ? error : status === "empty" ? "请尝试其他周期，或稍后重新加载。" : `${PERIOD_LABELS[period]} · ${ADJUST_LABELS[adjust]}`}</p>
-            {status !== "loading" && <button className="glass-btn-primary rounded-lg px-4 py-2 text-xs" onClick={() => { setError(null); setStatus("loading"); chartRef.current?.resetData(); }}>重新加载</button>}
+            <p className="text-sm text-ink">
+              {status === "loading"
+                ? t("chart.loading", { symbol })
+                : status === "empty"
+                  ? t("chart.empty")
+                  : t("chart.error")}
+            </p>
+            <p className="max-w-md text-xs text-ink-dim">
+              {status === "error"
+                ? error
+                : status === "empty"
+                  ? t("chart.emptyHint")
+                  : `${t(`period.${period}`)} · ${t(`adjust.${adjust}`)}`}
+            </p>
+            {status !== "loading" && (
+              <button
+                className="hand-btn hand-btn-primary rounded-lg px-4 py-2 text-xs"
+                onClick={() => {
+                  setError(null);
+                  setStatus("loading");
+                  chartRef.current?.resetData();
+                }}
+              >
+                {t("chart.retry")}
+              </button>
+            )}
           </div>
         )}
-        {ready && error && <div role="status" className="absolute inset-x-0 top-4 z-20 flex justify-center"><div className="glass-panel-strong rounded-lg px-3 py-2 text-xs text-up">加载历史行情失败：{error}</div></div>}
+        {ready && error && <div role="status" className="absolute inset-x-0 top-4 z-20 flex justify-center"><div className="glass-panel-strong rounded-lg px-3 py-2 text-xs text-up">{t("chart.error")}: {error}</div></div>}
       </div>
     </main>
   );
 }
 
 function WatchStarButton() {
+  const { t } = useI18n();
+  const { isVerified, requireAuth } = useAuth();
   const symbol = useWorkbench((s) => s.symbol);
   const watched = useWorkbench((s) => s.watchItems.some((item) => item.symbol === symbol));
   const activeWatchGroupId = useWorkbench((s) => s.activeWatchGroupId);
   const watchGroups = useWorkbench((s) => s.watchGroups);
   const toggleWatch = useWorkbench((s) => s.toggleWatch);
-  const groupName = watchGroups.find((g) => g.id === activeWatchGroupId)?.name ?? "自选";
+  const rawGroupName = watchGroups.find((g) => g.id === activeWatchGroupId)?.name;
+  const groupName = !rawGroupName || rawGroupName === "自选" || rawGroupName === "Watchlist" ? t("watch.title") : rawGroupName;
 
   return (
     <button
       type="button"
-      title={watched ? "取消收藏" : `加入「${groupName}」`}
+      title={watched ? t("chart.removeFavorite") : t("chart.addTo", { group: groupName })}
       className={cn(
         "glass-icon-btn inline-flex items-center gap-1.5 rounded-[11px] border px-2.5 py-1.5 text-[11px] transition-colors",
         watched
           ? "border-warn/35 bg-warn/10 text-warn"
           : "border-line bg-panel-2 text-ink-dim hover:border-warn/30 hover:text-warn",
       )}
-      onClick={() => void toggleWatch({ symbol })}
+      onClick={() => {
+        if (!isVerified) {
+          requireAuth(() => {
+            void useWorkbench
+              .getState()
+              .refreshWatchlist()
+              .then(() => useWorkbench.getState().toggleWatch({ symbol }))
+              .catch(() => undefined);
+          });
+          return;
+        }
+        void toggleWatch({ symbol });
+      }}
     >
       <Star size={13} fill={watched ? "currentColor" : "none"} />
-      {watched ? "已收藏" : "收藏"}
+      {watched ? t("chart.favorited") : t("chart.favorite")}
     </button>
   );
 }

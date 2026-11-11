@@ -65,12 +65,21 @@ export const chatContextSchema = z.discriminatedUnion("kind", [
 
 export type ChatContext = z.infer<typeof chatContextSchema>;
 
+export const analysisModeSchema = z.enum(["fundamental", "agent", "trade"]);
+export type AnalysisMode = z.infer<typeof analysisModeSchema>;
+
 export const chatRequestSchema = z.object({
   sessionId: z.string(),
   symbol: z.string(),
   period: periodSchema.default("1d"),
   adjust: adjustTypeSchema.default("forward"),
   message: z.string(),
+  /** The research surface that produced this turn. */
+  mode: analysisModeSchema.default("agent"),
+  /** Model response language; tool data stays in its original language. */
+  language: z.enum(["zh", "en"]).default("zh"),
+  /** Development-only tool trace events; production clients leave this false. */
+  showTrace: z.boolean().default(false),
   context: chatContextSchema.optional(),
   /** 画布当前的可视时间范围，让 Agent 知道用户正在看哪一段。 */
   viewport: z.object({ startTime: z.number().int(), endTime: z.number().int() }).optional(),
@@ -101,6 +110,8 @@ export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
   content: string;
+  /** The research surface this message belongs to. */
+  mode?: AnalysisMode;
   /** 助手消息附带的工具调用轨迹，用于在 UI 上展示 Agent 的思考过程。 */
   toolTrace?: { name: string; summary: string; ok: boolean; args?: unknown; durationMs?: number }[];
   context?: ChatContext;

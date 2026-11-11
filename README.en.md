@@ -2,26 +2,43 @@
 
 **English** · [简体中文](./README.md)
 
-An AI workspace for single-asset price-and-volume research: professional candlestick charts, Wyckoff structure analysis, semantic annotations, per-account encrypted research workspaces, and permanent analysis credits with referrals.
+An AI workspace for single-asset price-and-volume research: professional candlestick charts, Wyckoff structure analysis, semantic annotations, per-account encrypted research workspaces, and permanent analysis credits with referrals. Public charts load without signing in; watchlists, analysis and credits ask for login only when needed.
 
 > This project is for research and education. It is not investment advice, a performance guarantee, or an automated trading service.
 
-![Automated AAPL Wyckoff analysis with trading ranges, event markers, support and resistance, and trendlines](./docs/screenshots/workbench.jpg)
+![Wyckoff workbench with the chart, research tabs, watchlist and account rail](./docs/screenshots/workbench-en.jpg)
 
-Open **Analysis**, then choose **Auto analysis**. The Agent draws trading ranges, Wyckoff events, support and resistance, and trendlines directly on the chart while keeping the explanation and tool trace on the right.
+Open **Analysis** to switch between Fundamentals, Agent and Trade plan. The Agent draws trading ranges, Wyckoff events, support and resistance, and trendlines directly on the chart. Production shows friendly animated progress hints; detailed tool traces are development-only.
 
 ## Highlights
 
+- **Browse without signing in**: the chart and workbench are the landing page; public quotes and search need no account.
 - **Professional chart workspace** with zooming, panning, crosshair, timeframes, adjustments, indicators, and drawing tools.
+- **Three research views**: fundamental brief, Wyckoff Agent, and a concrete trade plan with levels and entries.
 - **Wyckoff Agent** for Phase A–E and events such as SC, AR, ST, Spring, SOS, LPS, UTAD, and SOW, rendered directly on the chart.
 - **Verified accounts** via email OTP or Google; watchlists, sessions, annotations, and market caches are isolated per account.
+- **Separate account panel** for login status, credits, invite code and invited users; top-ups and invites live there.
 - **Permanent analysis credits**: one credit per user-initiated analysis or follow-up. Server/model failures refund automatically; history, charts, and manual annotations are free.
 - **Referrals**: a new verified user receives 3 credits; each verified invite awards the inviter another 3.
 - **Credit-pack top-ups** configured by the operator through `ANALYSIS_CREDIT_PACKS`, with Stripe and WeChat Native payments.
+- **English and Chinese UI**: switch language in Settings; model answers, buttons, errors and chart controls follow it.
 - **Operator-only model credentials**: users cannot override the platform model URL or API key.
+- **Hand-drawn interface**: thick lines, paper texture, handwritten fonts and motion. The top bar is gone; controls live in a vertical left rail.
 - **Encrypted workspaces**: each account's SQLite workspace is compressed and encrypted with AES-256-GCM before being stored in PostgreSQL.
 
 The recommendation, scanner, AI-backtest, and user-supplied model-key surfaces are no longer mounted. Historical database rows are preserved for compatibility and are not migrated to new accounts.
+
+## Research views
+
+| View | Purpose |
+| --- | --- |
+| Fundamentals | Business, moat, financials and valuation, catalysts, risks; no drawing, short brief. |
+| Agent | Read Wyckoff structure, annotate ranges/events/support-resistance, and answer questions. |
+| Trade plan | One compact table: bias, trigger, entry zone, stop, T1/T2, risk-reward, invalidation and position size. |
+
+New visitors see the chart and workbench first. Login appears only when they analyze, save to the watchlist, or open account credits; after signing in the pending action continues. Registration needs only email, password and an optional name; the OTP arrives by email.
+
+Production hides structure features, candle details and tool arguments. Development shows the full trace when `ALLOW_AGENT_TRACE=1` and Vite dev mode is active. A pencil-and-dots animation explains what is happening during analysis.
 
 ## Quick start
 
@@ -88,6 +105,7 @@ See [payment setup](docs/payment-setup.md) for the full merchant checklist.
 | `OPENAI_BASE_URL` / `OPENAI_API_KEY` / `OPENAI_MODEL` | Operator-only model configuration |
 | `OPENAI_WEB_SEARCH` | Enables Responses `web_search` |
 | `DEBUG_LLM` | Set to `1` only to log full prompts/history; off by default |
+| `ALLOW_AGENT_TRACE` | Set to `1` only in development to stream tool traces; keep `0` in production |
 | `DATABASE_URL` / `DATABASE_SSL_CA` | PostgreSQL connection and optional CA |
 | `BETTER_AUTH_SECRET` / `BETTER_AUTH_URL` | Auth secret and canonical site origin |
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Google OAuth |
@@ -138,6 +156,8 @@ data/                    Local SQLite cache (Git ignored)
 - Near the 64 MiB cap, re-fetchable market caches are evicted automatically; user annotations, sessions, and favorites are never discarded.
 - Payment amounts, credits, currency, and orders are server-snapshotted; callbacks must pass signature and amount checks.
 - Users cannot override the model URL, model ID, or API key; operator credentials come only from the environment.
+- Production Agent responses contain only text, annotations and progress; `tool_start`/`tool_end` and tool arguments are filtered by the server.
+- Language and theme are stored in the browser; previews accept `?lang=zh|en`, `?theme=light|dark`, `?auth=1` and `?account=1`.
 
 ## Deployment
 

@@ -1,6 +1,7 @@
 import {
   type AgentEvent,
   type AdjustType,
+  type AnalysisMode,
   annotationSchema,
   type Kline,
   makeId,
@@ -116,7 +117,7 @@ export const toolDefinitions = [
       parameters: {
         type: "object",
         properties: {
-          start_date: { ...dateParam, description: "分析起始日期，留空表示全部历史" },
+          start_date: { ...dateParam, description: "分析起始日期，留空表示最近约 600 根 K 线" },
           end_date: { ...dateParam, description: "分析结束日期，留空表示到最新" },
         },
         additionalProperties: false,
@@ -221,9 +222,29 @@ export const toolDefinitions = [
   },
 ];
 
+/** Tool surfaces are intentionally smaller for focused research modes. */
+const MODE_TOOL_NAMES: Record<AnalysisMode, string[]> = {
+  fundamental: ["get_instrument_info", "get_klines"],
+  trade: [
+    "get_features",
+    "get_klines",
+    "get_instrument_info",
+    "draw_annotations",
+    "clear_annotations",
+    "update_annotation",
+    "focus_range",
+  ],
+  agent: toolDefinitions.map((tool) => tool.function.name),
+};
+
+export function toolDefinitionsForMode(mode: AnalysisMode = "agent") {
+  const names = new Set(MODE_TOOL_NAMES[mode]);
+  return toolDefinitions.filter((tool) => names.has(tool.function.name));
+}
+
 /** Responses API 工具列表：可选内置 web_search + 本地 function tools。 */
-export function responseTools(includeWebSearch: boolean): Tool[] {
-  const functions: FunctionTool[] = toolDefinitions.map((tool) => ({
+export function responseTools(includeWebSearch: boolean, mode: AnalysisMode = "agent"): Tool[] {
+  const functions: FunctionTool[] = toolDefinitionsForMode(mode).map((tool) => ({
     type: "function",
     name: tool.function.name,
     description: tool.function.description,
@@ -271,7 +292,11 @@ export async function executeTool(name: string, args: Args, ctx: RunContext): Pr
 async function getFeaturesTool(args: Args, ctx: RunContext): Promise<ToolResult> {
   const started = Date.now();
   const klines = await ctx.klines();
-  const startTime = args.start_date ? snapToBar(klines, args.start_date) ?? undefined : undefined;
+  // Full-history feature summaries can contain hundreds of ranges and blow up
+  // both latency and model context. Default to the recent two years.
+  const defaultStart =
+    klines.length > 600 ? klines[klines.length - 600].timestamp : undefined;
+  const startTime = args.start_date ? snapToBar(klines, args.start_date) ?? undefined : defaultStart;
   const endTime = args.end_date ? snapToBar(klines, args.end_date) ?? undefined : undefined;
 
   const features = await getFeatures({

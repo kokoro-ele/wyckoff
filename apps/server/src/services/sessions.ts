@@ -1,4 +1,4 @@
-import type { ChatContext, ChatMessage } from "@wyckoff/shared";
+import type { AnalysisMode, ChatContext, ChatMessage } from "@wyckoff/shared";
 import { db } from "../db/index.js";
 
 export interface SessionRow {
@@ -31,25 +31,28 @@ export function listSessions(symbol?: string): SessionRow[] {
 }
 
 export function getMessages(sessionId: string): ChatMessage[] {
+  const showTrace = process.env.ALLOW_AGENT_TRACE === "1";
   return db
-    .prepare<[string], { id: string; role: string; content: string; tool_trace: string | null; context: string | null; created_at: number }>(
-      "SELECT id, role, content, tool_trace, context, created_at FROM messages WHERE session_id = ? ORDER BY created_at, rowid",
+    .prepare<[string], { id: string; role: string; content: string; tool_trace: string | null; context: string | null; mode: string | null; created_at: number }>(
+      "SELECT id, role, content, tool_trace, context, mode, created_at FROM messages WHERE session_id = ? ORDER BY created_at, rowid",
     )
     .all(sessionId)
     .map((row) => ({
       id: row.id,
       role: row.role as ChatMessage["role"],
       content: row.content,
-      toolTrace: row.tool_trace ? (JSON.parse(row.tool_trace) as ChatMessage["toolTrace"]) : undefined,
+      toolTrace:
+        showTrace && row.tool_trace ? (JSON.parse(row.tool_trace) as ChatMessage["toolTrace"]) : undefined,
       context: row.context ? (JSON.parse(row.context) as ChatContext) : undefined,
+      mode: (row.mode as AnalysisMode | null) ?? "agent",
       createdAt: row.created_at,
     }));
 }
 
 export function appendMessage(sessionId: string, message: ChatMessage): void {
   db.prepare(`
-    INSERT INTO messages (id, session_id, role, content, tool_trace, context, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO messages (id, session_id, role, content, tool_trace, context, mode, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET content = excluded.content, tool_trace = excluded.tool_trace
   `).run(
     message.id,
@@ -58,6 +61,7 @@ export function appendMessage(sessionId: string, message: ChatMessage): void {
     message.content,
     message.toolTrace ? JSON.stringify(message.toolTrace) : null,
     message.context ? JSON.stringify(message.context) : null,
+    message.mode ?? "agent",
     message.createdAt,
   );
   db.prepare("UPDATE sessions SET updated_at = ? WHERE id = ?").run(Date.now(), sessionId);

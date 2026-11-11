@@ -54,3 +54,14 @@ export function formatDuration(ms: number): string {
   const seconds = Math.round((ms % 60_000) / 1000);
   return `${minutes}m${String(seconds).padStart(2, "0")}s`;
 }
+
+/** Hide provider-supplied Chinese company names when the UI is English. */
+export function localizedInstrumentName(
+  name: string | null | undefined,
+  lang: "zh" | "en",
+  fallback = "",
+): string {
+  if (!name) return fallback;
+  if (lang === "en" && /[\u3400-\u9fff]/.test(name)) return fallback;
+  return name;
+}

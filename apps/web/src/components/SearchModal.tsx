@@ -3,11 +3,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { Instrument } from "@wyckoff/shared";
 import * as api from "@/lib/api.js";
 import { useWorkbench } from "@/store.js";
-import { cn } from "@/lib/utils.js";
+import { cn, localizedInstrumentName } from "@/lib/utils.js";
+import { useI18n } from "@/i18n.js";
+import { useAuth } from "@/auth/AuthProvider.js";
 
 type SearchHit = Instrument & { score: number };
 
 export function SearchModal() {
+  const { t } = useI18n();
+  const { isVerified, requireAuth } = useAuth();
   const open = useWorkbench((s) => s.searchOpen);
   const setSearchOpen = useWorkbench((s) => s.setSearchOpen);
   const setSymbol = useWorkbench((s) => s.setSymbol);
@@ -71,7 +75,12 @@ export function SearchModal() {
   };
 
   const userGroups = watchGroups.filter((group) => !group.managed);
-  const activeGroupName = userGroups.find((g) => g.id === activeWatchGroupId)?.name ?? "自选";
+  const groupLabel = (name: string) =>
+    name === "自选" || name === "Watchlist" ? t("watch.title") : name;
+  const activeGroupName = (() => {
+    const name = userGroups.find((g) => g.id === activeWatchGroupId)?.name;
+    return name ? groupLabel(name) : t("watch.title");
+  })();
 
   return (
     <div
@@ -81,7 +90,7 @@ export function SearchModal() {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="搜索股票"
+        aria-label={t("search.title")}
         className="glass-panel-strong modal-glass flex w-full max-w-xl flex-col overflow-hidden rounded-[22px] animate-rise"
         onClick={(e) => e.stopPropagation()}
       >
@@ -105,7 +114,7 @@ export function SearchModal() {
                 pick(results[active]);
               }
             }}
-            placeholder="代码 / 名称 / 拼音首字母，如 AAPL 或 Apple"
+            placeholder={t("search.placeholder")}
             className="h-12 flex-1 text-sm text-ink placeholder:text-ink-faint"
           />
           <button type="button" className="rounded-lg p-1.5 text-ink-faint hover:bg-panel-2 hover:text-ink" onClick={() => setSearchOpen(false)}>
@@ -116,7 +125,7 @@ export function SearchModal() {
         {userGroups.length > 0 && (
           <div className="flex items-center gap-2 border-b border-line-soft px-3.5 py-2">
             <Folder size={12} className="text-ink-faint" />
-            <span className="text-[11px] text-ink-faint">星标加入</span>
+            <span className="text-[11px] text-ink-faint">{t("search.starTo")}</span>
             <div className="flex flex-wrap gap-1">
               {userGroups.map((g) => (
                 <button
@@ -128,7 +137,7 @@ export function SearchModal() {
                     g.id === activeWatchGroupId && "glass-chip-active",
                   )}
                 >
-                  {g.name}
+                  {groupLabel(g.name)}
                 </button>
               ))}
             </div>
@@ -136,10 +145,10 @@ export function SearchModal() {
         )}
 
         <div className="max-h-80 overflow-y-auto">
-          {loading && <p className="px-4 py-6 text-center text-xs text-ink-faint">搜索中…</p>}
+          {loading && <p className="px-4 py-6 text-center text-xs text-ink-faint">{t("search.loading")}</p>}
           {!loading && query && results.length === 0 && (
             <p className="px-4 py-6 text-center text-xs text-ink-faint">
-              无匹配结果{indexSize === 0 ? "（标的索引仍在同步，请稍候）" : ""}
+              {t("search.noResults")}{indexSize === 0 ? ` ${t("search.indexSyncing")}` : ""}
             </p>
           )}
           {!loading &&
@@ -151,13 +160,26 @@ export function SearchModal() {
                 groupHint={activeGroupName}
                 groupId={activeWatchGroupId}
                 onPick={() => pick(hit)}
-                onToggleWatch={() => void toggleWatch(hit, activeWatchGroupId ?? undefined)}
+                onToggleWatch={() => {
+                  const run = () => void toggleWatch(hit, activeWatchGroupId ?? undefined);
+                  if (!isVerified) {
+                    requireAuth(() => {
+                      void useWorkbench
+                        .getState()
+                        .refreshWatchlist()
+                        .then(() => useWorkbench.getState().toggleWatch(hit, activeWatchGroupId ?? undefined))
+                        .catch(() => undefined);
+                    });
+                  } else {
+                    run();
+                  }
+                }}
                 onHover={() => setActive(i)}
               />
             ))}
           {!query && (
             <p className="px-4 py-8 text-center text-xs text-ink-faint">
-              支持代码、公司名称与拼音首字母（如 <span className="font-mono text-ink-dim">AAPL</span> → Apple）
+              {t("search.hint")}
             </p>
           )}
         </div>
@@ -183,6 +205,7 @@ function SearchRow({
   onToggleWatch: () => void;
   onHover: () => void;
 }) {
+  const { t, lang } = useI18n();
   const watchedInGroup = useWorkbench((s) =>
     groupId == null
       ? s.watchItems.some((item) => item.symbol === hit.symbol)
@@ -200,7 +223,9 @@ function SearchRow({
       <div className="min-w-0 flex-1">
         <div className="flex items-baseline gap-2">
           <span className="font-mono text-sm text-ink">{hit.symbol}</span>
-          <span className="truncate text-xs text-ink-dim">{hit.name ?? "—"}</span>
+          <span className="truncate text-xs text-ink-dim">
+            {localizedInstrumentName(hit.name, lang, "—")}
+          </span>
         </div>
         <div className="text-[11px] text-ink-faint">
           {hit.exchange} · {hit.type ?? "—"} · {hit.region}
@@ -208,7 +233,7 @@ function SearchRow({
       </div>
       <button
         type="button"
-        title={watchedInGroup ? `从「${groupHint}」移除` : `加入「${groupHint}」`}
+        title={watchedInGroup ? t("search.removeFrom", { group: groupHint }) : t("search.addTo", { group: groupHint })}
         className={cn(
           "rounded-lg p-1.5 transition-colors",
           watchedInGroup ? "text-warn" : "text-ink-faint hover:bg-panel-2 hover:text-warn",

@@ -1,5 +1,4 @@
 import {
-  ADJUST_LABELS,
   type AdjustType,
   FREE_TIER_PERIODS,
   PERIOD_LABELS,
@@ -17,11 +16,13 @@ import {
 } from "lucide-react";
 import { DRAWING_TOOLS, INDICATORS, useWorkbench } from "@/store.js";
 import { cn } from "@/lib/utils.js";
+import { useI18n } from "@/i18n.js";
 
 const ALL_PERIODS = Object.keys(PERIOD_LABELS) as Period[];
 const ADJUSTS: AdjustType[] = ["forward", "backward", "none"];
 
 export function ChartToolbar({ dataReady = true }: { dataReady?: boolean }) {
+  const { t } = useI18n();
   const period = useWorkbench((s) => s.period);
   const adjust = useWorkbench((s) => s.adjust);
   const timeSpan = useWorkbench((s) => s.timeSpan);
@@ -44,7 +45,7 @@ export function ChartToolbar({ dataReady = true }: { dataReady?: boolean }) {
   return (
     <div className="chart-toolbar flex flex-col gap-1.5 border-b border-line-soft px-3 py-2.5">
       <div className="flex flex-wrap items-center gap-1">
-        <ToolGroup label="周期">
+        <ToolGroup label={t("toolbar.period")}>
           {ALL_PERIODS.map((p) => {
             const locked = freeTier && !FREE_TIER_PERIODS.includes(p);
             return (
@@ -52,16 +53,16 @@ export function ChartToolbar({ dataReady = true }: { dataReady?: boolean }) {
                 key={p}
                 active={period === p}
                 disabled={locked}
-                title={locked ? "免费档不支持分钟线，请升级 TickFlow" : PERIOD_LABELS[p]}
+                title={locked ? t("toolbar.freePeriod") : t(`period.${p}`)}
                 onClick={() => {
                   if (locked) {
-                    notify("免费档仅支持日线及以上周期", "error");
+                    notify(t("toolbar.freeOnly"), "error");
                     return;
                   }
                   setPeriod(p);
                 }}
               >
-                {PERIOD_LABELS[p]}
+                {t(`period.${p}`)}
               </Chip>
             );
           })}
@@ -69,27 +70,27 @@ export function ChartToolbar({ dataReady = true }: { dataReady?: boolean }) {
 
         <Divider />
 
-        <ToolGroup label="复权">
+        <ToolGroup label={t("toolbar.adjust")}>
           {ADJUSTS.map((a) => (
             <Chip key={a} active={adjust === a} onClick={() => setAdjust(a)}>
-              {ADJUST_LABELS[a]}
+              {t(`adjust.${a}`)}
             </Chip>
           ))}
         </ToolGroup>
 
         <Divider />
 
-        <ToolGroup label="跨度">
+        <ToolGroup label={t("toolbar.span")}>
           {TIME_SPANS.map((s) => (
             <Chip key={s.id} active={timeSpan === s.id} onClick={() => setTimeSpan(s.id)}>
-              {s.label}
+              {t(`span.${s.id}`)}
             </Chip>
           ))}
         </ToolGroup>
       </div>
 
       <div className="flex flex-wrap items-center gap-1">
-        <ToolGroup label="指标">
+        <ToolGroup label={t("toolbar.indicator")}>
           {INDICATORS.map((ind) => (
             <Chip key={ind.id} active={indicators.includes(ind.id)} onClick={() => toggleIndicator(ind.id)}>
               {ind.label}
@@ -99,28 +100,28 @@ export function ChartToolbar({ dataReady = true }: { dataReady?: boolean }) {
 
         <Divider />
 
-        <ToolGroup label="绘图">
+        <ToolGroup label={t("toolbar.drawing")}>
           <Chip
             active={!activeTool && !selectionMode}
             disabled={!dataReady}
-            title="选择 / 平移"
+            title={t("toolbar.pointer")}
             onClick={() => setActiveTool(null)}
           >
             <MousePointer2 size={12} />
           </Chip>
-          <Chip disabled={!dataReady} active={selectionMode} title="框选区间提问" onClick={() => toggleSelectionMode()}>
+          <Chip disabled={!dataReady} active={selectionMode} title={t("toolbar.boxSelect")} onClick={() => toggleSelectionMode()}>
             <Crosshair size={12} />
-            <span>框选</span>
+            <span>{t("toolbar.boxSelect")}</span>
           </Chip>
           {DRAWING_TOOLS.map((tool) => (
             <Chip
               key={tool.id}
               disabled={!dataReady}
               active={activeTool === tool.id}
-              title={tool.label}
+              title={t(`drawing.${tool.id}`)}
               onClick={() => setActiveTool(activeTool === tool.id ? null : tool.id)}
             >
-              {tool.label}
+              {t(`drawing.${tool.id}`)}
             </Chip>
           ))}
         </ToolGroup>
@@ -128,12 +129,12 @@ export function ChartToolbar({ dataReady = true }: { dataReady?: boolean }) {
         {annotationGroups.length > 0 && (
           <>
             <Divider />
-            <ToolGroup label="标注">
+            <ToolGroup label={t("toolbar.annotations")}>
               {annotationGroups.map((g) => (
                 <span key={g.groupId} className="inline-flex items-center gap-0.5">
                   <Chip
                     active={g.visible}
-                    title={g.visible ? "隐藏" : "显示"}
+                    title={g.visible ? t("toolbar.hide") : t("toolbar.show")}
                     onClick={() => void toggleAnnotationGroup(g.groupId)}
                   >
                     {g.visible ? <Eye size={11} /> : <EyeOff size={11} />}
@@ -142,16 +143,16 @@ export function ChartToolbar({ dataReady = true }: { dataReady?: boolean }) {
                   <button
                     type="button"
                     className="rounded p-0.5 text-ink-faint hover:text-up"
-                    title="删除该组"
+                    title={t("toolbar.deleteGroup")}
                     onClick={() => void removeAnnotationGroup(g.groupId)}
                   >
                     <Trash2 size={11} />
                   </button>
                 </span>
               ))}
-              <Chip title="清空全部标注" onClick={() => void clearAllAnnotations()}>
+              <Chip title={t("toolbar.clear")} onClick={() => void clearAllAnnotations()}>
                 <Eraser size={12} />
-                <span>清空</span>
+                <span>{t("toolbar.clear")}</span>
               </Chip>
             </ToolGroup>
           </>

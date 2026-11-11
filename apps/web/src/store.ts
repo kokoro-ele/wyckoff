@@ -12,6 +12,7 @@ import type {
 } from "@wyckoff/shared";
 import { create } from "zustand";
 import * as api from "./lib/api.js";
+import { translate } from "./i18n.js";
 
 const LAST_SYMBOL_KEY = "wyckoff:last-symbol";
 let annotationLoadSequence = 0;
@@ -107,7 +108,8 @@ interface WorkbenchState {
   setSearchOpen: (open: boolean) => void;
   notify: (message: string, tone?: "info" | "error") => void;
 
-  bootstrap: () => Promise<void>;
+  bootstrap: (authenticated?: boolean) => Promise<void>;
+  clearPersonalData: () => void;
   refreshWatchlist: () => Promise<void>;
   setActiveWatchGroup: (id: number) => void;
   toggleWatch: (instrument: Pick<Instrument, "symbol">, groupId?: number) => Promise<void>;
@@ -142,7 +144,7 @@ function stopStreaming(messages: ChatEntry[]): ChatEntry[] {
   return messages.map(message => message.streaming ? {
     ...message, streaming: false,
     liveTrace: message.liveTrace?.map(trace => trace.running
-      ? { ...trace, running: false, ok: false, summary: "已停止：图表上下文已切换" } : trace),
+      ? { ...trace, running: false, ok: false, summary: translate("chat.stopped") } : trace),
   } : message);
 }
 
@@ -256,13 +258,12 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
     if (chatStatus.status === "fulfilled") set({ llmReady: chatStatus.value.configured });
   },
 
-  async bootstrap() {
-    await Promise.allSettled([
-      get().refreshRuntimeStatus(),
-      get().refreshWatchlist(),
-      get().loadAnnotations(),
-      get().restoreSessionForSymbol(get().symbol),
-    ]);
+  async bootstrap(authenticated = false) {
+    const tasks: Promise<unknown>[] = [get().refreshRuntimeStatus()];
+    if (authenticated) {
+      tasks.push(get().refreshWatchlist(), get().loadAnnotations(), get().restoreSessionForSymbol(get().symbol));
+    }
+    await Promise.allSettled(tasks);
 
     try {
       const { symbol, symbolRevision } = get();
@@ -271,6 +272,20 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
     } catch {
       /* 名称拿不到不影响看图 */
     }
+  },
+
+  clearPersonalData() {
+    set({
+      watchGroups: [],
+      watchItems: [],
+      activeWatchGroupId: null,
+      annotationGroups: [],
+      annotations: [],
+      messages: [],
+      sessionId: newSessionId(),
+      pendingContext: null,
+      viewport: null,
+    });
   },
 
   async refreshWatchlist() {
@@ -302,35 +317,35 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
         ? await api.removeFromWatchlist(symbol, groupId)
         : await api.addToWatchlist(symbol, groupId);
       set({ watchGroups: payload.groups, watchItems: payload.items });
-      get().notify(inGroup ? `已从分组移除 ${symbol}` : `已加入分组 ${symbol}`);
+      get().notify(inGroup ? translate("watch.removedGroup", { symbol }) : translate("watch.addedGroup", { symbol }));
       return;
     }
 
     if (inAny) {
       const payload = await api.removeFromWatchlist(symbol);
       set({ watchGroups: payload.groups, watchItems: payload.items });
-      get().notify(`已取消收藏 ${symbol}`);
+      get().notify(translate("watch.removed", { symbol }));
       return;
     }
 
     if (targetGroup === undefined || targetGroup === null) {
-      get().notify("请先创建收藏分组", "error");
+      get().notify(translate("watch.noGroup"), "error");
       return;
     }
     const payload = await api.addToWatchlist(symbol, targetGroup);
     set({ watchGroups: payload.groups, watchItems: payload.items });
-    get().notify(`已收藏 ${symbol}`);
+    get().notify(translate("watch.added", { symbol }));
   },
 
   async addToWatch(symbol, groupId) {
     const target = groupId ?? get().activeWatchGroupId ?? firstUserGroup(get().watchGroups)?.id;
     if (target === undefined || target === null) {
-      get().notify("请先创建收藏分组", "error");
+      get().notify(translate("watch.noGroup"), "error");
       return;
     }
     const payload = await api.addToWatchlist(symbol, target);
     set({ watchGroups: payload.groups, watchItems: payload.items });
-    get().notify(`已收藏 ${symbol}`);
+    get().notify(translate("watch.added", { symbol }));
   },
 
   async removeFromWatch(symbol, groupId) {
@@ -341,13 +356,13 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   async moveWatchItem(symbol, fromGroupId, toGroupId) {
     if (fromGroupId === toGroupId) return;
     if (get().watchGroups.some((group) => (group.id === fromGroupId || group.id === toGroupId) && group.managed)) {
-      get().notify("此分组不能手动调整", "error");
+      get().notify(translate("watch.locked"), "error");
       return;
     }
     await api.addToWatchlist(symbol, toGroupId);
     const payload = await api.removeFromWatchlist(symbol, fromGroupId);
     set({ watchGroups: payload.groups, watchItems: payload.items });
-    get().notify(`已移动 ${symbol}`);
+    get().notify(translate("watch.moved", { symbol }));
   },
 
   async reorderWatchItems(groupId, symbols) {
@@ -436,10 +451,10 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
     const { groupId, annotations } = await api.saveAnnotations({
       symbol,
       period,
-      title: "手绘标注",
+      title: translate("chart.userAnnotation"),
       annotations: [annotation],
     });
-    if (get().chartRevision === chartRevision) get().applyAnnotationBatch(groupId, "手绘标注", annotations);
+    if (get().chartRevision === chartRevision) get().applyAnnotationBatch(groupId, translate("chart.userAnnotation"), annotations);
   },
 
   setPendingContext: (pendingContext) => set({ pendingContext }),

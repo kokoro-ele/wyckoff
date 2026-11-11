@@ -113,7 +113,9 @@ let syncing: Promise<void> | null = null;
 
 /** 拉取五个交易所的全量标的。并发上限设为 2，避免免费服务被打限流。 */
 export function syncInstruments(): Promise<void> {
-  if (!workspaceContext.getStore() && syncing) return syncing;
+  const context = workspaceContext.getStore();
+  // The anonymous public cache is shared across requests on this instance.
+  if ((!context || context.userId === "__public__") && syncing) return syncing;
 
   syncing = (async () => {
     console.log("[instruments] 开始同步标的清单…");

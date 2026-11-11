@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 
 /** Bump when the SQLite workspace schema changes. */
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 
 /**
  * Creates or upgrades the per-user SQLite workspace.
@@ -94,6 +94,7 @@ db.exec(`
     content    TEXT NOT NULL,
     tool_trace TEXT,
     context    TEXT,
+    mode       TEXT,
     created_at INTEGER NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_messages_session ON messages(session_id, created_at);
@@ -273,6 +274,12 @@ db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_watch_groups_managed_key ON watch
 
 try {
   db.exec("ALTER TABLE backtest_runs ADD COLUMN engine_version TEXT NOT NULL DEFAULT 'unknown'");
+} catch {
+  /* 列已存在 */
+}
+
+try {
+  db.exec("ALTER TABLE messages ADD COLUMN mode TEXT");
 } catch {
   /* 列已存在 */
 }

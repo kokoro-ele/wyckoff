@@ -8,13 +8,18 @@ import {
   Pencil,
   GripVertical,
   FolderPlus,
+  LockKeyhole,
 } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import type { WatchItem } from "@wyckoff/shared";
 import { useWorkbench } from "@/store.js";
-import { cn } from "@/lib/utils.js";
+import { cn, localizedInstrumentName } from "@/lib/utils.js";
+import { useAuth } from "@/auth/AuthProvider.js";
+import { useI18n } from "@/i18n.js";
 
 export function WatchlistSidebar() {
+  const { t, lang } = useI18n();
+  const { isVerified, openAuth } = useAuth();
   const symbol = useWorkbench((s) => s.symbol);
   const groups = useWorkbench((s) => s.watchGroups);
   const items = useWorkbench((s) => s.watchItems);
@@ -28,7 +33,7 @@ export function WatchlistSidebar() {
   const renameWatchGroup = useWorkbench((s) => s.renameWatchGroup);
   const removeWatchGroup = useWorkbench((s) => s.removeWatchGroup);
   const setSearchOpen = useWorkbench((s) => s.setSearchOpen);
-  const displayGroups = useMemo(() => groups.filter(group => !group.managed), [groups]);
+  const displayGroups = useMemo(() => groups.filter((group) => !group.managed), [groups]);
 
   const [adding, setAdding] = useState(false);
   const [groupName, setGroupName] = useState("");
@@ -36,6 +41,9 @@ export function WatchlistSidebar() {
   const [renamingId, setRenamingId] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const [dragSymbol, setDragSymbol] = useState<{ symbol: string; groupId: number } | null>(null);
+
+  const groupLabel = (name: string) =>
+    name === "自选" || name === "Watchlist" ? t("watch.title") : name;
 
   const itemsByGroup = useMemo(() => {
     const map = new Map<number, WatchItem[]>();
@@ -48,31 +56,55 @@ export function WatchlistSidebar() {
     return map;
   }, [groups, items]);
 
-  const total = items.filter(item => displayGroups.some(group => group.id === item.groupId)).length;
+  const total = items.filter((item) => displayGroups.some((group) => group.id === item.groupId)).length;
+
+  const header = (
+    <div className="panel-header flex items-center justify-between border-b-2 border-line-soft px-3.5 py-3">
+      <div>
+        <div className="hand-eyebrow">MARKET DESK</div>
+        <div className="mt-0.5 text-[15px] font-semibold tracking-wide text-ink">{t("watch.title")}</div>
+        <div className="mt-0.5 text-[10px] text-ink-faint">{t("watch.count", { n: total })}</div>
+      </div>
+      <div className="flex items-center gap-0.5">
+        <IconBtn title={t("watch.search")} onClick={() => setSearchOpen(true)}>
+          <Search size={14} />
+        </IconBtn>
+        {isVerified && (
+          <IconBtn title={t("watch.newGroup")} onClick={() => setAdding(true)}>
+            <FolderPlus size={14} />
+          </IconBtn>
+        )}
+      </div>
+    </div>
+  );
+
+  if (!isVerified) {
+    return (
+      <aside className="glass-panel side-panel flex h-full w-[226px] shrink-0 flex-col overflow-hidden rounded-[20px]">
+        {header}
+        <div className="hand-doodle m-3 flex flex-1 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-line px-4 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-line bg-panel-2 text-accent">
+            <LockKeyhole size={21} />
+          </div>
+          <p className="mt-3 text-xs font-semibold">{t("watch.login")}</p>
+          <p className="mt-1 text-[11px] leading-relaxed text-ink-dim">{t("watch.loginHint")}</p>
+          <button type="button" className="hand-btn hand-btn-primary mt-4 px-3 py-2 text-xs" onClick={openAuth}>
+            {t("account.login")}
+          </button>
+        </div>
+      </aside>
+    );
+  }
 
   return (
     <aside className="glass-panel side-panel flex h-full w-[226px] shrink-0 flex-col overflow-hidden rounded-[20px]">
-      <div className="panel-header flex items-center justify-between border-b border-line-soft px-3.5 py-3">
-        <div>
-          <div className="eyebrow">MARKET DESK</div>
-          <div className="mt-0.5 text-[14px] font-semibold tracking-wide text-ink">自选观察</div>
-          <div className="mt-0.5 text-[10px] text-ink-faint">{total} 只标的 · 实时工作台</div>
-        </div>
-        <div className="flex items-center gap-0.5">
-          <IconBtn title="搜索股票 ⌘K" onClick={() => setSearchOpen(true)}>
-            <Search size={14} />
-          </IconBtn>
-          <IconBtn title="新建分组" onClick={() => setAdding(true)}>
-            <FolderPlus size={14} />
-          </IconBtn>
-        </div>
-      </div>
+      {header}
 
       {adding && (
         <form
           className="flex gap-1.5 border-b border-line-soft p-2.5 animate-rise"
-          onSubmit={(e) => {
-            e.preventDefault();
+          onSubmit={(event) => {
+            event.preventDefault();
             const name = groupName.trim();
             if (!name) return;
             void addWatchGroup(name);
@@ -83,12 +115,12 @@ export function WatchlistSidebar() {
           <input
             autoFocus
             value={groupName}
-            onChange={(e) => setGroupName(e.target.value)}
-            placeholder="分组名称"
-            className="glass-input min-w-0 flex-1 px-2.5 py-1.5 text-xs text-ink"
+            onChange={(event) => setGroupName(event.target.value)}
+            placeholder={t("watch.groupName")}
+            className="hand-input min-w-0 flex-1 px-2.5 py-1.5 text-xs"
           />
-          <button type="submit" className="glass-btn-primary rounded-[10px] px-2.5 text-xs">
-            创建
+          <button type="submit" className="hand-btn hand-btn-primary px-2.5 text-xs">
+            {t("action.add")}
           </button>
         </form>
       )}
@@ -96,14 +128,14 @@ export function WatchlistSidebar() {
       <div className="min-h-0 flex-1 overflow-y-auto px-1.5 py-2">
         {displayGroups.length === 0 && (
           <div className="px-3 py-10 text-center">
-            <p className="text-xs text-ink-dim">还没有分组</p>
+            <p className="text-xs text-ink-dim">{t("watch.noGroups")}</p>
             <button
               type="button"
-              className="mt-3 inline-flex items-center gap-1 rounded-[10px] bg-accent-soft px-2.5 py-1.5 text-[11px] text-accent"
+              className="hand-btn mt-3 inline-flex items-center gap-1 px-2.5 py-1.5 text-[11px]"
               onClick={() => setAdding(true)}
             >
               <Plus size={12} />
-              新建分组
+              {t("watch.newGroup")}
             </button>
           </div>
         )}
@@ -116,16 +148,11 @@ export function WatchlistSidebar() {
 
           return (
             <div key={group.id} className="mb-1.5">
-              <div
-                className={cn(
-                  "watch-group-header group/header flex items-center gap-1 rounded-[11px] px-1.5 py-1.5",
-                  isTarget && "bg-accent-soft/50",
-                )}
-              >
+              <div className={cn("watch-group-header group/header flex items-center gap-1 rounded-[11px] px-1.5 py-1.5", isTarget && "bg-accent-soft/50")}>
                 <button
                   type="button"
                   className="rounded p-0.5 text-ink-faint hover:text-ink"
-                  onClick={() => setCollapsed((c) => ({ ...c, [group.id]: !isCollapsed }))}
+                  onClick={() => setCollapsed((current) => ({ ...current, [group.id]: !isCollapsed }))}
                 >
                   {isCollapsed ? <ChevronRight size={13} /> : <ChevronDown size={13} />}
                 </button>
@@ -133,8 +160,8 @@ export function WatchlistSidebar() {
                 {isRenaming ? (
                   <form
                     className="min-w-0 flex-1"
-                    onSubmit={(e) => {
-                      e.preventDefault();
+                    onSubmit={(event) => {
+                      event.preventDefault();
                       const name = renameValue.trim();
                       if (name) void renameWatchGroup(group.id, name);
                       setRenamingId(null);
@@ -143,34 +170,31 @@ export function WatchlistSidebar() {
                     <input
                       autoFocus
                       value={renameValue}
-                      onChange={(e) => setRenameValue(e.target.value)}
+                      onChange={(event) => setRenameValue(event.target.value)}
                       onBlur={() => {
                         const name = renameValue.trim();
                         if (name && name !== group.name) void renameWatchGroup(group.id, name);
                         setRenamingId(null);
                       }}
-                      className="glass-input w-full px-2 py-0.5 text-[11px] text-ink"
+                      className="hand-input w-full px-2 py-0.5 text-[11px]"
                     />
                   </form>
                 ) : (
                   <button
                     type="button"
-                    title="点击设为默认收藏分组"
-                    className="min-w-0 flex-1 truncate text-left text-[11px] font-medium text-ink-dim hover:text-ink"
-                    onClick={() => {
-                      if (!group.managed) setActiveWatchGroup(group.id);
-                    }}
+                    title={t("watch.setDefault")}
+                    className="min-w-0 flex-1 truncate text-left text-[11px] font-semibold text-ink-dim hover:text-ink"
+                    onClick={() => setActiveWatchGroup(group.id)}
                   >
-                    {group.name}
+                    {groupLabel(group.name)}
                     <span className="ml-1.5 text-ink-faint">{groupItems.length}</span>
-                    {isTarget && <span className="ml-1.5 text-[10px] text-accent">默认</span>}
-
+                    {isTarget && <span className="ml-1.5 text-[10px] text-accent">{t("action.default")}</span>}
                   </button>
                 )}
 
-                {!group.managed && <div className="flex shrink-0 items-center opacity-0 transition-opacity group-hover/header:opacity-100">
+                <div className="flex shrink-0 items-center opacity-0 transition-opacity group-hover/header:opacity-100">
                   <IconBtn
-                    title="重命名"
+                    title={t("watch.rename")}
                     onClick={() => {
                       setRenamingId(group.id);
                       setRenameValue(group.name);
@@ -179,32 +203,30 @@ export function WatchlistSidebar() {
                     <Pencil size={11} />
                   </IconBtn>
                   {groups.length > 1 && (
-                    <IconBtn title="删除分组" onClick={() => void removeWatchGroup(group.id)}>
+                    <IconBtn title={t("watch.delete")} onClick={() => void removeWatchGroup(group.id)}>
                       <Trash2 size={11} />
                     </IconBtn>
                   )}
-                </div>}
+                </div>
               </div>
 
               {!isCollapsed && (
                 <ul className="mt-0.5 space-y-0.5 px-0.5">
                   {groupItems.length === 0 ? (
-                    <li className="px-3 py-2 text-[11px] text-ink-faint">
-                      空分组 · 搜索后点星标加入
-                    </li>
+                    <li className="px-3 py-2 text-[11px] text-ink-faint">{t("watch.empty")}</li>
                   ) : (
                     groupItems.map((item, index) => {
                       const active = item.symbol === symbol;
                       return (
                         <li
                           key={`${group.id}-${item.symbol}`}
-                          draggable={!group.managed}
+                          draggable
                           onDragStart={() => setDragSymbol({ symbol: item.symbol, groupId: group.id })}
-                          onDragOver={(e) => e.preventDefault()}
+                          onDragOver={(event) => event.preventDefault()}
                           onDrop={() => {
-                            if (!dragSymbol || group.managed) return;
+                            if (!dragSymbol) return;
                             if (dragSymbol.groupId === group.id) {
-                              const symbols = groupItems.map((x) => x.symbol);
+                              const symbols = groupItems.map((entry) => entry.symbol);
                               const from = symbols.indexOf(dragSymbol.symbol);
                               if (from < 0 || from === index) return;
                               symbols.splice(from, 1);
@@ -216,59 +238,42 @@ export function WatchlistSidebar() {
                             setDragSymbol(null);
                           }}
                         >
-                          <div
-                            className={cn(
-                              "watch-item group flex w-full items-center gap-1 rounded-[11px] px-1.5 py-1.5 transition-colors",
-                              active ? "bg-accent-soft" : "hover:bg-panel-2",
-                            )}
-                          >
+                          <div className={cn("watch-item group flex w-full items-center gap-1 rounded-[11px] px-1.5 py-1.5 transition-colors", active ? "bg-accent-soft" : "hover:bg-panel-2")}>
                             <GripVertical size={12} className="shrink-0 text-ink-faint/50" />
-                            <button
-                              type="button"
-                              className="min-w-0 flex-1 text-left"
-                              onClick={() => void setSymbol(item.symbol, item.name)}
-                            >
-                              <div
-                                className={cn(
-                                  "truncate font-mono text-[12px]",
-                                  active ? "text-accent" : "text-ink",
-                                )}
-                              >
+                            <button type="button" className="min-w-0 flex-1 text-left" onClick={() => void setSymbol(item.symbol, item.name)}>
+                              <div className={cn("truncate font-mono text-[12px]", active ? "text-accent" : "text-ink")}>
                                 {item.symbol.split(".")[0]}
                               </div>
                               <div className="truncate text-[10px] text-ink-faint">
-                                {item.name ?? item.symbol}
-
+                                {localizedInstrumentName(item.name, lang, item.symbol)}
                               </div>
                             </button>
 
-                            {!group.managed && groups.some((candidate) => !candidate.managed && candidate.id !== group.id) && (
+                            {groups.some((candidate) => !candidate.managed && candidate.id !== group.id) && (
                               <select
-                                title="移动到其他分组"
+                                title={t("watch.move")}
                                 className="max-w-[52px] appearance-none truncate rounded bg-transparent text-[10px] text-ink-faint opacity-0 group-hover:opacity-100"
                                 value={group.id}
-                                onChange={(e) => {
-                                  const to = Number(e.target.value);
+                                onChange={(event) => {
+                                  const to = Number(event.target.value);
                                   if (to !== group.id) void moveWatchItem(item.symbol, group.id, to);
                                 }}
-                                onClick={(e) => e.stopPropagation()}
+                                onClick={(event) => event.stopPropagation()}
                               >
-                                {groups.filter((g) => !g.managed).map((g) => (
-                                  <option key={g.id} value={g.id}>
-                                    {g.name}
-                                  </option>
+                                {groups.filter((candidate) => !candidate.managed).map((candidate) => (
+                                  <option key={candidate.id} value={candidate.id}>{candidate.name}</option>
                                 ))}
                               </select>
                             )}
 
-                            {!group.managed && <button
+                            <button
                               type="button"
-                              title="移出本组"
+                              title={t("watch.remove")}
                               className="shrink-0 rounded p-0.5 text-warn opacity-0 group-hover:opacity-100"
                               onClick={() => void removeFromWatch(item.symbol, group.id)}
                             >
                               <Star size={12} fill="currentColor" />
-                            </button>}
+                            </button>
                           </div>
                         </li>
                       );
@@ -280,27 +285,13 @@ export function WatchlistSidebar() {
           );
         })}
       </div>
-
     </aside>
   );
 }
 
-function IconBtn({
-  children,
-  title,
-  onClick,
-}: {
-  children: ReactNode;
-  title: string;
-  onClick: () => void;
-}) {
+function IconBtn({ children, title, onClick }: { children: ReactNode; title: string; onClick: () => void }) {
   return (
-    <button
-      type="button"
-      title={title}
-      className="rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-panel-2 hover:text-ink"
-      onClick={onClick}
-    >
+    <button type="button" title={title} className="rounded-lg p-1.5 text-ink-faint transition-colors hover:bg-panel-2 hover:text-ink" onClick={onClick}>
       {children}
     </button>
   );

@@ -7,6 +7,7 @@ import { waitUntil } from "@vercel/functions";
 import { app } from "../app.js";
 import { getAuth, handleAuthRequest } from "./auth.js";
 import { WorkspaceTooLargeError, withWorkspace } from "./workspace.js";
+import { withPublicWorkspace } from "./public.js";
 
 const encoder = new TextEncoder();
 
@@ -22,6 +23,20 @@ function startJobs(userId: string, jobs: Array<() => Promise<unknown>>) {
     })().catch(() => {
       console.error("[workspace] Background task failed");
     }),
+  );
+}
+
+const PUBLIC_GET_PATHS = new Set([
+  "/api/klines",
+  "/api/capabilities",
+  "/api/search",
+  "/api/chat/status",
+]);
+
+function isPublicRequest(request: Request, path: string): boolean {
+  return (
+    request.method === "GET" &&
+    (PUBLIC_GET_PATHS.has(path) || path.startsWith("/api/instrument/"))
   );
 }
 
@@ -46,6 +61,12 @@ export async function cloudFetch(request: Request): Promise<Response> {
 
     if (path.startsWith("/api/auth/")) return await handleAuthRequest(request);
     if (path === "/api/health") return Response.json({ ok: true, backend: "vercel", storage: "postgres" });
+
+    if (isPublicRequest(request, path)) {
+      const response = await withPublicWorkspace(async () => await app.fetch(request));
+      response.headers.set("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
+      return response;
+    }
 
     const session = await getAuth().api.getSession({ headers: request.headers });
     if (!session) return Response.json({ code: "UNAUTHORIZED", message: "请先登录" }, { status: 401 });

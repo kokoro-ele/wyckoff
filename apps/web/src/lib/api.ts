@@ -13,6 +13,7 @@ import type {
   WatchItem,
   WyckoffAnnotation,
 } from "@wyckoff/shared";
+import { translate } from "../i18n.js";
 
 export class ApiError extends Error {
   constructor(
@@ -42,7 +43,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const err = body as { code?: string; message?: string; error?: string };
-    throw new ApiError(err.code ?? "HTTP_ERROR", err.message ?? err.error ?? `请求失败（${response.status}）`);
+    const code = err.code ?? "HTTP_ERROR";
+    const localized = translate(`error.${code}`);
+    const message =
+      localized !== `error.${code}`
+        ? localized
+        : (err.message ?? err.error ?? `请求失败（${response.status}）`);
+    if (response.status === 401 && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("auth:required"));
+    }
+    throw new ApiError(code, message);
   }
   return body as T;
 }
@@ -76,6 +86,16 @@ export function fetchInstrument(symbol: string): Promise<{ instrument: Instrumen
 
 export function fetchCapabilities(): Promise<{ freeTier: boolean; note: string }> {
   return request("/capabilities");
+}
+
+export interface CreditStatus {
+  balance: number;
+  inviteCode: string;
+  inviteCount: number;
+}
+
+export function fetchCreditStatus(): Promise<CreditStatus> {
+  return request("/credits/status");
 }
 
 // ————————————————— 检索与收藏 —————————————————
@@ -176,6 +196,9 @@ export interface ChatStreamParams {
   period: Period;
   adjust: AdjustType;
   message: string;
+  mode: "fundamental" | "agent" | "trade";
+  language: "zh" | "en";
+  showTrace?: boolean;
   context?: ChatContext;
   viewport?: { startTime: number; endTime: number };
 }
@@ -208,6 +231,11 @@ export async function streamChat(
       code = body.code ?? code;
     } catch {
       /* 保持默认文案 */
+    }
+    const localized = translate(`error.${code}`);
+    if (localized !== `error.${code}`) message = localized;
+    if (response.status === 401 && typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("auth:required"));
     }
     throw new ApiError(code, message);
   }
