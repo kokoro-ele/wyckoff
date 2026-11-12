@@ -71,7 +71,6 @@ export async function createProviderCheckout(order: CheckoutOrder, env: Env = pr
     "line_items[0][price_data][currency]": order.currency.toLowerCase(),
     "line_items[0][price_data][unit_amount]": String(order.amount),
     "line_items[0][price_data][product_data][name]": `Wyckoff ${order.plan} ${order.period} prepaid`,
-    "payment_method_types[0]": "card",
     expires_at: String(Math.floor(order.expires_at.getTime() / 1000)),
   });
   const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
