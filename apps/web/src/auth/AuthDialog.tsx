@@ -81,16 +81,20 @@ export function AuthDialog({
     if (result.error) throw new Error(result.error.message || t("error.NETWORK"));
   }
 
-  const resend = async () => {
-    if (Date.now() < resendAt) throw new Error(t("auth.resendWait"));
+  const sendCode = async (to: string) => {
     check(
       await authClient.emailOtp.sendVerificationOtp({
-        email: session.data?.user.email || email,
+        email: to,
         type: "email-verification",
       }),
     );
     setResendAt(Date.now() + 60_000);
     setMessage(t("auth.sentCode"));
+  };
+
+  const resend = async () => {
+    if (Date.now() < resendAt) throw new Error(t("auth.resendWait"));
+    await sendCode(session.data?.user.email || email);
   };
 
   const submit = (event: FormEvent) => {
@@ -107,8 +111,7 @@ export function AuthDialog({
         );
         setMode("verify");
         setPassword("");
-        setResendAt(Date.now() + 60_000);
-        setMessage(t("auth.sentCode"));
+        await sendCode(email);
       } else if (mode === "verify") {
         check(
           await authClient.emailOtp.verifyEmail({
@@ -132,7 +135,7 @@ export function AuthDialog({
         const result = await authClient.signIn.email({ email, password });
         if (result.error?.code === "EMAIL_NOT_VERIFIED") {
           setMode("verify");
-          setMessage(t("auth.sentCode"));
+          await sendCode(email);
           return;
         }
         check(result);
@@ -164,7 +167,7 @@ export function AuthDialog({
 
   return (
     <div
-      className="auth-backdrop fixed inset-0 z-[60] flex items-center justify-center bg-ink/35 px-4 backdrop-blur-[3px]"
+      className="auth-backdrop mobile-modal-backdrop fixed inset-0 z-[60] flex items-center justify-center bg-ink/35 px-4 backdrop-blur-[3px]"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget && !busy) onClose();
       }}

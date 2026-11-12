@@ -110,7 +110,10 @@ export function authOptions(): BetterAuthOptions {
       requireEmailVerification: true,
       revokeSessionsOnPasswordReset: true,
     },
-    emailVerification: { sendOnSignUp: true, sendOnSignIn: true, autoSignInAfterVerification: true },
+    // The app sends the verification OTP explicitly after sign-up and when an
+    // unverified account tries to sign in. Sending here too would rotate the
+    // code and deliver two emails, so the server stays quiet by default.
+    emailVerification: { sendOnSignUp: false, sendOnSignIn: false, autoSignInAfterVerification: true },
     socialProviders: authAvailability().google
       ? {
           google: {

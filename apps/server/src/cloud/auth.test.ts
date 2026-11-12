@@ -21,6 +21,8 @@ function testAuth(withHooks = false) {
 async function signUp(auth: { handler: (request: Request) => Promise<Response> }) {
   const response = await auth.handler(request("/sign-up/email", { email: "person@example.com", name: "Person", password: "a-good-password-123" }));
   expect(response.status).toBe(200);
+  const sent = await auth.handler(request("/email-otp/send-verification-otp", { email: "person@example.com", type: "email-verification" }));
+  expect(sent.status).toBe(200);
   const mail = mocks.mail.mock.calls.at(-1)![0] as { text: string };
   return mail.text.match(/\d{6}/)![0];
 }
