@@ -73,7 +73,6 @@ export function LandingPage() {
               <span>{copy.hero.window}</span>
             </div>
             <CaseChart study={landingCase} labels={copy.chart} zoneLabel={copy.hero.zoneLabel} />
-            <figcaption>{copy.hero.chartCaption}</figcaption>
           </figure>
         </section>
 
