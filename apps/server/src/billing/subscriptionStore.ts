@@ -56,6 +56,7 @@ async function createCheckout(order: SubscriptionOrder, product: SubscriptionPro
     "metadata[order_id]": order.id,
     "metadata[product]": product.id,
     "line_items[0][quantity]": "1",
+    "managed_payments[enabled]": "false",
     expires_at: String(Math.floor(order.expires_at.getTime() / 1000)),
   });
   if (product.mode === "subscription") {
