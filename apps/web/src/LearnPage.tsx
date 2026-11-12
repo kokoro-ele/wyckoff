@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, ExternalLink, Languages, Moon, Sun } from "lucide-react";
 import { useI18n } from "./i18n.js";
+import { SEO_ORIGIN, useSeo } from "./lib/seo.js";
 import { useTheme } from "./theme.js";
 import { TermDiagram } from "./landing/TermDiagram.js";
 import type { TermCode } from "./landing/copy.js";
@@ -32,9 +33,31 @@ export function LearnPage({ pathLang }: { pathLang: "zh" | "en" }) {
     setLang(pathLang);
   }, [pathLang, setLang]);
 
-  useEffect(() => {
-    document.title = zh ? "Wyckoff 学习页 · EasyWyckoff" : "Learn Wyckoff · EasyWyckoff";
-  }, [zh]);
+  useSeo({
+    title: zh ? "Wyckoff 方法学习 · 名词、阶段与事件图例 | EasyWyckoff" : "Learn the Wyckoff Method · Terms, phases and diagrams | EasyWyckoff",
+    description: zh
+      ? "用中英文理解 Wyckoff 的三大法则、市场周期、Spring、SOS、LPS、UT、SOW 等事件，并查看对应示意图。"
+      : "Learn Wyckoff's three laws, market cycle, Spring, SOS, LPS, UT and SOW with bilingual explanations and diagrams.",
+    path: `/learn/${pageLang}`,
+    lang: zh ? "zh" : "en",
+    alternates: [
+      { hreflang: "zh-CN", href: `${SEO_ORIGIN}/learn/zh` },
+      { hreflang: "en", href: `${SEO_ORIGIN}/learn/en` },
+      { hreflang: "x-default", href: `${SEO_ORIGIN}/learn/en` },
+    ],
+    jsonLd: [
+      {
+        "@context": "https://schema.org",
+        "@type": "LearningResource",
+        name: zh ? "Wyckoff 方法学习页" : "Learn the Wyckoff Method",
+        description: zh ? "Wyckoff 名词、阶段与事件示意图。" : "Bilingual Wyckoff terms, phases and diagrams.",
+        inLanguage: zh ? "zh-CN" : "en",
+        learningResourceType: "Guide",
+        isAccessibleForFree: true,
+        url: `${SEO_ORIGIN}/learn/${pageLang}`,
+      },
+    ],
+  });
 
   const switchLanguage = () => {
     const next = pageLang === "zh" ? "en" : "zh";

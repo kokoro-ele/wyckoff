@@ -1,5 +1,6 @@
 import { ArrowLeft } from "lucide-react";
 import { useI18n } from "./i18n.js";
+import { useSeo } from "./lib/seo.js";
 
 type Kind = "privacy" | "terms" | "refund" | "contact";
 
@@ -101,6 +102,12 @@ const copy = {
 export function LegalPage({ kind }: { kind: Kind }) {
   const { lang } = useI18n();
   const page = copy[lang][kind];
+  useSeo({
+    title: `${page.title} · EasyWyckoff`,
+    description: page.intro,
+    path: `/${kind}`,
+    lang,
+  });
   return (
     <div className="legal-shell">
       <header className="legal-topbar">

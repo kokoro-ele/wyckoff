@@ -4,6 +4,7 @@ import * as api from "@/lib/api.js";
 import { useAuth } from "@/auth/AuthProvider.js";
 import { authClient } from "@/lib/auth.js";
 import { useI18n } from "@/i18n.js";
+import { useSeo } from "@/lib/seo.js";
 
 function fmtDate(value: string | Date | null | undefined, lang: "zh" | "en"): string {
   if (!value) return "—";
@@ -17,6 +18,13 @@ function fmtDate(value: string | Date | null | undefined, lang: "zh" | "en"): st
 export function AdminPage() {
   const { lang } = useI18n();
   const { isPending, isVerified } = useAuth();
+  useSeo({
+    title: "Admin · EasyWyckoff",
+    description: "EasyWyckoff administration",
+    path: "/admin",
+    lang,
+    noindex: true,
+  });
   const [loginEmail, setLoginEmail] = useState("elekokoro@gmail.com");
   const [loginPassword, setLoginPassword] = useState("");
   const [loginError, setLoginError] = useState("");

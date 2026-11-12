@@ -10,6 +10,7 @@ import { OnboardingModal } from "./components/OnboardingModal.js";
 import { AccountPanel } from "./components/AccountPanel.js";
 import { useAuth } from "./auth/AuthProvider.js";
 import { useI18n } from "./i18n.js";
+import { useSeo } from "./lib/seo.js";
 
 const MembershipPanel = lazy(() => import("./components/MembershipPanel.js").then((m) => ({ default: m.MembershipPanel })));
 const SettingsPanel = lazy(() => import("./components/SettingsPanel.js").then((m) => ({ default: m.SettingsPanel })));
@@ -17,6 +18,13 @@ const SettingsPanel = lazy(() => import("./components/SettingsPanel.js").then((m
 export function App() {
   const { t } = useI18n();
   const { isPending, isVerified } = useAuth();
+  useSeo({
+    title: "Wyckoff 研究工作台 · EasyWyckoff",
+    description: "Wyckoff 研究工作台",
+    path: "/app",
+    lang: "zh",
+    noindex: true,
+  });
   const [membershipOpen, setMembershipOpen] = useState(() => new URLSearchParams(window.location.search).has("billing"));
   const [accountOpen, setAccountOpen] = useState(() => new URLSearchParams(window.location.search).has("account"));
   const [watchOpen, setWatchOpen] = useState(true);

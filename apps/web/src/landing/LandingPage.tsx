@@ -1,10 +1,10 @@
-import { useEffect } from "react";
 import { ArrowRight, BookOpen, Languages, Moon, Sun } from "lucide-react";
 import { useI18n } from "../i18n.js";
 import { useTheme } from "../theme.js";
 import { landingCopy } from "./copy.js";
 import { landingCase } from "./cases.js";
 import { CaseChart } from "./CaseChart.js";
+import { SEO_ORIGIN, useSeo } from "@/lib/seo.js";
 import { TermDiagram } from "./TermDiagram.js";
 
 export function LandingPage() {
@@ -16,10 +16,44 @@ export function LandingPage() {
     typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("invite");
   const appHref = invite ? `/app?invite=${encodeURIComponent(invite)}` : "/app";
 
-  useEffect(() => {
-    document.title =
-      lang === "zh" ? "EasyWyckoff · 看见价格背后的结构" : "EasyWyckoff · See the structure behind the price";
-  }, [lang]);
+  useSeo({
+    title: lang === "zh" ? "EasyWyckoff · Wyckoff 市场结构与交易计划" : "EasyWyckoff · Wyckoff structure and trade plans",
+    description:
+      lang === "zh"
+        ? "用 K 线、成交量、区间和收盘位置阅读 Wyckoff 市场结构；Agent 生成带证据的交易计划。"
+        : "Read Wyckoff market structure through candles, volume, ranges and closes; the Agent builds evidence-backed trade plans.",
+    path: "/",
+    lang,
+    alternates: [
+      { hreflang: "zh-CN", href: `${SEO_ORIGIN}/` },
+      { hreflang: "en", href: `${SEO_ORIGIN}/?lang=en` },
+      { hreflang: "x-default", href: `${SEO_ORIGIN}/` },
+    ],
+    jsonLd: [
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        name: "EasyWyckoff",
+        url: SEO_ORIGIN,
+        logo: `${SEO_ORIGIN}/favicon.svg`,
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        name: "EasyWyckoff",
+        url: SEO_ORIGIN,
+      },
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        name: "EasyWyckoff",
+        applicationCategory: "FinanceApplication",
+        operatingSystem: "Web",
+        url: `${SEO_ORIGIN}/app`,
+        description: "Wyckoff market-structure research workbench with AI-assisted chart reading and structured trade plans.",
+      },
+    ],
+  });
 
   return (
     <div className="site-shell site-home">
