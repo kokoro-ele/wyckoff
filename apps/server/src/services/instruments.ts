@@ -186,6 +186,9 @@ export function searchInstruments(query: string, limit = 30): (Instrument & { sc
     else if (item.lowerCode.includes(q)) score = 300;
     else continue;
 
+    // English names are often long legal titles; prefer the shorter, more
+    // prominent listing when two names share the same prefix.
+    if (q && item.lowerEnglish.startsWith(q)) score -= Math.min(item.lowerEnglish.length, 60) * 0.4;
     // 越短的名称与代码，越可能是用户想要的那个主标的。
     score += TYPE_WEIGHT[item.type ?? "other"] ?? 0;
     score += REGION_WEIGHT[item.region] ?? 0;

@@ -15,6 +15,15 @@ let names = new Map<string, string>();
 let loadedAt = 0;
 let loading: Promise<void> | null = null;
 
+function cleanName(value: string): string {
+  return value
+    .replace(/\s+-\s+Common Stock$/i, "")
+    .replace(/\s+-\s+American Depositary Shares.*$/i, "")
+    .replace(/\s+-\s+Class [A-Z].*$/i, "")
+    .replace(/\s+Common Stock$/i, "")
+    .trim();
+}
+
 function parse(text: string): Array<[string, string]> {
   const rows: Array<[string, string]> = [];
   for (const line of text.split(/\r?\n/)) {
@@ -23,7 +32,7 @@ function parse(text: string): Array<[string, string]> {
     const symbol = parts[0]?.trim().toUpperCase();
     const name = parts[1]?.trim();
     if (!symbol || !name || symbol === "SYMBOL" || symbol === "ACT SYMBOL") continue;
-    rows.push([symbol, name]);
+    rows.push([symbol, cleanName(name)]);
   }
   return rows;
 }
