@@ -109,7 +109,15 @@ export function LandingPage() {
         </section>
       </main>
 
-      <footer className="site-home-footer">{copy.footer}</footer>
+      <footer className="site-home-footer">
+        <span>{copy.footer}</span>
+        <nav className="site-legal-links" aria-label="Legal">
+          <a href="/privacy">{lang === "zh" ? "隐私政策" : "Privacy"}</a>
+          <a href="/terms">{lang === "zh" ? "服务条款" : "Terms"}</a>
+          <a href="/refund">{lang === "zh" ? "退款政策" : "Refunds"}</a>
+          <a href="/contact">{lang === "zh" ? "联系我们" : "Contact"}</a>
+        </nav>
+      </footer>
     </div>
   );
 }

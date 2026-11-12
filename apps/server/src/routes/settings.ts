@@ -66,6 +66,7 @@ function publicSettings() {
   return {
     configured: Boolean(effective.apiKey),
     source: effective.source,
+    mode: custom.mode,
     baseUrl: effective.baseUrl,
     model: effective.model,
     custom: Boolean(custom.apiKey),
@@ -80,30 +81,34 @@ settingsRoutes.put(
   bodyLimit({ maxSize: 32 * 1024, onError: (c) => c.json(fail("请求体过大"), 413) }),
   async (c) => {
     const body = (await c.req.json().catch(() => null)) as
-      | { apiKey?: unknown; baseUrl?: unknown; model?: unknown }
+      | { mode?: unknown; apiKey?: unknown; baseUrl?: unknown; model?: unknown }
       | null;
     if (!body || typeof body !== "object") return c.json(fail("参数错误"), 400);
     const existing = readCustomLlmSettings();
+    const mode = body.mode === "custom" ? "custom" : "operator";
     try {
-      const apiKey =
-        typeof body.apiKey === "string" && body.apiKey.trim()
-          ? normalizeApiKey(body.apiKey)
-          : existing.apiKey;
-      if (!apiKey) throw new Error("请填写 API Key");
-      const baseUrl = normalizeBaseUrl(
-        typeof body.baseUrl === "string" && body.baseUrl.trim()
-          ? body.baseUrl
-          : existing.baseUrl || "https://api.openai.com/v1",
-      );
-      const model = normalizeModel(
-        typeof body.model === "string" && body.model.trim()
-          ? body.model
-          : existing.model || config.llm.model,
-      );
-      // Stored inside the AES-encrypted per-user workspace.
-      setState(LLM_STATE_KEYS.apiKey, apiKey);
-      setState(LLM_STATE_KEYS.baseUrl, baseUrl);
-      setState(LLM_STATE_KEYS.model, model);
+      setState(LLM_STATE_KEYS.mode, mode);
+      if (mode === "custom") {
+        const apiKey =
+          typeof body.apiKey === "string" && body.apiKey.trim()
+            ? normalizeApiKey(body.apiKey)
+            : existing.apiKey;
+        if (!apiKey) throw new Error("请填写 API Key");
+        const baseUrl = normalizeBaseUrl(
+          typeof body.baseUrl === "string" && body.baseUrl.trim()
+            ? body.baseUrl
+            : existing.baseUrl || "https://api.openai.com/v1",
+        );
+        const model = normalizeModel(
+          typeof body.model === "string" && body.model.trim()
+            ? body.model
+            : existing.model || config.llm.model,
+        );
+        // Stored inside the AES-encrypted per-user workspace.
+        setState(LLM_STATE_KEYS.apiKey, apiKey);
+        setState(LLM_STATE_KEYS.baseUrl, baseUrl);
+        setState(LLM_STATE_KEYS.model, model);
+      }
       return c.json(publicSettings());
     } catch (error) {
       return c.json(fail(error instanceof Error ? error.message : "设置无效"), 400);
@@ -115,5 +120,6 @@ settingsRoutes.delete("/llm", (c) => {
   setState(LLM_STATE_KEYS.apiKey, "");
   setState(LLM_STATE_KEYS.baseUrl, "");
   setState(LLM_STATE_KEYS.model, "");
+  setState(LLM_STATE_KEYS.mode, "operator");
   return c.json(publicSettings());
 });

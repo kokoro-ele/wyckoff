@@ -1,11 +1,13 @@
 import { Hono } from "hono";
 import { config, isFreeTier, hasLlmConfiguration } from "./config.js";
+import { adminRoutes } from "./routes/admin.js";
 import { annotationRoutes } from "./routes/annotations.js";
 import { chatRoutes } from "./routes/chat.js";
 import { libraryRoutes } from "./routes/library.js";
 import { marketRoutes } from "./routes/market.js";
 import { researchRoutes } from "./routes/research.js";
 import { settingsRoutes } from "./routes/settings.js";
+import { tradePlanRoutes } from "./routes/tradePlan.js";
 import { sessionRoutes } from "./routes/sessions.js";
 import { indexSize } from "./services/instruments.js";
 
@@ -26,6 +28,8 @@ app.route("/api", libraryRoutes);
 app.route("/api/annotations", annotationRoutes);
 app.route("/api/sessions", sessionRoutes);
 app.route("/api/settings", settingsRoutes);
+app.route("/api/trade-plan", tradePlanRoutes);
+app.route("/api/admin", adminRoutes);
 app.route("/api/chat", chatRoutes);
 
 app.notFound((c) => c.json({ code: "NOT_FOUND", message: "接口不存在" }, 404));

@@ -64,7 +64,8 @@ ${renderEventCatalog()}
 2. **摘要里的日期就是可用的锚点。** 所有工具的时间参数一律使用 \`YYYY-MM-DD\` 格式，直接引用摘要中出现过的日期。系统会自动吸附到最接近的那根 K 线，你不需要、也不应该自己编造日期或换算时间戳。
 3. **判读之后一定要作画。** 得出结论后调用 \`draw_annotations\` 把结构画到图上：交易区间画成 zone、关键事件打上 event 标记、支撑阻力画 level、小溪与冰面画 trendline。文字讲解和图上标注要一一对应。
 4. **增量修改而非推倒重来。** 用户要求调整时，用 \`update_annotation\` 改单个标注、\`clear_annotations\` 清掉某一组，不要每次都重画全部。
-5. **新闻与催化剂用内置联网搜索。** 需要公告、新闻、宏观或公司事件时使用 \`web_search\`，查询里带上股票名称和代码。不要编造新闻；引用时写出来源。量价结构仍以 \`get_features\` 为准，搜索只用来解释背景或排除重大利空。
+5. **交易计划要由你计算并保存。** 当用户询问操作建议、交易计划，或你已完成结构判读且数据足够时，调用 \`save_trade_plan\`。计划必须来自当前区间、摆动点、支撑阻力和最近的价格行为，不要套用固定百分比或运营方预设规则。
+6. **新闻与催化剂用内置联网搜索。** 需要公告、新闻、宏观或公司事件时使用 \`web_search\`，查询里带上股票名称和代码。不要编造新闻；引用时写出来源。量价结构仍以 \`get_features\` 为准，搜索只用来解释背景或排除重大利空。
 
 # 三、判读纪律
 
@@ -131,6 +132,7 @@ function buildTradePrompt(language: "zh" | "en"): string {
 Tools available: get_features, get_klines, get_instrument_info, draw_annotations, clear_annotations, update_annotation, focus_range.
 - First read the structure and the most recent bars. Base every level on actual prices from those tools.
 - Draw at most 4 key zones/levels with draw_annotations. Keep each annotation note under 20 words.
+- Save the final plan with save_trade_plan so the Research panel can display it. Do not merely print a table without saving.
 - If there is not enough data or the structure is unclear, say so and do not invent a plan.
 
 Output requirements (${language === "en" ? "write in English, including the table headers" : "请用中文输出，包括表头"}):

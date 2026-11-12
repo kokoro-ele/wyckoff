@@ -14,6 +14,7 @@ import { formatBarTime, nearestIndex, renderFeatureSummary } from "@wyckoff/wyck
 import { getInstrument } from "../services/instruments.js";
 import { getFeatures } from "../services/market.js";
 import * as annotationStore from "../services/annotations.js";
+import { saveAgentTradePlan } from "../services/tradePlan.js";
 
 export interface RunContext {
   symbol: string;
@@ -174,6 +175,44 @@ export const toolDefinitions = [
   {
     type: "function" as const,
     function: {
+      name: "save_trade_plan",
+      description:
+        "把本次分析生成的交易计划保存到工作台。计划必须由你根据当前结构、价格与量价证据计算，不要套用固定阈值。" +
+        "当用户要求操作建议、交易计划，或你已完成结构判读且数据足够时调用。",
+      parameters: {
+        type: "object",
+        required: [
+          "bias",
+          "trigger",
+          "entry_low",
+          "entry_high",
+          "stop",
+          "target1",
+          "target2",
+          "invalidation",
+          "note",
+        ],
+        properties: {
+          bias: { type: "string", enum: ["long", "wait", "short"], description: "计划偏向" },
+          trigger: { type: "string", description: "触发条件，写清价格与动作，例如「日线收盘站上 351.7」" },
+          entry_low: { type: "number", description: "入场区间下沿" },
+          entry_high: { type: "number", description: "入场区间上沿" },
+          stop: { type: "number", description: "止损价" },
+          target1: { type: "number", description: "第一目标价" },
+          target2: { type: "number", description: "第二目标价" },
+          risk_reward: { type: "number", description: "风险收益比，例如 2.5 表示 2.5:1" },
+          invalidation: { type: "string", description: "计划失效条件" },
+          support: { type: "array", items: { type: "number" }, description: "关键支撑价" },
+          resistance: { type: "array", items: { type: "number" }, description: "关键阻力价" },
+          note: { type: "string", description: "一句话说明计划依据，与最终回答同语言" },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
       name: "update_annotation",
       description: "修改已有的单个标注。用户提出局部调整时用它，不要整组重画。",
       parameters: {
@@ -234,6 +273,7 @@ const MODE_TOOL_NAMES: Record<AnalysisMode, string[]> = {
     "clear_annotations",
     "update_annotation",
     "focus_range",
+    "save_trade_plan",
   ],
   agent: toolDefinitions.map((tool) => tool.function.name),
 };
@@ -285,6 +325,8 @@ export async function executeTool(name: string, args: Args, ctx: RunContext): Pr
       return focusRangeTool(args, ctx);
     case "get_instrument_info":
       return instrumentInfoTool(args, ctx);
+    case "save_trade_plan":
+      return saveTradePlanTool(args, ctx);
     default:
       return { content: `未知工具：${name}`, summary: `未知工具 ${name}`, ok: false };
   }
@@ -565,6 +607,52 @@ async function instrumentInfoTool(args: Args, ctx: RunContext): Promise<ToolResu
   ].filter(Boolean);
 
   return { content: parts.join("，"), summary: `查询 ${symbol} 基础信息` };
+}
+
+async function saveTradePlanTool(args: Args, ctx: RunContext): Promise<ToolResult> {
+  const num = (value: unknown): number | null =>
+    typeof value === "number" && Number.isFinite(value) && value > 0 ? value : null;
+  const bias = args.bias === "long" || args.bias === "short" || args.bias === "wait" ? args.bias : null;
+  const entryLow = num(args.entry_low);
+  const entryHigh = num(args.entry_high);
+  const stop = num(args.stop);
+  const target1 = num(args.target1);
+  const target2 = num(args.target2);
+  const trigger = typeof args.trigger === "string" ? args.trigger.trim() : "";
+  const invalidation = typeof args.invalidation === "string" ? args.invalidation.trim() : "";
+  const note = typeof args.note === "string" ? args.note.trim() : "";
+  const support = Array.isArray(args.support) ? args.support.map(num).filter((v): v is number => v !== null) : [];
+  const resistance = Array.isArray(args.resistance)
+    ? args.resistance.map(num).filter((v): v is number => v !== null)
+    : [];
+  if (!bias || !trigger || !entryLow || !entryHigh || !stop || !target1 || !target2 || !invalidation || !note) {
+    return {
+      content: "交易计划字段不完整。请给出 bias、trigger、entry_low/high、stop、target1/2、invalidation 和 note。",
+      summary: "交易计划校验失败",
+      ok: false,
+    };
+  }
+  if (entryLow > entryHigh) {
+    return { content: "entry_low 不能高于 entry_high。", summary: "入场区间无效", ok: false };
+  }
+  const plan = saveAgentTradePlan(ctx.symbol, ctx.period, ctx.adjust, {
+    bias,
+    trigger,
+    entryLow,
+    entryHigh,
+    stop,
+    target1,
+    target2,
+    riskReward: num(args.risk_reward),
+    invalidation,
+    support,
+    resistance,
+    note,
+  });
+  return {
+    content: `已保存 ${plan.symbol} 的 Agent 交易计划：${bias}，触发「${trigger}」，入场 ${entryLow}–${entryHigh}，止损 ${stop}，目标 ${target1}/${target2}。`,
+    summary: `保存 Agent 交易计划（${bias}）`,
+  };
 }
 
 function round(value: number): number {

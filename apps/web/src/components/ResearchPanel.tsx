@@ -1,25 +1,18 @@
 import { useEffect, useState } from "react";
-import { Crosshair, Landmark, LockKeyhole, Minus, RefreshCw, TrendingDown, TrendingUp } from "lucide-react";
-import type { AdjustType, Period, ResearchLevel, ResearchResponse } from "@wyckoff/shared";
+import { Crosshair, Landmark, LockKeyhole, RefreshCw, Sparkles } from "lucide-react";
+import type { AdjustType, AgentTradePlan, Period, ResearchLevel, ResearchResponse } from "@wyckoff/shared";
 import * as api from "@/lib/api.js";
 import { useWorkbench } from "@/store.js";
 import { useI18n } from "@/i18n.js";
 import {
   cn,
   formatCompactCurrency,
-  formatCompactNumber,
   formatPct,
   formatPrice,
   formatRatio,
 } from "@/lib/utils.js";
 
 type Metric = { key: string; value: string };
-
-function trendIcon(value: "up" | "down" | "flat") {
-  if (value === "up") return <TrendingUp size={11} />;
-  if (value === "down") return <TrendingDown size={11} />;
-  return <Minus size={11} />;
-}
 
 function sourceLabel(source: string, t: (key: string) => string): string {
   return source
@@ -74,9 +67,34 @@ export function ResearchPanel({
       (message.content.trim().length > 0 || (message.toolTrace?.length ?? 0) > 0),
   );
   const [data, setData] = useState<ResearchResponse | null>(null);
+  const [plan, setPlan] = useState<AgentTradePlan | null>(null);
+  const [planLoading, setPlanLoading] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [reload, setReload] = useState(0);
+
+  useEffect(() => {
+    if (!hasAnalysis) {
+      setPlan(null);
+      return;
+    }
+    let cancelled = false;
+    setPlanLoading(true);
+    void api
+      .fetchTradePlan({ symbol, period, adjust })
+      .then(({ plan: value }) => {
+        if (!cancelled) setPlan(value);
+      })
+      .catch(() => {
+        if (!cancelled) setPlan(null);
+      })
+      .finally(() => {
+        if (!cancelled) setPlanLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [hasAnalysis, symbol, period, adjust]);
 
   useEffect(() => {
     let cancelled = false;
@@ -124,7 +142,6 @@ export function ResearchPanel({
 
   if (!data) return null;
   const f = data.fundamentals;
-  const strategy = data.strategy;
   const currency = f.currency ?? data.currency;
   const companyName =
     lang === "en"
@@ -152,8 +169,6 @@ export function ResearchPanel({
     { key: "fiscalYear", value: f.fiscalYear ?? "—" },
   ];
   const visibleMetrics = metrics.filter((metric) => metric.value !== "—");
-  const triggerPrice = strategy.trigger.price !== null ? formatPrice(strategy.trigger.price) : "—";
-  const invalidationPrice = strategy.invalidation.price !== null ? formatPrice(strategy.invalidation.price) : "—";
   const source = sourceLabel(f.source, t);
   const updated = new Date(data.generatedAt).toLocaleTimeString(lang === "zh" ? "zh-CN" : "en-US", {
     hour: "2-digit",
@@ -210,57 +225,52 @@ export function ResearchPanel({
       </section>
 
       {hasAnalysis ? (
-        <section className="research-card hand-card mt-3 p-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-1.5">
-              <Crosshair size={14} className="text-accent" />
-              <h3 className="text-[13px] font-semibold">{t("research.strategy")}</h3>
-            </div>
-            <span className={cn("research-bias", strategy.bias === "long" ? "research-bias-long" : strategy.bias === "short" ? "research-bias-short" : "research-bias-wait")}>
-              {t(`research.bias.${strategy.bias}`)}
-            </span>
-          </div>
-
-          <div className="research-trend mt-2">
-            {(["short", "medium", "long"] as const).map((term) => (
-              <span key={term} className="research-trend-item">
-                <span>{t(`research.trend.${term}`)}</span>
-                <span className={cn("inline-flex items-center gap-0.5", strategy.trend[term] === "up" ? "text-up" : strategy.trend[term] === "down" ? "text-down" : "text-ink-faint")}>
-                  {trendIcon(strategy.trend[term])}
-                  {t(`research.trend.${strategy.trend[term]}`)}
-                </span>
+        planLoading ? (
+          <div className="mt-3 h-36 animate-pulse rounded-xl bg-panel-2" />
+        ) : plan ? (
+          <section className="research-card hand-card mt-3 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-1.5">
+                <Crosshair size={14} className="text-accent" />
+                <h3 className="text-[13px] font-semibold">{t("research.strategy")}</h3>
+              </div>
+              <span className={cn("research-bias", plan.bias === "long" ? "research-bias-long" : plan.bias === "short" ? "research-bias-short" : "research-bias-wait")}>
+                {t(`research.bias.${plan.bias}`)}
               </span>
-            ))}
-          </div>
+            </div>
 
-          <div className="research-trigger mt-2">
-            {t(`research.trigger.${strategy.trigger.kind}`, { price: triggerPrice })}
-          </div>
+            <div className="research-trigger mt-2">{plan.trigger}</div>
 
-          <div className="research-plan mt-2">
-            <PlanRow label={t("research.entry")} value={strategy.entryLow !== null && strategy.entryHigh !== null ? `${formatPrice(strategy.entryLow)}–${formatPrice(strategy.entryHigh)}` : "—"} />
-            <PlanRow label={t("research.stop")} value={formatPrice(strategy.stop)} />
-            <PlanRow label={t("research.target1")} value={formatPrice(strategy.target1)} />
-            <PlanRow label={t("research.target2")} value={formatPrice(strategy.target2)} />
-            <PlanRow label={t("research.rr")} value={strategy.riskReward === null ? "—" : `${strategy.riskReward.toFixed(2)} : 1`} />
-            <PlanRow label={t("research.invalidation")} value={t(`research.invalidation.${strategy.invalidation.kind}`, { price: invalidationPrice })} />
-          </div>
+            <div className="research-plan mt-2">
+              <PlanRow label={t("research.entry")} value={plan.entryLow !== null && plan.entryHigh !== null ? `${formatPrice(plan.entryLow)}–${formatPrice(plan.entryHigh)}` : "—"} />
+              <PlanRow label={t("research.stop")} value={plan.stop === null ? "—" : formatPrice(plan.stop)} />
+              <PlanRow label={t("research.target1")} value={plan.target1 === null ? "—" : formatPrice(plan.target1)} />
+              <PlanRow label={t("research.target2")} value={plan.target2 === null ? "—" : formatPrice(plan.target2)} />
+              <PlanRow label={t("research.rr")} value={plan.riskReward === null ? "—" : `${plan.riskReward.toFixed(2)} : 1`} />
+              <PlanRow label={t("research.invalidation")} value={plan.invalidation} />
+            </div>
 
-          <div className="mt-2 grid grid-cols-2 gap-2 border-t border-dashed border-line-soft pt-2">
-            <LevelGroup title={t("research.support")} levels={strategy.support} />
-            <LevelGroup title={t("research.resistance")} levels={strategy.resistance} />
-          </div>
+            <div className="mt-2 grid grid-cols-2 gap-2 border-t border-dashed border-line-soft pt-2">
+              <LevelGroup title={t("research.support")} levels={plan.support.map((price) => ({ price, kind: "swing" as const }))} />
+              <LevelGroup title={t("research.resistance")} levels={plan.resistance.map((price) => ({ price, kind: "swing" as const }))} />
+            </div>
 
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-[9px] text-ink-faint">
-            {strategy.range ? (
-              <span>{t("research.range", { low: formatPrice(strategy.range.support), high: formatPrice(strategy.range.resistance) })}</span>
-            ) : (
-              <span>{t("research.noRange")}</span>
-            )}
-            <span>· {t("research.atr")} {formatCompactNumber(strategy.atr, lang)}</span>
-          </div>
-          <p className="mt-2 text-[9px] leading-relaxed text-ink-faint">{t("research.ruleNote")}<br />{t("research.disclaimer")}</p>
-        </section>
+            <p className="mt-2 text-[11px] leading-relaxed text-ink-dim">{plan.note}</p>
+            <p className="mt-2 text-[9px] leading-relaxed text-ink-faint">{t("research.ruleNote")}<br />{t("research.disclaimer")}</p>
+          </section>
+        ) : (
+          <section className="research-card hand-card mt-3 p-3">
+            <div className="flex items-center gap-1.5">
+              <Sparkles size={14} className="text-accent" />
+              <h3 className="text-[13px] font-semibold">{t("research.plan.missingTitle")}</h3>
+            </div>
+            <p className="mt-2 text-[11px] leading-relaxed text-ink-dim">{t("research.plan.missingBody")}</p>
+            <button type="button" className="hand-btn hand-btn-primary mt-3 inline-flex items-center gap-1.5 px-3 py-2 text-xs" onClick={onRequestAnalysis}>
+              <Sparkles size={13} />
+              {t("research.plan.missingCta")}
+            </button>
+          </section>
+        )
       ) : (
         <section className="research-card hand-card mt-3 p-3">
           <div className="flex items-center gap-1.5">

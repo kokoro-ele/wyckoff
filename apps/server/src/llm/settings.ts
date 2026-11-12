@@ -5,6 +5,7 @@ export const LLM_STATE_KEYS = {
   apiKey: "llm.apiKey",
   baseUrl: "llm.baseUrl",
   model: "llm.model",
+  mode: "llm.mode",
 } as const;
 
 export interface ResolvedLlmSettings {
@@ -15,7 +16,7 @@ export interface ResolvedLlmSettings {
   source: "user" | "operator" | "none";
 }
 
-export function readCustomLlmSettings(): { apiKey: string; baseUrl: string; model: string } {
+export function readCustomLlmSettings(): { apiKey: string; baseUrl: string; model: string; mode: "operator" | "custom" } {
   const read = (key: string) => {
     try {
       return getState(key)?.trim() ?? "";
@@ -24,10 +25,13 @@ export function readCustomLlmSettings(): { apiKey: string; baseUrl: string; mode
       return "";
     }
   };
+  const apiKey = read(LLM_STATE_KEYS.apiKey);
+  const storedMode = read(LLM_STATE_KEYS.mode);
   return {
-    apiKey: read(LLM_STATE_KEYS.apiKey),
+    apiKey,
     baseUrl: read(LLM_STATE_KEYS.baseUrl),
     model: read(LLM_STATE_KEYS.model),
+    mode: storedMode === "operator" ? "operator" : storedMode === "custom" ? "custom" : apiKey ? "custom" : "operator",
   };
 }
 
@@ -37,7 +41,8 @@ export function readCustomLlmSettings(): { apiKey: string; baseUrl: string; mode
  */
 export function resolveLlmSettings(): ResolvedLlmSettings {
   const custom = readCustomLlmSettings();
-  if (custom.apiKey) {
+  const useCustom = custom.mode === "custom" && custom.apiKey;
+  if (useCustom) {
     return {
       apiKey: custom.apiKey,
       baseUrl: custom.baseUrl || config.llm.baseUrl,

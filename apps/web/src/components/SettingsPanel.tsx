@@ -15,6 +15,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
   const [baseUrl, setBaseUrl] = useState("https://api.openai.com/v1");
   const [model, setModel] = useState("gpt-4o");
   const [apiKey, setApiKey] = useState("");
+  const [mode, setMode] = useState<"operator" | "custom">("operator");
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -28,6 +29,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
       setSettings(value);
       setBaseUrl(value.baseUrl);
       setModel(value.model);
+      setMode(value.mode);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t("settings.llm.error"));
     } finally {
@@ -45,12 +47,14 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
     setError("");
     try {
       const value = await api.saveLlmSettings({
+        mode,
         apiKey: apiKey.trim() || undefined,
         baseUrl,
         model,
       });
       setSettings(value);
       setApiKey("");
+      setMode(value.mode);
       await refreshRuntimeStatus(true);
       notify(t("settings.llm.saved"), "info");
     } catch (cause) {
@@ -69,6 +73,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
       setApiKey("");
       setBaseUrl(value.baseUrl);
       setModel(value.model);
+      setMode(value.mode);
       await refreshRuntimeStatus(true);
       notify(t("settings.llm.cleared"), "info");
     } catch (cause) {
@@ -85,7 +90,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
         ? t("settings.llm.source.operator")
         : t("settings.llm.source.none")
     : "";
-  const canSave = !busy && (Boolean(settings?.custom) || apiKey.trim().length > 0);
+  const canSave = !busy && (mode === "operator" || Boolean(settings?.custom) || apiKey.trim().length > 0);
 
   return (
     <div
@@ -146,43 +151,61 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
             <p className="mt-3 text-[11px] text-ink-faint">{t("action.loading")}</p>
           ) : (
             <>
-              <p className="mt-2 text-[10px] leading-relaxed text-ink-faint">
-                {settings?.custom ? t("settings.llm.customHint") : t("settings.llm.operatorHint")}
-              </p>
-              <div className="mt-3 space-y-2.5">
-                <label className="hand-label">
-                  {t("settings.llm.baseUrl")}
-                  <input
-                    className="hand-input font-mono text-[11px]"
-                    value={baseUrl}
-                    onChange={(event) => setBaseUrl(event.target.value)}
-                    placeholder="https://api.deepseek.com"
-                    spellCheck={false}
-                  />
-                </label>
-                <label className="hand-label">
-                  {t("settings.llm.model")}
-                  <input
-                    className="hand-input font-mono text-[11px]"
-                    value={model}
-                    onChange={(event) => setModel(event.target.value)}
-                    placeholder="deepseek-flash"
-                    spellCheck={false}
-                  />
-                </label>
-                <label className="hand-label">
-                  {t("settings.llm.apiKey")}
-                  <input
-                    className="hand-input font-mono text-[11px]"
-                    type="password"
-                    value={apiKey}
-                    onChange={(event) => setApiKey(event.target.value)}
-                    placeholder={settings?.custom ? t("settings.llm.keyConfigured") : t("settings.llm.keyPlaceholder")}
-                    autoComplete="off"
-                    spellCheck={false}
-                  />
-                </label>
+              <div className="mt-3">
+                <div className="text-[10px] text-ink-faint">{t("settings.llm.mode")}</div>
+                <div className="mt-1 flex gap-1">
+                  <button type="button" className={`hand-chip ${mode === "operator" ? "hand-chip-active" : ""}`} onClick={() => setMode("operator")}>
+                    {t("settings.llm.mode.operator")}
+                  </button>
+                  <button type="button" className={`hand-chip ${mode === "custom" ? "hand-chip-active" : ""}`} onClick={() => setMode("custom")}>
+                    {t("settings.llm.mode.custom")}
+                  </button>
+                </div>
               </div>
+
+              {mode === "operator" ? (
+                <p className="mt-2 text-[10px] leading-relaxed text-ink-faint">
+                  {settings?.operatorConfigured ? t("settings.llm.operatorCredit") : t("settings.llm.operatorUnavailable")}
+                </p>
+              ) : (
+                <>
+                  <p className="mt-2 text-[10px] leading-relaxed text-ink-faint">{t("settings.llm.customCredit")}</p>
+                  <div className="mt-3 space-y-2.5">
+                    <label className="hand-label">
+                      {t("settings.llm.baseUrl")}
+                      <input
+                        className="hand-input font-mono text-[11px]"
+                        value={baseUrl}
+                        onChange={(event) => setBaseUrl(event.target.value)}
+                        placeholder="https://api.deepseek.com"
+                        spellCheck={false}
+                      />
+                    </label>
+                    <label className="hand-label">
+                      {t("settings.llm.model")}
+                      <input
+                        className="hand-input font-mono text-[11px]"
+                        value={model}
+                        onChange={(event) => setModel(event.target.value)}
+                        placeholder="deepseek-flash"
+                        spellCheck={false}
+                      />
+                    </label>
+                    <label className="hand-label">
+                      {t("settings.llm.apiKey")}
+                      <input
+                        className="hand-input font-mono text-[11px]"
+                        type="password"
+                        value={apiKey}
+                        onChange={(event) => setApiKey(event.target.value)}
+                        placeholder={settings?.custom ? t("settings.llm.keyConfigured") : t("settings.llm.keyPlaceholder")}
+                        autoComplete="off"
+                        spellCheck={false}
+                      />
+                    </label>
+                  </div>
+                </>
+              )}
               {error && <p className="mt-2 rounded-lg border border-warn/30 bg-warn/10 px-2.5 py-2 text-[11px] text-warn">{error}</p>}
               <div className="mt-3 flex flex-wrap gap-2">
                 <button type="button" className="hand-btn hand-btn-primary px-3 py-1.5 text-xs" disabled={!canSave} onClick={() => void save()}>
@@ -194,12 +217,21 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                   </button>
                 )}
               </div>
-              <p className="mt-3 flex items-start gap-1.5 text-[9px] leading-relaxed text-ink-faint">
-                <ShieldCheck size={12} className="mt-0.5 shrink-0 text-down" />
-                <span>{t("settings.llm.security")}</span>
-              </p>
+              {mode === "custom" && (
+                <p className="mt-3 flex items-start gap-1.5 text-[9px] leading-relaxed text-ink-faint">
+                  <ShieldCheck size={12} className="mt-0.5 shrink-0 text-down" />
+                  <span>{t("settings.llm.security")}</span>
+                </p>
+              )}
             </>
           )}
+        </div>
+
+        <div className="mt-5 flex flex-wrap gap-x-4 gap-y-1 border-t border-dashed border-line-soft pt-3 text-[10px] text-ink-faint">
+          <a href="/privacy" className="hover:text-accent">{t("legal.privacy")}</a>
+          <a href="/terms" className="hover:text-accent">{t("legal.terms")}</a>
+          <a href="/refund" className="hover:text-accent">{t("legal.refund")}</a>
+          <a href="/contact" className="hover:text-accent">{t("legal.contact")}</a>
         </div>
       </section>
     </div>

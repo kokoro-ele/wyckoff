@@ -90,3 +90,27 @@ export interface ResearchResponse {
   strategy: ResearchStrategy;
   generatedAt: string;
 }
+
+/**
+ * A trade plan produced by the Agent's structured tool call.
+ * The server stores it inside the encrypted user workspace.
+ */
+export interface AgentTradePlan {
+  symbol: string;
+  period: string;
+  adjust: string;
+  bias: "long" | "wait" | "short";
+  trigger: string;
+  entryLow: number | null;
+  entryHigh: number | null;
+  stop: number | null;
+  target1: number | null;
+  target2: number | null;
+  riskReward: number | null;
+  invalidation: string;
+  support: number[];
+  resistance: number[];
+  note: string;
+  generatedAt: string;
+  source: "agent";
+}

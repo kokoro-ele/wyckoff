@@ -7,6 +7,7 @@ import { streamSSE } from "hono/streaming";
 import { bodyLimit } from "hono/body-limit";
 import { runAgent } from "../agent/run.js";
 import { hasLlmConfiguration } from "../config.js";
+import { resolveLlmSettings } from "../llm/settings.js";
 
 export const chatRoutes = new Hono();
 
@@ -18,9 +19,14 @@ chatRoutes.post("/", bodyLimit({ maxSize: 1024 * 1024 }), async (c) => {
     return c.json({ code: "BAD_REQUEST", message: parsed.error.issues[0]?.message ?? "参数错误" }, 400);
   }
 
-  let lease;
-  try { lease = await beginWorkspaceUsage(c.req.header("Idempotency-Key")); }
-  catch (error) { const result = billingErrorResponse(error); return c.json(result.body, result.status); }
+  // A user-supplied model is paid for by the user directly, so it must not
+  // consume platform analysis credits.
+  const usesOwnModel = resolveLlmSettings().source === "user";
+  let lease: Awaited<ReturnType<typeof beginWorkspaceUsage>> | null = null;
+  if (!usesOwnModel) {
+    try { lease = await beginWorkspaceUsage(c.req.header("Idempotency-Key")); }
+    catch (error) { const result = billingErrorResponse(error); return c.json(result.body, result.status); }
+  }
   return streamSSE(c, async (stream) => {
     let succeeded = false;
     try {
@@ -33,13 +39,13 @@ chatRoutes.post("/", bodyLimit({ maxSize: 1024 * 1024 }), async (c) => {
         if (event.type === "error") { succeeded = false; workspaceContext.getStore()?.state.delete("chatDone"); }
         await stream.writeSSE({ data: JSON.stringify(event) });
       }
-      if (succeeded) await lease.complete();
+      if (succeeded && lease) await lease.complete();
     } catch (error) {
       workspaceContext.getStore()?.state.delete("chatDone");
       console.error("[chat] 流式输出中断：", error instanceof Error ? error.message : "unknown error");
       await stream.writeSSE({
         data: JSON.stringify({ type: "error", message: (error as Error).message || "对话中断" }),
       });
-    } finally { await lease.release(); }
+    } finally { if (lease) await lease.release(); }
   });
 });
