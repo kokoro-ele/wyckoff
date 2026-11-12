@@ -68,6 +68,7 @@ export async function createProviderCheckout(order: CheckoutOrder, env: Env = pr
     client_reference_id: order.id,
     "metadata[order_id]": order.id,
     "line_items[0][quantity]": "1",
+    "managed_payments[enabled]": "false",
     "line_items[0][price_data][currency]": order.currency.toLowerCase(),
     "line_items[0][price_data][unit_amount]": String(order.amount),
     "line_items[0][price_data][product_data][name]": `Wyckoff ${order.plan} ${order.period} prepaid`,
