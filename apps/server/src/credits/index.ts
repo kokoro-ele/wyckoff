@@ -40,6 +40,47 @@ export function createCreditsRouter(pool: Pool, userId: string) {
   });
   app.get("/subscriptions/orders/current", async (c) => c.json({ order: await currentSubscriptionOrder(pool, userId) }));
   app.get("/subscriptions/orders/:id", async (c) => c.json(await getSubscriptionOrder(pool, userId, c.req.param("id"))));
+  app.get("/purchases", async (c) => {
+    const [credits, subscriptions] = await Promise.all([
+      pool.query<{
+        id: string;
+        product: string;
+        credits: number | null;
+        amount: number;
+        currency: string;
+        status: string;
+        created_at: Date;
+        paid_at: Date | null;
+      }>(
+        `SELECT id, plan AS product, credits, amount, currency, status, created_at, paid_at
+         FROM billing_orders WHERE user_id=$1 ORDER BY created_at DESC LIMIT 50`,
+        [userId],
+      ),
+      pool.query<{
+        id: string;
+        product: string;
+        mode: string;
+        amount: number;
+        currency: string;
+        status: string;
+        created_at: Date;
+        paid_at: Date | null;
+      }>(
+        `SELECT id, product, mode, amount, currency, status, created_at, paid_at
+         FROM subscription_orders WHERE user_id=$1 ORDER BY created_at DESC LIMIT 50`,
+        [userId],
+      ),
+    ]);
+    return c.json({
+      purchases: [
+        ...credits.rows.map((row) => ({ ...row, kind: "credits" as const })),
+        ...subscriptions.rows.map((row) => ({ ...row, kind: "subscription" as const })),
+      ]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 80),
+    });
+  });
+
   app.get("/orders/current", async (c) => c.json({ order: await currentOrder(pool, userId) }));
   app.get("/orders/:id", async (c) => c.json(await getOrder(pool, userId, c.req.param("id"))));
 

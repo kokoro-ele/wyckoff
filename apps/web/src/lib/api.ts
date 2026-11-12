@@ -432,3 +432,30 @@ export function fetchOnboarding(): Promise<{ seen: boolean }> {
 export function completeOnboarding(): Promise<{ ok: boolean }> {
   return request("/onboarding/complete", { method: "POST", body: JSON.stringify({}) });
 }
+
+
+export interface PurchaseRecord {
+  id: string;
+  kind: "credits" | "subscription";
+  product: string;
+  credits?: number | null;
+  mode?: string;
+  amount: number;
+  currency: string;
+  status: string;
+  created_at: string;
+  paid_at: string | null;
+}
+
+export function fetchPurchases(): Promise<{ purchases: PurchaseRecord[] }> {
+  return request("/credits/purchases");
+}
+
+export interface ByokStatus {
+  byok: boolean;
+  entitlement: { source: string; status: string; currentPeriodEnd: string | null } | null;
+}
+
+export function fetchByokSubscriptionStatus(): Promise<ByokStatus> {
+  return request("/credits/subscriptions/status");
+}

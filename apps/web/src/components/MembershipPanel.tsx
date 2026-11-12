@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Copy, CreditCard, Crown, RefreshCw, X } from "lucide-react";
 import { translate, useI18n } from "@/i18n.js";
+import { fetchByokSubscriptionStatus, fetchPurchases, openBillingPortal, type ByokStatus, type PurchaseRecord } from "@/lib/api.js";
 
 interface Pack { id: string; name: string; credits: number; amount: number; currency: string }
-interface Catalog { packs: Pack[]; providers: { stripe: { available: boolean } } }
+interface Catalog { packs: Pack[]; providers: { stripe: { available: boolean; mode?: "test" | "live" | null } } }
 interface Status { balance: number; inviteCode: string; inviteCount: number }
 interface Order { status: string; orderId: string; checkoutUrl?: string; expiresAt: string }
 type RequestError = Error & { code?: string };
@@ -25,6 +26,8 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
   const { t, lang } = useI18n();
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [status, setStatus] = useState<Status | null>(null);
+  const [purchases, setPurchases] = useState<PurchaseRecord[]>([]);
+  const [byok, setByok] = useState<ByokStatus | null>(null);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(false);
@@ -34,9 +37,16 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
 
   const reload = async () => {
     setError("");
-    const results = await Promise.allSettled([request<Catalog>("catalog"), request<Status>("status")]);
+    const results = await Promise.allSettled([
+      request<Catalog>("catalog"),
+      request<Status>("status"),
+      fetchPurchases(),
+      fetchByokSubscriptionStatus(),
+    ]);
     if (results[0].status === "fulfilled") setCatalog(results[0].value);
     if (results[1].status === "fulfilled") setStatus(results[1].value);
+    if (results[2].status === "fulfilled") setPurchases(results[2].value.purchases);
+    if (results[3].status === "fulfilled") setByok(results[3].value);
     const failed = results.find((result) => result.status === "rejected");
     if (failed?.status === "rejected") {
       setError(failed.reason instanceof Error ? failed.reason.message : t("account.error"));
@@ -120,6 +130,19 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const manage = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      const { url } = await openBillingPortal();
+      window.location.assign(url);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t("error.SERVICE_UNAVAILABLE"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const copy = async (link: boolean) => {
     if (!status) return;
     const url = new URL("/app", window.location.origin);
@@ -158,6 +181,33 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
               {t("action.refresh")}
             </button>
           </div>
+        )}
+
+        {catalog?.providers.stripe.mode && (
+          <div className={`mt-3 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[9px] ${catalog.providers.stripe.mode === "live" ? "border-down/40 bg-down/10 text-down" : "border-warn/40 bg-warn/10 text-warn"}`}>
+            {catalog.providers.stripe.mode === "live" ? "STRIPE LIVE" : "STRIPE TEST"}
+          </div>
+        )}
+
+        {byok && (
+          <section className="mt-4 rounded-2xl border border-line bg-panel-2/70 p-4">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-semibold">BYOK</span>
+              <span className={`rounded-full border px-2 py-0.5 text-[10px] ${byok.byok ? "border-down/40 text-down" : "border-line text-ink-faint"}`}>
+                {byok.byok ? (byok.entitlement?.source === "lifetime" ? "Lifetime" : "Active") : "Not active"}
+              </span>
+            </div>
+            <p className="mt-2 text-[11px] text-ink-dim">
+              {byok.byok
+                ? `${byok.entitlement?.source === "lifetime" ? "永久" : "订阅有效至"} ${byok.entitlement?.currentPeriodEnd ? new Date(byok.entitlement.currentPeriodEnd).toLocaleDateString(lang === "zh" ? "zh-CN" : "en-US") : ""}`
+                : "使用自己的模型需要开通 BYOK。"}
+            </p>
+            {byok.byok && byok.entitlement?.source === "subscription" && (
+              <button type="button" className="hand-link mt-1 text-[10px]" disabled={busy} onClick={() => void manage()}>
+                管理订阅 / 取消
+              </button>
+            )}
+          </section>
         )}
 
         {status && (
@@ -228,6 +278,31 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
                 </section>
               ))}
             </div>
+            <section className="mt-5 border-t border-dashed border-line-soft pt-3">
+              <h3 className="text-sm font-semibold">购买记录</h3>
+              {purchases.length === 0 ? (
+                <p className="mt-2 text-[11px] text-ink-faint">暂无购买记录。</p>
+              ) : (
+                <div className="mt-2 space-y-1">
+                  {purchases.slice(0, 12).map((purchase) => (
+                    <div key={`${purchase.kind}-${purchase.id}`} className="flex items-center justify-between gap-3 border-b border-dashed border-line-soft py-1.5 text-[11px]">
+                      <div className="min-w-0">
+                        <div className="truncate text-ink">
+                          {purchase.kind === "credits"
+                            ? purchase.credits ? `${purchase.credits} credits` : purchase.product
+                            : purchase.product === "byok_lifetime" ? "BYOK Lifetime" : "BYOK Monthly"}
+                        </div>
+                        <div className="text-[9px] text-ink-faint">{new Date(purchase.created_at).toLocaleString(lang === "zh" ? "zh-CN" : "en-US")}</div>
+                      </div>
+                      <div className="shrink-0 text-right">
+                        <div className="font-mono text-ink">{new Intl.NumberFormat(lang === "zh" ? "zh-CN" : "en-US", { style: "currency", currency: purchase.currency }).format(purchase.amount / 100)}</div>
+                        <div className="text-[9px] text-ink-faint">{purchase.status}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
             <p className="mt-4 text-xs leading-6 text-ink-dim">{t("membership.footnote")}</p>
           </>
         )}

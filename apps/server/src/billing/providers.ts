@@ -9,9 +9,11 @@ export function availability(env: Env = process.env) {
   const origin = env.BILLING_PUBLIC_ORIGIN ?? "";
   const localHost = /^http:\/\/localhost(?::\d+)?$/.test(origin) && env.NODE_ENV !== "production";
   const base = /^https:\/\/[^/]+$/.test(origin) || localHost;
+  const secret = env.STRIPE_SECRET_KEY ?? "";
   return {
     stripe: {
-      available: base && !!env.STRIPE_SECRET_KEY && !!env.STRIPE_WEBHOOK_SECRET,
+      available: base && !!secret && !!env.STRIPE_WEBHOOK_SECRET,
+      mode: secret.startsWith("sk_live_") || secret.startsWith("rk_live_") ? "live" : secret ? "test" : null,
     },
   };
 }
