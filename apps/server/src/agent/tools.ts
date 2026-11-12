@@ -23,6 +23,8 @@ export interface RunContext {
   language: "zh" | "en";
   /** 本轮对话内缓存的全量 K 线，供日期吸附与切片使用。 */
   klines(): Promise<Kline[]>;
+  /** 用户当前画布可视范围；工具默认围绕这里分析。 */
+  viewport?: { startTime: number; endTime: number };
 }
 
 export interface ToolResult {
@@ -339,8 +341,12 @@ async function getFeaturesTool(args: Args, ctx: RunContext): Promise<ToolResult>
   // both latency and model context. Default to the recent two years.
   const defaultStart =
     klines.length > 600 ? klines[klines.length - 600].timestamp : undefined;
-  const startTime = args.start_date ? snapToBar(klines, args.start_date) ?? undefined : defaultStart;
-  const endTime = args.end_date ? snapToBar(klines, args.end_date) ?? undefined : undefined;
+  const startTime = args.start_date
+    ? snapToBar(klines, args.start_date) ?? undefined
+    : ctx.viewport?.startTime ?? defaultStart;
+  const endTime = args.end_date
+    ? snapToBar(klines, args.end_date) ?? undefined
+    : ctx.viewport?.endTime ?? undefined;
 
   const features = await getFeatures({
     symbol: ctx.symbol,
@@ -364,8 +370,10 @@ async function getKlinesTool(args: Args, ctx: RunContext): Promise<ToolResult> {
   const maxBars = Math.min(Number(args.max_bars) || 120, 300);
 
   let slice = all;
-  if (startTime !== null) slice = slice.filter((b) => b.timestamp >= startTime);
-  if (endTime !== null) slice = slice.filter((b) => b.timestamp <= endTime);
+  const effectiveStart = startTime ?? ctx.viewport?.startTime ?? null;
+  const effectiveEnd = endTime ?? ctx.viewport?.endTime ?? null;
+  if (effectiveStart !== null) slice = slice.filter((b) => b.timestamp >= effectiveStart);
+  if (effectiveEnd !== null) slice = slice.filter((b) => b.timestamp <= effectiveEnd);
 
   const truncated = slice.length > maxBars;
   if (truncated) slice = slice.slice(-maxBars);

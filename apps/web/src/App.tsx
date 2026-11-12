@@ -77,7 +77,7 @@ export function App() {
           <PanelLeft size={16} />
           <span>{t("action.watchlist")}</span>
         </button>
-        <button type="button" className="canvas-action" onClick={() => setSearchOpen(true)}>
+        <button type="button" className="canvas-action" data-tour="search" onClick={() => setSearchOpen(true)}>
           <Search size={16} />
           <span>{t("action.search")}</span>
           <kbd className="hidden text-ink-faint md:inline">⌘ K</kbd>
@@ -86,6 +86,7 @@ export function App() {
         <button
           type="button"
           className="canvas-action"
+          data-tour="analysis"
           aria-label={t("action.analysis")}
           aria-pressed={chatVisible}
           aria-controls="analysis-dock"
@@ -99,7 +100,7 @@ export function App() {
           <span>{t("action.account")}</span>
           {!isVerified && <span className="account-dot" aria-hidden="true" />}
         </button>
-        <button type="button" className="canvas-action" aria-label={t("action.settings")} onClick={() => setSettingsOpen(true)}>
+        <button type="button" className="canvas-action" data-tour="settings" aria-label={t("action.settings")} onClick={() => setSettingsOpen(true)}>
           <Settings2 size={16} />
           <span>{t("action.settings")}</span>
         </button>

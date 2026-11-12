@@ -65,7 +65,6 @@ export function LandingPage() {
                 {copy.hero.learn}
               </a>
             </div>
-            <p className="site-home-note">{copy.hero.note}</p>
           </div>
 
           <figure className="site-home-chart hand-card">

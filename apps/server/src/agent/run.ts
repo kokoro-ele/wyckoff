@@ -76,6 +76,7 @@ export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent
     period,
     adjust,
     language,
+    viewport,
     klines: () => (klinesPromise ??= getKlines({ symbol, period, adjust })),
   };
 

@@ -17,7 +17,6 @@ export interface LandingCopy {
     subtitle: string;
     cta: string;
     learn: string;
-    note: string;
     symbol: string;
     window: string;
     zoneLabel: string;
@@ -49,7 +48,6 @@ const zh: LandingCopy = {
     subtitle: "用区间、量能和收盘位置，读懂六个基本动作。",
     cta: "现在开始",
     learn: "学习 Wyckoff",
-    note: "免登录看图，分析时登录。",
     symbol: "NVDA.US",
     window: "2025-11-11 → 2026-11-10",
     zoneLabel: "派发区间",
@@ -88,7 +86,6 @@ const en: LandingCopy = {
     subtitle: "Read ranges, volume and closes through six basic actions.",
     cta: "Start now",
     learn: "Learn Wyckoff",
-    note: "Browse free; sign in to analyze.",
     symbol: "NVDA.US",
     window: "2025-11-11 → 2026-11-10",
     zoneLabel: "Distribution",

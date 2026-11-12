@@ -182,7 +182,7 @@ function ChartContextPanel() {
       const range = chart.getVisibleRange();
       if (!data.length) return;
       const from = Math.max(0, Math.floor(range.from));
-      const to = Math.min(data.length - 1, Math.ceil(range.to));
+      const to = Math.min(data.length - 1, Math.floor(range.to));
       const start = data[from];
       const end = data[to];
       if (start && end) {
@@ -352,7 +352,7 @@ function ChartContextPanel() {
   };
 
   return (
-    <main className="glass-panel chart-panel flex min-w-0 flex-1 flex-col overflow-hidden rounded-[20px]">
+    <main data-tour="chart" className="glass-panel chart-panel flex min-w-0 flex-1 flex-col overflow-hidden rounded-[20px]">
       <div className="panel-header flex min-h-[67px] flex-wrap items-center justify-between gap-2 border-b border-line-soft px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-3">
           <div className="market-mark" aria-hidden="true">

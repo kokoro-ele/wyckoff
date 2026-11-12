@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, ArrowRight, BookOpen, ExternalLink, Languages, Moon, Sun } from "lucide-react";
 import { useI18n } from "./i18n.js";
 import { useTheme } from "./theme.js";
@@ -21,21 +21,24 @@ const LINKS = [
 ];
 
 export function LearnPage({ pathLang }: { pathLang: "zh" | "en" }) {
-  const { lang, setLang } = useI18n();
+  const { setLang } = useI18n();
   const { theme, setPreference } = useTheme();
-  const zh = lang === "zh";
+  const [pageLang, setPageLang] = useState<"zh" | "en">(pathLang);
+  const zh = pageLang === "zh";
   const dark = theme === "dark";
 
   useEffect(() => {
-    if (lang !== pathLang) setLang(pathLang);
-  }, [lang, pathLang, setLang]);
+    setPageLang(pathLang);
+    setLang(pathLang);
+  }, [pathLang, setLang]);
 
   useEffect(() => {
     document.title = zh ? "Wyckoff 学习页 · EasyWyckoff" : "Learn Wyckoff · EasyWyckoff";
   }, [zh]);
 
   const switchLanguage = () => {
-    const next = lang === "zh" ? "en" : "zh";
+    const next = pageLang === "zh" ? "en" : "zh";
+    setPageLang(next);
     setLang(next);
     window.history.replaceState(null, "", `/learn/${next}`);
   };
@@ -45,7 +48,7 @@ export function LearnPage({ pathLang }: { pathLang: "zh" | "en" }) {
       <header className="learn-topbar">
         <a className="site-brand" href="/"><span className="site-brand-mark">W</span>EasyWyckoff</a>
         <div className="flex items-center gap-2">
-          <a className="hand-btn px-3 py-1.5 text-xs" href={`/learn/${lang}`}><BookOpen size={13} />{zh ? "学习中" : "Learning"}</a>
+          <a className="hand-btn px-3 py-1.5 text-xs" href={`/learn/${pageLang}`}><BookOpen size={13} />{zh ? "学习中" : "Learning"}</a>
           <button type="button" className="site-lang" onClick={switchLanguage}><Languages size={13} />{zh ? "English" : "中文"}</button>
           <button type="button" className="site-icon" onClick={() => setPreference(dark ? "light" : "dark")}>{dark ? <Sun size={15} /> : <Moon size={15} />}</button>
         </div>
