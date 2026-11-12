@@ -22,11 +22,11 @@ Open **Analysis** to switch between **Research** and **Agent**. Research shows f
 - **Referrals**: a new verified user receives 3 credits; each verified invite awards the inviter another 3.
 - **Credit-pack top-ups** configured by the operator through `ANALYSIS_CREDIT_PACKS`, paid with Stripe Checkout.
 - **English and Chinese UI**: switch language in Settings; model answers, buttons, errors and chart controls follow it.
-- **Operator-only model credentials**: users cannot override the platform model URL or API key.
+- **Operator default model + user override**: the platform model is configured server-side; users may add their own encrypted model settings in Settings.
 - **Looseleaf paper UI**: warm paper, thin borders, handwritten headings and a clean sans body. The top bar stays removed; account, settings and search sit in the watchlist header.
 - **Encrypted workspaces**: each account's SQLite workspace is compressed and encrypted with AES-256-GCM before being stored in PostgreSQL.
 
-The recommendation, scanner, AI-backtest, and user-supplied model-key surfaces are no longer mounted. Historical database rows are preserved for compatibility and are not migrated to new accounts.
+The recommendation, scanner, and AI-backtest surfaces are no longer mounted. Users can configure their own model key in Settings. Historical database rows are preserved for compatibility and are not migrated to new accounts.
 
 ## Research views
 
@@ -108,7 +108,7 @@ See [Stripe payment setup](docs/payment-setup.md) for the full configuration and
 | Variable | Purpose |
 | --- | --- |
 | `TICKFLOW_BASE_URL` / `TICKFLOW_API_KEY` | Market-data endpoint and optional paid key |
-| `OPENAI_BASE_URL` / `OPENAI_API_KEY` / `OPENAI_MODEL` | Operator-only model configuration |
+| `OPENAI_BASE_URL` / `OPENAI_API_KEY` / `OPENAI_MODEL` | Operator default model; users may override it in Settings |
 | `OPENAI_WEB_SEARCH` | Enables Responses `web_search` |
 | `DEBUG_LLM` | Set to `1` only to log full prompts/history; off by default |
 | `ALLOW_AGENT_TRACE` | Set to `1` only in development to stream tool traces; keep `0` in production |

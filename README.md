@@ -26,7 +26,7 @@
 - **Looseleaf 纸面界面**：暖纸色、细边框、手写标题与干净的无衬线正文；顶部横栏保持移除，账户、设置和搜索在自选面板顶部。
 - **加密工作区**：每个账号的 SQLite 工作区压缩后使用 AES-256-GCM 加密，存入 PostgreSQL。
 
-已移除的荐股、扫描、AI 回测和用户自带模型 Key 入口不再挂载；旧数据库记录保留作兼容，不会自动迁移到新账号。
+已移除的荐股、扫描和 AI 回测入口不再挂载；用户可在设置中配置自己的模型 Key。旧数据库记录保留作兼容，不会自动迁移到新账号。
 
 ## 研究面板
 
@@ -108,7 +108,7 @@ pnpm dev
 | 变量 | 说明 |
 | --- | --- |
 | `TICKFLOW_BASE_URL` / `TICKFLOW_API_KEY` | 行情地址与可选付费 Key |
-| `OPENAI_BASE_URL` / `OPENAI_API_KEY` / `OPENAI_MODEL` | 运营方模型配置，用户不可覆盖 |
+| `OPENAI_BASE_URL` / `OPENAI_API_KEY` / `OPENAI_MODEL` | 运营方默认模型配置；用户可在设置中配置自己的模型覆盖 |
 | `OPENAI_WEB_SEARCH` | 是否启用 Responses `web_search` |
 | `DEBUG_LLM` | 设为 `1` 时才打印完整 prompt/历史，默认关闭 |
 | `ALLOW_AGENT_TRACE` | 设为 `1` 才允许开发客户端显示工具轨迹；生产保持 `0` |

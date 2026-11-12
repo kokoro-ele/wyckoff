@@ -20,7 +20,7 @@ and the API never starts a persistent HTTP listener.
 3. Optional but commonly required:
 
    - `DATABASE_SSL_CA` for a provider CA such as Supabase.
-   - `OPENAI_BASE_URL`, `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_WEB_SEARCH`.
+   - `OPENAI_BASE_URL`, `OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_WEB_SEARCH` for the operator default. Users can optionally store their own encrypted model settings from Settings → My model.
    - `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM` for email OTP; add `SMTP_USER`/`SMTP_PASS` only for authenticated relays. `SMTP_REQUIRE_TLS` overrides the default STARTTLS policy (587 requires it, 465 uses implicit TLS, local catchers usually use 1025 without TLS).
    - `SEC_USER_AGENT` with an operator contact address for SEC EDGAR fundamentals. The research endpoint uses Tencent quote data for valuation and SEC annual facts for US fundamentals; it does not consume model credits.
    - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` for Google OAuth.
