@@ -140,7 +140,7 @@ export async function checkoutSubscription(
           product.mode,
           product.amount,
           product.currency,
-          new Date(Date.now() + 30 * 60_000),
+          new Date(Date.now() + 35 * 60_000),
         ],
       )
     ).rows[0];
