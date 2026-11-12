@@ -77,8 +77,18 @@ export function AuthDialog({
     }
   };
 
-  function check(result: { error?: { message?: string } | null }) {
-    if (result.error) throw new Error(result.error.message || t("error.NETWORK"));
+  function check(result: { error?: { message?: string; code?: string; status?: number } | null }) {
+    if (!result.error) return;
+    if (result.error.status === 429 || result.error.code === "TOO_MANY_REQUESTS") {
+      throw new Error(t("auth.tooMany"));
+    }
+    if (result.error.code === "TOO_MANY_ATTEMPTS") {
+      throw new Error(t("auth.tooManyAttempts"));
+    }
+    if (result.error.code === "INVALID_OTP") {
+      throw new Error(t("auth.invalidCode"));
+    }
+    throw new Error(result.error.message || t("error.NETWORK"));
   }
 
   const sendCode = async (to: string) => {
