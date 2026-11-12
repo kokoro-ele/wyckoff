@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Sparkles, X } from "lucide-react";
 import { authClient, prepareReferral } from "../lib/auth.js";
 import { useI18n } from "../i18n.js";
@@ -31,9 +31,8 @@ export function AuthDialog({
   const [name, setName] = useState("");
   const [otp, setOtp] = useState("");
   const [resendAt, setResendAt] = useState(0);
-  const invite = useMemo(
-    () => new URLSearchParams(window.location.search).get("invite")?.trim() ?? "",
-    [],
+  const [inviteCode, setInviteCode] = useState(() =>
+    new URLSearchParams(window.location.search).get("invite")?.trim() ?? "",
   );
 
   useEffect(() => {
@@ -111,7 +110,7 @@ export function AuthDialog({
     event.preventDefault();
     void run(async () => {
       if (mode === "register") {
-        if (invite) await prepareReferral(invite);
+        if (inviteCode.trim()) await prepareReferral(inviteCode.trim());
         check(
           await authClient.signUp.email({
             email,
@@ -217,7 +216,7 @@ export function AuthDialog({
                 className="hand-btn mt-4 flex w-full items-center justify-center gap-2 px-3 py-2.5 text-sm"
                 onClick={() =>
                   void run(async () => {
-                    if (invite) await prepareReferral(invite);
+                    if (inviteCode.trim()) await prepareReferral(inviteCode.trim());
                     check(await authClient.signIn.social({ provider: "google", callbackURL: `${window.location.origin}/app` }));
                   })
                 }
@@ -239,6 +238,20 @@ export function AuthDialog({
                       value={name}
                       onChange={(event) => setName(event.target.value)}
                       placeholder={t("common.optional")}
+                    />
+                  </label>
+                )}
+                {mode === "register" && (
+                  <label className="hand-label">
+                    {t("auth.inviteCode")}
+                    <input
+                      className="hand-input font-mono text-[11px]"
+                      maxLength={100}
+                      autoComplete="off"
+                      value={inviteCode}
+                      onChange={(event) => setInviteCode(event.target.value)}
+                      placeholder={t("auth.inviteCodePlaceholder")}
+                      spellCheck={false}
                     />
                   </label>
                 )}
@@ -285,9 +298,9 @@ export function AuthDialog({
                   </label>
                 )}
                 {mode === "register" && <p className="text-[11px] text-ink-faint">{t("auth.passwordHint")}</p>}
-                {invite && mode === "register" && (
+                {mode === "register" && inviteCode.trim() && (
                   <p className="rounded-lg border border-accent/30 bg-accent-soft px-2.5 py-1.5 text-[11px] text-accent">
-                    {t("auth.inviteApplied")}
+                    {t("auth.inviteHint")}
                   </p>
                 )}
 
