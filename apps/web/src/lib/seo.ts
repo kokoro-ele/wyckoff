@@ -65,6 +65,7 @@ export function useSeo(input: SeoInput): void {
     meta('meta[property="og:description"]', { property: "og:description", content: input.description });
     meta('meta[property="og:url"]', { property: "og:url", content: url });
     meta('meta[property="og:image"]', { property: "og:image", content: input.image ?? SEO_IMAGE });
+    meta('meta[property="og:image:alt"]', { property: "og:image:alt", content: "EasyWyckoff Wyckoff research workbench" });
     meta('meta[property="og:image:width"]', { property: "og:image:width", content: "1200" });
     meta('meta[property="og:image:height"]', { property: "og:image:height", content: "630" });
     meta('meta[property="og:locale"]', { property: "og:locale", content: input.lang === "zh" ? "zh_CN" : "en_US" });
@@ -72,6 +73,7 @@ export function useSeo(input: SeoInput): void {
     meta('meta[name="twitter:title"]', { name: "twitter:title", content: input.title });
     meta('meta[name="twitter:description"]', { name: "twitter:description", content: input.description });
     meta('meta[name="twitter:image"]', { name: "twitter:image", content: input.image ?? SEO_IMAGE });
+    meta('meta[name="twitter:image:alt"]', { name: "twitter:image:alt", content: "EasyWyckoff Wyckoff research workbench" });
     link('link[rel="canonical"]', { rel: "canonical", href: url });
     document.head.querySelectorAll('link[rel="alternate"][hreflang]').forEach((node) => node.remove());
     for (const alternate of input.alternates ?? []) {
