@@ -8,6 +8,13 @@ import type { Pool } from "pg";
  */
 export async function migrateCredits(pool: Pool) {
   await pool.query(`
+CREATE TABLE IF NOT EXISTS user_identity(
+  user_id TEXT PRIMARY KEY REFERENCES "user"(id) ON DELETE CASCADE,
+  public_id TEXT NOT NULL UNIQUE,
+  ordinal INTEGER NOT NULL UNIQUE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS auth_referral_intents(
   token_hash TEXT PRIMARY KEY,
   invite_code TEXT NOT NULL,
@@ -69,13 +76,56 @@ ALTER TABLE billing_orders ADD CONSTRAINT billing_orders_product_check
   CHECK((credits IS NULL AND plan IN ('pro','research') AND period IN ('monthly','annual'))
      OR (credits IS NOT NULL AND period='permanent'));
 
+-- Give existing accounts a stable public number in registration order.
+INSERT INTO user_identity(user_id,public_id,ordinal,created_at)
+SELECT u.id,
+       'WY-' || lpad((row_number() OVER (ORDER BY u."createdAt", u.id))::text, 6, '0'),
+       row_number() OVER (ORDER BY u."createdAt", u.id),
+       u."createdAt"
+FROM "user" u
+WHERE NOT EXISTS (SELECT 1 FROM user_identity i WHERE i.user_id=u.id)
+ON CONFLICT DO NOTHING;
+
+-- Existing accounts that already received the old 3-credit welcome grant are
+-- topped up to 10 total. New early-bird accounts receive 10 directly.
+WITH inserted AS (
+  INSERT INTO credit_ledger(event_key,user_id,amount)
+  SELECT 'earlybird:' || i.user_id, i.user_id, 7
+  FROM user_identity i
+  JOIN credit_ledger w ON w.event_key = 'welcome:' || i.user_id AND w.amount = 3
+  WHERE i.ordinal <= 100
+  ON CONFLICT(event_key) DO NOTHING
+  RETURNING user_id
+)
+UPDATE credit_accounts c
+SET balance = balance + 7
+WHERE c.user_id IN (SELECT user_id FROM inserted);
+
+-- Accounts created before the credit ledger existed have no welcome row.
+-- Give verified early users the same 10-credit early-bird welcome once.
+WITH inserted AS (
+  INSERT INTO credit_ledger(event_key,user_id,amount)
+  SELECT 'earlybird:welcome:' || i.user_id, i.user_id, 10
+  FROM user_identity i
+  JOIN "user" u ON u.id = i.user_id AND u."emailVerified" = true
+  WHERE i.ordinal <= 100
+    AND NOT EXISTS (SELECT 1 FROM credit_ledger w WHERE w.event_key = 'welcome:' || i.user_id)
+    AND NOT EXISTS (SELECT 1 FROM credit_ledger w WHERE w.event_key = 'earlybird:welcome:' || i.user_id)
+  ON CONFLICT(event_key) DO NOTHING
+  RETURNING user_id
+)
+UPDATE credit_accounts c
+SET balance = balance + 10
+WHERE c.user_id IN (SELECT user_id FROM inserted);
+
+ALTER TABLE user_identity ENABLE ROW LEVEL SECURITY;
 ALTER TABLE auth_referral_intents ENABLE ROW LEVEL SECURITY;
 ALTER TABLE api_rate_limits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE credit_meta ENABLE ROW LEVEL SECURITY;
 ALTER TABLE credit_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE credit_ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE credit_usage ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON auth_referral_intents,api_rate_limits,credit_meta,credit_accounts,credit_ledger,credit_usage FROM PUBLIC;
+REVOKE ALL ON user_identity,auth_referral_intents,api_rate_limits,credit_meta,credit_accounts,credit_ledger,credit_usage FROM PUBLIC;
 DO $$ DECLARE r TEXT; BEGIN
   FOREACH r IN ARRAY ARRAY['anon','authenticated'] LOOP
     IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname=r) THEN

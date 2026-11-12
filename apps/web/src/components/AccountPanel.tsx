@@ -94,9 +94,11 @@ export function AccountPanel({
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-semibold">{session?.user.name || session?.user.email}</p>
                 <p className="truncate text-xs text-ink-dim">{session?.user.email}</p>
-                <span className="mt-1 inline-flex rounded-full border border-down/30 bg-down/10 px-2 py-0.5 text-[10px] text-down">
-                  {t("common.loggedIn")}
-                </span>
+                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                  <span className="inline-flex rounded-full border border-down/30 bg-down/10 px-2 py-0.5 text-[10px] text-down">{t("common.loggedIn")}</span>
+                  {status?.publicId && <span className="rounded-full border border-line px-2 py-0.5 font-mono text-[9px] text-ink-faint">{status.publicId}</span>}
+                  {status?.earlyBird && <span className="rounded-full border border-warn/40 bg-warn/10 px-2 py-0.5 text-[9px] text-warn">{t("account.earlyBird")}</span>}
+                </div>
               </div>
             </div>
 

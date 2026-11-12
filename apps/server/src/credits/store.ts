@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import { BillingError, plans } from "../billing/catalog.js";
 import { withAccountLock } from "../billing/store.js";
+import { getIdentity, registerIdentity, welcomeCreditsFor } from "./identity.js";
 
 type DB = Pool | PoolClient;
 
@@ -27,6 +28,7 @@ export async function validateInviteCode(db: DB, code: string): Promise<string> 
 
 /** Called exclusively from the new-user creation hook, never from login. */
 export async function registerCreditAccount(pool: Pool, userId: string, inviteCode?: string | null) {
+  await registerIdentity(pool, userId);
   await withAccountLock(pool, userId, async (db) => {
     const inviter = inviteCode ? await validateInviteCode(db, inviteCode) : null;
     if (inviter === userId) throw new BillingError("INVALID_INVITE", "不能邀请自己");
@@ -97,7 +99,8 @@ export async function grantVerifiedCredits(pool: Pool, userId: string) {
     const { eligible, inviterId } = await welcomeEligibility(db, userId);
     if (!eligible) return;
 
-    await addCredits(db, userId, WELCOME_CREDITS, `welcome:${userId}`);
+    const identity = await getIdentity(db, userId);
+    await addCredits(db, userId, welcomeCreditsFor(identity), `welcome:${userId}`);
 
     if (inviterId) {
       // A deleted inviter must never roll back the invited user's welcome gift.
@@ -119,15 +122,24 @@ export async function grantVerifiedCredits(pool: Pool, userId: string) {
 export async function creditStatus(pool: Pool, userId: string) {
   await grantVerifiedCredits(pool, userId);
   const row = (
-    await pool.query<{ balance: number; invite_code: string; invite_count: string }>(
-      `SELECT balance,invite_code,
-        (SELECT count(*) FROM credit_ledger WHERE user_id=$1 AND event_key LIKE 'invite:%') AS invite_count
-       FROM credit_accounts WHERE user_id=$1`,
+    await pool.query<{ balance: number; invite_code: string; invite_count: string; public_id: string | null; ordinal: number | null }>(
+      `SELECT c.balance,c.invite_code,
+        (SELECT count(*) FROM credit_ledger WHERE user_id=$1 AND event_key LIKE 'invite:%') AS invite_count,
+        i.public_id, i.ordinal
+       FROM credit_accounts c LEFT JOIN user_identity i ON i.user_id=c.user_id
+       WHERE c.user_id=$1`,
       [userId],
     )
   ).rows[0];
   if (!row) throw new BillingError("AUTH_REQUIRED", "账号额度尚未初始化", 401);
-  return { balance: row.balance, inviteCode: row.invite_code, inviteCount: Number(row.invite_count) };
+  return {
+    balance: row.balance,
+    inviteCode: row.invite_code,
+    inviteCount: Number(row.invite_count),
+    publicId: row.public_id,
+    ordinal: row.ordinal,
+    earlyBird: row.ordinal !== null && row.ordinal <= 100,
+  };
 }
 
 /** Runs on the workspace transaction: rollback restores the reservation and saved result together. */

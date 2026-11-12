@@ -107,6 +107,9 @@ export interface CreditStatus {
   balance: number;
   inviteCode: string;
   inviteCount: number;
+  publicId: string | null;
+  ordinal: number | null;
+  earlyBird: boolean;
 }
 
 export function fetchCreditStatus(): Promise<CreditStatus> {
@@ -386,6 +389,8 @@ export interface AdminUser {
   createdAt: string;
   balance: number;
   inviteCode: string | null;
+  publicId: string | null;
+  ordinal: number | null;
   analyses: string;
 }
 

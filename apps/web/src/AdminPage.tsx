@@ -228,7 +228,7 @@ export function AdminPage() {
               <tbody>
                 {users.map((user) => (
                   <tr key={user.id}>
-                    <td><div className="admin-user"><strong>{user.name || user.email.split("@")[0]}</strong><span>{user.email}</span></div></td>
+                    <td><div className="admin-user"><strong>{user.name || user.email.split("@")[0]}</strong><span>{user.email}</span>{user.publicId && <span className="font-mono">{user.publicId}{user.ordinal && user.ordinal <= 100 ? " · early" : ""}</span>}</div></td>
                     <td>{user.emailVerified ? <span className="admin-pill ok">{zh ? "已验证" : "verified"}</span> : <span className="admin-pill">{zh ? "待验证" : "pending"}</span>}</td>
                     <td className="font-mono">{user.balance}</td>
                     <td className="font-mono">{user.analyses}</td>
