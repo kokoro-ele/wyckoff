@@ -188,6 +188,9 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
             {catalog.providers.stripe.mode === "live" ? "STRIPE LIVE" : "STRIPE TEST"}
           </div>
         )}
+        {catalog?.providers.stripe.mode === "test" && (
+          <p className="mt-2 text-[10px] leading-relaxed text-warn">当前是 Stripe 测试模式：请使用测试卡，不会真实扣款。上线前需要切换到 live keys。</p>
+        )}
 
         {byok && (
           <section className="mt-4 rounded-2xl border border-line bg-panel-2/70 p-4">
