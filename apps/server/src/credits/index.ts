@@ -6,6 +6,7 @@ import { availability } from "../billing/providers.js";
 import { checkoutCreditPack, currentOrder, getOrder } from "../billing/store.js";
 import {
   checkoutSubscription,
+  createBillingPortal,
   currentSubscriptionOrder,
   getSubscriptionOrder,
 } from "../billing/subscriptionStore.js";
@@ -41,6 +42,10 @@ export function createCreditsRouter(pool: Pool, userId: string) {
   app.get("/subscriptions/orders/:id", async (c) => c.json(await getSubscriptionOrder(pool, userId, c.req.param("id"))));
   app.get("/orders/current", async (c) => c.json({ order: await currentOrder(pool, userId) }));
   app.get("/orders/:id", async (c) => c.json(await getOrder(pool, userId, c.req.param("id"))));
+
+  app.post("/subscriptions/portal", async (c) => {
+    return c.json({ url: await createBillingPortal(pool, userId) });
+  });
 
   app.post("/subscriptions/checkout", bodyLimit({ maxSize: 4096 }), async (c) => {
     const body = (await c.req.json().catch(() => null)) as { productId?: unknown; provider?: unknown } | null;

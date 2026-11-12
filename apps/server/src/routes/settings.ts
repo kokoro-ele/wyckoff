@@ -4,7 +4,7 @@ import { config } from "../config.js";
 import { setState } from "../db/index.js";
 import { getPool } from "../cloud/postgres.js";
 import { workspaceContext } from "../cloud/context.js";
-import { hasEntitlement } from "../billing/entitlements.js";
+import { getEntitlement, hasEntitlement } from "../billing/entitlements.js";
 import {
   LLM_STATE_KEYS,
   readCustomLlmSettings,
@@ -80,8 +80,15 @@ function publicSettings() {
 settingsRoutes.get("/llm", async (c) => {
   const userId = workspaceContext.getStore()?.userId;
   const byokEntitled = userId ? await hasEntitlement(getPool(), userId, "byok") : false;
+  const entitlement = userId ? await getEntitlement(getPool(), userId, "byok") : null;
   const value = publicSettings();
-  return c.json({ ...value, configured: value.source === "user" && !byokEntitled ? false : value.configured, byokEntitled });
+  return c.json({
+    ...value,
+    configured: value.source === "user" && !byokEntitled ? false : value.configured,
+    byokEntitled,
+    byokSource: entitlement?.source ?? null,
+    byokPeriodEnd: entitlement?.current_period_end?.toISOString() ?? null,
+  });
 });
 
 settingsRoutes.put(

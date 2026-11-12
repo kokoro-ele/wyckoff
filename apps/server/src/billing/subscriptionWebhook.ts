@@ -19,7 +19,9 @@ async function stripeSubscription(id: string): Promise<StripeSubscription | null
     signal: AbortSignal.timeout(15_000),
   });
   if (!response.ok) throw new BillingError("PROVIDER_UNAVAILABLE", "Could not read Stripe subscription", 503);
-  return (await response.json()) as StripeSubscription;
+  const value = (await response.json()) as StripeSubscription & { items?: { data?: Array<{ current_period_end?: number }> } };
+  if (!value.current_period_end) value.current_period_end = value.items?.data?.[0]?.current_period_end;
+  return value;
 }
 
 function customerId(value: unknown): string | null {

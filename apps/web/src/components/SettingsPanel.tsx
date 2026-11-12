@@ -95,6 +95,19 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
     : "";
   const canSave = !busy && (mode === "operator" || (Boolean(settings?.byokEntitled) && (Boolean(settings?.custom) || apiKey.trim().length > 0)));
 
+  const manageSubscription = async () => {
+    setByokBusy("portal");
+    setError("");
+    try {
+      const { url } = await api.openBillingPortal();
+      window.location.assign(url);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t("settings.llm.error"));
+    } finally {
+      setByokBusy("");
+    }
+  };
+
   const buyByok = async (productId: string) => {
     setByokBusy(productId);
     setError("");
@@ -213,6 +226,11 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
               ) : (
                 <>
                   <p className="mt-2 text-[10px] leading-relaxed text-ink-faint">{t("settings.llm.customCredit")}</p>
+                  {settings?.byokSource === "subscription" && (
+                    <button type="button" className="hand-link mt-1 text-[10px]" disabled={Boolean(byokBusy)} onClick={() => void manageSubscription()}>
+                      {t("settings.llm.manage")}
+                    </button>
+                  )}
                   <div className="mt-3 space-y-2.5">
                     <label className="hand-label">
                       {t("settings.llm.baseUrl")}

@@ -182,3 +182,35 @@ export async function getSubscriptionOrder(pool: Pool, userId: string, id: strin
 export async function findSubscriptionOrder(pool: Pool, id: string) {
   return (await pool.query<SubscriptionOrder>("SELECT * FROM subscription_orders WHERE id=$1", [id])).rows[0] ?? null;
 }
+
+
+export async function createBillingPortal(pool: Pool, userId: string): Promise<string> {
+  const origin = stripeOrigin();
+  const secret = process.env.STRIPE_SECRET_KEY;
+  if (!origin || !secret) throw new BillingError("PROVIDER_UNAVAILABLE", "Stripe is not activated", 503);
+  const row = (
+    await pool.query<{ stripe_customer_id: string | null }>(
+      "SELECT stripe_customer_id FROM access_entitlements WHERE user_id=$1 AND product='byok' AND status='active'",
+      [userId],
+    )
+  ).rows[0];
+  if (!row?.stripe_customer_id) throw new BillingError("PORTAL_UNAVAILABLE", "没有可管理的 Stripe 订阅");
+  const body = new URLSearchParams({
+    customer: row.stripe_customer_id,
+    return_url: `${origin}/app?settings=1`,
+  });
+  const response = await fetch("https://api.stripe.com/v1/billing_portal/sessions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${secret}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Stripe-Version": "2025-02-24.acacia",
+    },
+    body,
+    signal: AbortSignal.timeout(15_000),
+  });
+  if (!response.ok) throw new BillingError("PROVIDER_UNAVAILABLE", "Stripe could not open the billing portal", 503);
+  const session = (await response.json()) as { url?: string };
+  if (!session.url) throw new BillingError("PROVIDER_UNAVAILABLE", "Stripe returned no portal URL", 503);
+  return session.url;
+}

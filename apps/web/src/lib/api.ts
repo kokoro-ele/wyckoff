@@ -223,6 +223,8 @@ export interface LlmSettings {
   source: "user" | "operator" | "none";
   mode: "operator" | "custom";
   byokEntitled: boolean;
+  byokSource?: "subscription" | "lifetime" | "admin" | null;
+  byokPeriodEnd?: string | null;
   baseUrl: string;
   model: string;
   custom: boolean;
@@ -261,6 +263,10 @@ export function fetchSubscriptionCatalog(): Promise<{ products: SubscriptionProd
 
 export function fetchByokStatus(): Promise<{ byok: boolean; entitlement: { source: string; status: string; currentPeriodEnd: string | null } | null }> {
   return request("/credits/subscriptions/status");
+}
+
+export function openBillingPortal(): Promise<{ url: string }> {
+  return request("/credits/subscriptions/portal", { method: "POST", body: JSON.stringify({}) });
 }
 
 export function checkoutSubscription(productId: string): Promise<{ orderId: string; product: string; mode: string; status: string; checkoutUrl?: string }> {
