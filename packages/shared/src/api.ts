@@ -40,6 +40,7 @@ export interface WatchGroup {
 export interface WatchItem {
   symbol: string;
   name: string | null;
+  nameEn?: string | null;
   exchange: string;
   type: string | null;
   groupId: number;

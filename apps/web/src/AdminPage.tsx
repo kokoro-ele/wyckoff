@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, Coins, RefreshCw, Search, ShieldCheck, Users, WalletCards } from "lucide-react";
 import * as api from "@/lib/api.js";
 import { useAuth } from "@/auth/AuthProvider.js";
+import { authClient } from "@/lib/auth.js";
 import { useI18n } from "@/i18n.js";
 
 function fmtDate(value: string | Date | null | undefined, lang: "zh" | "en"): string {
@@ -15,7 +16,11 @@ function fmtDate(value: string | Date | null | undefined, lang: "zh" | "en"): st
 
 export function AdminPage() {
   const { lang } = useI18n();
-  const { isPending, isVerified, openAuth } = useAuth();
+  const { isPending, isVerified } = useAuth();
+  const [loginEmail, setLoginEmail] = useState("elekokoro@gmail.com");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loginBusy, setLoginBusy] = useState(false);
   const [overview, setOverview] = useState<api.AdminOverview | null>(null);
   const [users, setUsers] = useState<api.AdminUser[]>([]);
   const [query, setQuery] = useState("");
@@ -72,10 +77,40 @@ export function AdminPage() {
       <div className="admin-shell">
         <div className="admin-empty">
           <ShieldCheck size={32} />
-          <p>{zh ? "请先登录管理员账号。" : "Sign in with the admin account."}</p>
-          <button type="button" className="hand-btn hand-btn-primary" onClick={openAuth}>
-            {zh ? "登录" : "Sign in"}
-          </button>
+          <h1>{zh ? "管理员登录" : "Admin sign in"}</h1>
+          <p>{zh ? "此入口只供管理员使用。" : "This entry is for administrators only."}</p>
+          <form
+            className="admin-login"
+            onSubmit={(event) => {
+              event.preventDefault();
+              setLoginBusy(true);
+              setLoginError("");
+              void authClient.signIn.email({ email: loginEmail.trim(), password: loginPassword }).then((result) => {
+                if (result.error) {
+                  setLoginError(result.error.message || (zh ? "登录失败" : "Sign in failed"));
+                  setLoginBusy(false);
+                  return;
+                }
+                window.location.reload();
+              }).catch((cause) => {
+                setLoginError(cause instanceof Error ? cause.message : "Sign in failed");
+                setLoginBusy(false);
+              });
+            }}
+          >
+            <label className="hand-label">
+              {zh ? "管理员邮箱" : "Admin email"}
+              <input className="hand-input" type="email" autoComplete="username" value={loginEmail} onChange={(event) => setLoginEmail(event.target.value)} required />
+            </label>
+            <label className="hand-label">
+              {zh ? "密码" : "Password"}
+              <input className="hand-input" type="password" autoComplete="current-password" value={loginPassword} onChange={(event) => setLoginPassword(event.target.value)} required />
+            </label>
+            {loginError && <div className="admin-error">{loginError}</div>}
+            <button type="submit" className="hand-btn hand-btn-primary w-full" disabled={loginBusy || !loginEmail || !loginPassword}>
+              {loginBusy ? "…" : zh ? "进入管理面板" : "Enter dashboard"}
+            </button>
+          </form>
         </div>
       </div>
     );

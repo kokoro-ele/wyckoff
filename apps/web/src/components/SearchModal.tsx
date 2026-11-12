@@ -70,7 +70,7 @@ export function SearchModal() {
   if (!open) return null;
 
   const pick = (hit: SearchHit) => {
-    void setSymbol(hit.symbol, hit.name);
+    void setSymbol(hit.symbol, hit.name, hit.nameEn);
     setSearchOpen(false);
   };
 
@@ -224,7 +224,7 @@ function SearchRow({
         <div className="flex items-baseline gap-2">
           <span className="font-mono text-sm text-ink">{hit.symbol}</span>
           <span className="truncate text-xs text-ink-dim">
-            {localizedInstrumentName(hit.name, lang, "—")}
+            {localizedInstrumentName(hit.name, lang, "—", hit.nameEn)}
           </span>
         </div>
         <div className="text-[11px] text-ink-faint">

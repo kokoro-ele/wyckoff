@@ -3,6 +3,7 @@ import type { Instrument, InstrumentDetail } from "@wyckoff/shared";
 import { pinyin } from "pinyin-pro";
 import { db, getState, setState } from "../db/index.js";
 import { fetchExchangeInstruments, fetchInstruments, type RawInstrument } from "../tickflow/client.js";
+import { ensureEnglishNames, getEnglishName } from "./englishNames.js";
 
 /** TickFlow 覆盖的交易所。免费档也能拉全量标的清单。 */
 const EXCHANGES = ["SH", "SZ", "BJ", "HK", "US"] as const;
@@ -17,6 +18,8 @@ interface IndexedInstrument extends Instrument {
   lowerSymbol: string;
   lowerCode: string;
   lowerName: string;
+  nameEn: string | null;
+  lowerEnglish: string;
 }
 
 /**
@@ -81,19 +84,24 @@ export function loadIndex(): void {
     )
     .all();
 
-  const index = rows.map((r) => ({
-    symbol: r.symbol,
-    exchange: r.exchange,
-    code: r.code,
-    name: r.name,
-    region: r.region,
-    type: (r.type as Instrument["type"]) ?? null,
-    pinyinFull: r.pinyin_full,
-    pinyinAbbr: r.pinyin_abbr,
-    lowerSymbol: r.symbol.toLowerCase(),
-    lowerCode: r.code.toLowerCase(),
-    lowerName: (r.name ?? "").toLowerCase(),
-  }));
+  const index = rows.map((r) => {
+    const nameEn = r.region === "US" ? getEnglishName(r.code) : null;
+    return {
+      symbol: r.symbol,
+      exchange: r.exchange,
+      code: r.code,
+      name: r.name,
+      nameEn,
+      region: r.region,
+      type: (r.type as Instrument["type"]) ?? null,
+      pinyinFull: r.pinyin_full,
+      pinyinAbbr: r.pinyin_abbr,
+      lowerSymbol: r.symbol.toLowerCase(),
+      lowerCode: r.code.toLowerCase(),
+      lowerName: (r.name ?? "").toLowerCase(),
+      lowerEnglish: (nameEn ?? "").toLowerCase(),
+    };
+  });
   const context = workspaceContext.getStore();
   if (context) context.state.set("instrument-index", index);
   else localIndex = index;
@@ -164,12 +172,15 @@ export function searchInstruments(query: string, limit = 30): (Instrument & { sc
     if (item.lowerSymbol === q) score = 1000;
     else if (item.lowerCode === q) score = 900;
     else if (item.lowerName === q) score = 880;
+    else if (item.lowerEnglish === q) score = 860;
     else if (item.lowerSymbol.startsWith(q)) score = 780;
     else if (item.lowerCode.startsWith(q)) score = 760;
     else if (item.lowerName.startsWith(q)) score = 700;
+    else if (item.lowerEnglish.startsWith(q)) score = 690;
     else if (item.pinyinAbbr && item.pinyinAbbr === q) score = 660;
     else if (item.pinyinAbbr && item.pinyinAbbr.startsWith(q)) score = 620;
     else if (item.lowerName.includes(q)) score = 520 - item.lowerName.indexOf(q) * 5;
+    else if (item.lowerEnglish.includes(q)) score = 500 - item.lowerEnglish.indexOf(q) * 5;
     else if (item.pinyinFull && item.pinyinFull.startsWith(q)) score = 480;
     else if (item.pinyinFull && item.pinyinFull.includes(q)) score = 380;
     else if (item.lowerCode.includes(q)) score = 300;
@@ -185,6 +196,7 @@ export function searchInstruments(query: string, limit = 30): (Instrument & { sc
       exchange: item.exchange,
       code: item.code,
       name: item.name,
+      nameEn: item.nameEn,
       region: item.region,
       type: item.type,
       score: Math.round(score * 10) / 10,
@@ -196,6 +208,7 @@ export function searchInstruments(query: string, limit = 30): (Instrument & { sc
 
 /** 取单个标的的详情，本地没有就回源一次。 */
 export async function getInstrument(symbol: string): Promise<InstrumentDetail | null> {
+  await ensureEnglishNames();
   const row = db
     .prepare<[string], { symbol: string; exchange: string; code: string; name: string | null; region: string; type: string | null; ext: string | null }>(
       "SELECT symbol, exchange, code, name, region, type, ext FROM instruments WHERE symbol = ?",
@@ -230,6 +243,7 @@ function toDetail(row: {
     exchange: row.exchange,
     code: row.code,
     name: row.name,
+    nameEn: getEnglishName(row.code),
     region: row.region,
     type: (row.type as Instrument["type"]) ?? null,
     listingDate: (ext.listing_date as string | undefined) ?? null,

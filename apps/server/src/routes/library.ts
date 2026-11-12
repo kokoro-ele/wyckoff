@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { z } from "zod";
-import { indexSize, isSyncNeeded, searchInstruments, syncInstruments } from "../services/instruments.js";
+import { indexSize, isSyncNeeded, loadIndex, searchInstruments, syncInstruments } from "../services/instruments.js";
+import { ensureEnglishNames } from "../services/englishNames.js";
 import * as watchlist from "../services/watchlist.js";
 
 /** 标的检索与收藏。 */
@@ -8,6 +9,8 @@ export const libraryRoutes = new Hono();
 
 libraryRoutes.get("/search", async (c) => {
   if (isSyncNeeded()) await syncInstruments();
+  await ensureEnglishNames();
+  loadIndex();
   const q = c.req.query("q") ?? "";
   const limit = Number(c.req.query("limit") ?? 30);
   return c.json({
@@ -22,9 +25,10 @@ libraryRoutes.post("/search/resync", async (c) => {
   return c.json({ ok: true, indexSize: indexSize() });
 });
 
-libraryRoutes.get("/watchlist", (c) =>
-  c.json({ groups: watchlist.listGroups(), items: watchlist.listItems() }),
-);
+libraryRoutes.get("/watchlist", async (c) => {
+  await ensureEnglishNames();
+  return c.json({ groups: watchlist.listGroups(), items: watchlist.listItems() });
+});
 
 const addSchema = z.object({ symbol: z.string().min(1), groupId: z.number().int().optional() });
 

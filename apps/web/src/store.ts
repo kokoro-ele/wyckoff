@@ -65,6 +65,7 @@ interface WorkbenchState {
   chartRevision: number;
   symbolRevision: number;
   instrumentName: string | null;
+  instrumentNameEn: string | null;
   period: Period;
   adjust: AdjustType;
   timeSpan: TimeSpanId;
@@ -98,7 +99,7 @@ interface WorkbenchState {
   searchOpen: boolean;
   toast: { message: string; tone: "info" | "error" } | null;
 
-  setSymbol: (symbol: string, name?: string | null) => Promise<void>;
+  setSymbol: (symbol: string, name?: string | null, nameEn?: string | null) => Promise<void>;
   setPeriod: (period: Period) => void;
   setAdjust: (adjust: AdjustType) => void;
   setTimeSpan: (span: TimeSpanId) => void;
@@ -161,6 +162,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   chartRevision: 0,
   symbolRevision: 0,
   instrumentName: null,
+  instrumentNameEn: null,
   period: "1d",
   adjust: "forward",
   timeSpan: "1Y",
@@ -186,7 +188,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   searchOpen: false,
   toast: null,
 
-  async setSymbol(symbol, name) {
+  async setSymbol(symbol, name, nameEn) {
     if (get().symbol === symbol) return;
     localStorage.setItem(LAST_SYMBOL_KEY, symbol);
     // 换标的等于换一个分析对象，会话与标注都要跟着切换。
@@ -200,6 +202,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
       selectionMode: false,
       focusRequest: null,
       instrumentName: name ?? null,
+      instrumentNameEn: nameEn ?? null,
       annotations: [],
       annotationGroups: [],
       messages: [],
@@ -212,7 +215,9 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
     if (!name) {
       try {
         const { instrument } = await api.fetchInstrument(symbol);
-        if (get().symbolRevision === symbolRevision) set({ instrumentName: instrument.name });
+        if (get().symbolRevision === symbolRevision) {
+          set({ instrumentName: instrument.name, instrumentNameEn: instrument.nameEn ?? null });
+        }
       } catch {
         /* 名称拿不到不影响看图 */
       }

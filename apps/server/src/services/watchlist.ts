@@ -1,5 +1,6 @@
 import type { WatchGroup, WatchItem } from "@wyckoff/shared";
 import { db } from "../db/index.js";
+import { getEnglishName } from "./englishNames.js";
 
 export function listGroups(): WatchGroup[] {
   return db
@@ -95,7 +96,8 @@ export function listItems(): WatchItem[] {
       LEFT JOIN instruments i ON i.symbol = w.symbol
       ORDER BY w.group_id, w.sort, w.added_at
     `)
-    .all();
+    .all()
+    .map((item) => ({ ...item, nameEn: getEnglishName(item.symbol.split(".")[0] ?? "") }));
 }
 
 export function addItem(symbol: string, groupId: number): void {

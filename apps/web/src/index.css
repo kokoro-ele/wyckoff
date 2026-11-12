@@ -1498,3 +1498,6 @@
 .site-legal-links { display: flex; flex-wrap: wrap; gap: 10px; }
 .site-legal-links a { color: var(--color-ink-faint); font-size: 9px; text-decoration: none; }
 .site-legal-links a:hover { color: var(--color-accent); }
+.admin-login { display: grid; gap: 10px; width: min(330px, 100%); margin-top: 8px; text-align: left; }
+.admin-login .hand-label { font-size: 11px; }
+.admin-login .hand-btn { margin-top: 2px; }

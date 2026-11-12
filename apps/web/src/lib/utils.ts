@@ -60,9 +60,14 @@ export function localizedInstrumentName(
   name: string | null | undefined,
   lang: "zh" | "en",
   fallback = "",
+  englishName?: string | null,
 ): string {
+  if (lang === "en") {
+    if (englishName) return englishName;
+    if (name && !/[\u3400-\u9fff]/.test(name)) return name;
+    return fallback;
+  }
   if (!name) return fallback;
-  if (lang === "en" && /[\u3400-\u9fff]/.test(name)) return fallback;
   return name;
 }
 

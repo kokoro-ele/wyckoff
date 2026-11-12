@@ -241,14 +241,14 @@ export function WatchlistSidebar({ onSelect }: { onSelect?: () => void }) {
                           <div className={cn("watch-item group flex w-full items-center gap-1 rounded-[11px] px-1.5 py-1.5 transition-colors", active ? "bg-accent-soft" : "hover:bg-panel-2")}>
                             <GripVertical size={12} className="shrink-0 text-ink-faint/50" />
                             <button type="button" className="min-w-0 flex-1 text-left" onClick={() => {
-                              void setSymbol(item.symbol, item.name);
+                              void setSymbol(item.symbol, item.name, item.nameEn);
                               onSelect?.();
                             }}>
                               <div className={cn("truncate font-mono text-[12px]", active ? "text-accent" : "text-ink")}>
                                 {item.symbol.split(".")[0]}
                               </div>
                               <div className="truncate text-[10px] text-ink-faint">
-                                {localizedInstrumentName(item.name, lang, item.symbol)}
+                                {localizedInstrumentName(item.name, lang, item.symbol, item.nameEn)}
                               </div>
                             </button>
 

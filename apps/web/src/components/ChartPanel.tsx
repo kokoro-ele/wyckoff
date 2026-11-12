@@ -66,6 +66,7 @@ function ChartContextPanel() {
   const symbol = useWorkbench((s) => s.symbol);
   const chartRevision = useWorkbench((s) => s.chartRevision);
   const instrumentName = useWorkbench((s) => s.instrumentName);
+  const instrumentNameEn = useWorkbench((s) => s.instrumentNameEn);
   const period = useWorkbench((s) => s.period);
   const adjust = useWorkbench((s) => s.adjust);
   const timeSpan = useWorkbench((s) => s.timeSpan);
@@ -361,7 +362,7 @@ function ChartContextPanel() {
             <div className="flex items-baseline gap-2.5">
               <h1 className="truncate font-mono text-[18px] font-semibold tracking-[-0.03em] text-ink">{symbol}</h1>
               <span className="truncate text-[12px] text-ink-dim">
-                {localizedInstrumentName(instrumentName, lang)}
+                {localizedInstrumentName(instrumentName, lang, "", instrumentNameEn)}
               </span>
             </div>
             <div className="mt-1 flex items-center gap-1.5 text-[10px] text-ink-faint">

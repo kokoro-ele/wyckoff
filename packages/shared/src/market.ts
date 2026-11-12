@@ -69,6 +69,8 @@ export interface Instrument {
   /** 交易所内代码，如 "600000" */
   code: string;
   name: string | null;
+  /** English display name for US instruments when available. */
+  nameEn?: string | null;
   region: string;
   type: InstrumentType | null;
 }
