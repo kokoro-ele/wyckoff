@@ -85,6 +85,8 @@ pnpm dev
 
 - Marketing site: <http://localhost:5273>
 - Workbench: <http://localhost:5273/app>
+- Admin dashboard: <http://localhost:5273/admin> (set `ADMIN_EMAILS`)
+- Legal: `/privacy`, `/terms`, `/refund`, `/contact`
 - API server: <http://127.0.0.1:8787>
 - Wyckoff method reference: <http://localhost:5273/wyckoff.html>
 

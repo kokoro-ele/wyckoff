@@ -89,6 +89,8 @@ pnpm dev
 
 - 官网：<http://localhost:5273>
 - 工作台：<http://localhost:5273/app>
+- 管理面板：<http://localhost:5273/admin>（需在 `ADMIN_EMAILS` 中配置管理员邮箱）
+- 合规页面：`/privacy`、`/terms`、`/refund`、`/contact`
 - 后端：<http://127.0.0.1:8787>
 - Wyckoff 方法说明：<http://localhost:5273/wyckoff.html>
 
