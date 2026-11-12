@@ -222,6 +222,7 @@ export interface LlmSettings {
   configured: boolean;
   source: "user" | "operator" | "none";
   mode: "operator" | "custom";
+  byokEntitled: boolean;
   baseUrl: string;
   model: string;
   custom: boolean;
@@ -243,6 +244,31 @@ export function saveLlmSettings(payload: {
 
 export function clearLlmSettings(): Promise<LlmSettings> {
   return request("/settings/llm", { method: "DELETE" });
+}
+
+export interface SubscriptionProduct {
+  id: "byok_monthly" | "byok_lifetime";
+  name: string;
+  mode: "subscription" | "payment";
+  amount: number;
+  currency: string;
+  available: boolean;
+}
+
+export function fetchSubscriptionCatalog(): Promise<{ products: SubscriptionProduct[] }> {
+  return request("/credits/subscriptions/catalog");
+}
+
+export function fetchByokStatus(): Promise<{ byok: boolean; entitlement: { source: string; status: string; currentPeriodEnd: string | null } | null }> {
+  return request("/credits/subscriptions/status");
+}
+
+export function checkoutSubscription(productId: string): Promise<{ orderId: string; product: string; mode: string; status: string; checkoutUrl?: string }> {
+  return request("/credits/subscriptions/checkout", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },
+    body: JSON.stringify({ productId, provider: "stripe" }),
+  });
 }
 
 export interface ChatStreamParams {

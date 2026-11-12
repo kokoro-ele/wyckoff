@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { KeyRound, LockKeyhole, ShieldCheck, X } from "lucide-react";
+import { CreditCard, KeyRound, LockKeyhole, ShieldCheck, X } from "lucide-react";
 import * as api from "@/lib/api.js";
 import { useAuth } from "@/auth/AuthProvider.js";
 import { useWorkbench } from "@/store.js";
@@ -16,9 +16,16 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
   const [model, setModel] = useState("gpt-4o");
   const [apiKey, setApiKey] = useState("");
   const [mode, setMode] = useState<"operator" | "custom">("operator");
+  const [byokProducts, setByokProducts] = useState<api.SubscriptionProduct[]>([]);
+  const [byokBusy, setByokBusy] = useState("");
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!isVerified) return;
+    void api.fetchSubscriptionCatalog().then((value) => setByokProducts(value.products)).catch(() => undefined);
+  }, [isVerified]);
 
   const load = async () => {
     if (!isVerified) return;
@@ -46,15 +53,14 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
     setBusy(true);
     setError("");
     try {
-      const value = await api.saveLlmSettings({
+      await api.saveLlmSettings({
         mode,
         apiKey: apiKey.trim() || undefined,
         baseUrl,
         model,
       });
-      setSettings(value);
       setApiKey("");
-      setMode(value.mode);
+      await load();
       await refreshRuntimeStatus(true);
       notify(t("settings.llm.saved"), "info");
     } catch (cause) {
@@ -68,12 +74,9 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
     setBusy(true);
     setError("");
     try {
-      const value = await api.clearLlmSettings();
-      setSettings(value);
+      await api.clearLlmSettings();
       setApiKey("");
-      setBaseUrl(value.baseUrl);
-      setModel(value.model);
-      setMode(value.mode);
+      await load();
       await refreshRuntimeStatus(true);
       notify(t("settings.llm.cleared"), "info");
     } catch (cause) {
@@ -90,7 +93,21 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
         ? t("settings.llm.source.operator")
         : t("settings.llm.source.none")
     : "";
-  const canSave = !busy && (mode === "operator" || Boolean(settings?.custom) || apiKey.trim().length > 0);
+  const canSave = !busy && (mode === "operator" || (Boolean(settings?.byokEntitled) && (Boolean(settings?.custom) || apiKey.trim().length > 0)));
+
+  const buyByok = async (productId: string) => {
+    setByokBusy(productId);
+    setError("");
+    try {
+      const order = await api.checkoutSubscription(productId);
+      if (!order.checkoutUrl) throw new Error(t("settings.llm.byokUnavailable"));
+      window.location.assign(order.checkoutUrl);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t("settings.llm.error"));
+    } finally {
+      setByokBusy("");
+    }
+  };
 
   return (
     <div
@@ -136,7 +153,12 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
               <KeyRound size={14} className="text-accent" />
               <h3 className="text-sm font-semibold">{t("settings.llm.title")}</h3>
             </div>
-            {settings && <span className="hand-chip hand-chip-active text-[10px]">{sourceLabel}</span>}
+            {settings && (
+              <span className="flex items-center gap-1">
+                {settings.byokEntitled && <span className="hand-chip text-[10px]">{t("settings.llm.byokActive")}</span>}
+                <span className="hand-chip hand-chip-active text-[10px]">{sourceLabel}</span>
+              </span>
+            )}
           </div>
 
           {!isVerified ? (
@@ -167,6 +189,27 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
                 <p className="mt-2 text-[10px] leading-relaxed text-ink-faint">
                   {settings?.operatorConfigured ? t("settings.llm.operatorCredit") : t("settings.llm.operatorUnavailable")}
                 </p>
+              ) : !settings?.byokEntitled ? (
+                <div className="mt-2 rounded-lg border border-dashed border-line p-3">
+                  <p className="text-[10px] leading-relaxed text-ink-dim">{t("settings.llm.byokRequired")}</p>
+                  <div className="mt-2 space-y-1.5">
+                    {byokProducts.map((product) => (
+                      <button
+                        key={product.id}
+                        type="button"
+                        disabled={!product.available || Boolean(byokBusy)}
+                        className="flex w-full items-center justify-between gap-2 rounded-md border border-line bg-panel-2 px-2.5 py-2 text-left text-[11px] text-ink disabled:opacity-45"
+                        onClick={() => void buyByok(product.id)}
+                      >
+                        <span className="inline-flex items-center gap-1.5"><CreditCard size={12} className="text-accent" />{t(`settings.llm.${product.id}`)}</span>
+                        <span className="font-mono">${(product.amount / 100).toFixed(2)}{product.mode === "subscription" ? t("settings.llm.perMonth") : ""}</span>
+                      </button>
+                    ))}
+                  </div>
+                  {byokProducts.some((product) => !product.available) && (
+                    <p className="mt-1.5 text-[9px] text-ink-faint">{t("settings.llm.byokUnavailable")}</p>
+                  )}
+                </div>
               ) : (
                 <>
                   <p className="mt-2 text-[10px] leading-relaxed text-ink-faint">{t("settings.llm.customCredit")}</p>

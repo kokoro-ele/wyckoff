@@ -2,6 +2,9 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { config } from "../config.js";
 import { setState } from "../db/index.js";
+import { getPool } from "../cloud/postgres.js";
+import { workspaceContext } from "../cloud/context.js";
+import { hasEntitlement } from "../billing/entitlements.js";
 import {
   LLM_STATE_KEYS,
   readCustomLlmSettings,
@@ -74,7 +77,12 @@ function publicSettings() {
   };
 }
 
-settingsRoutes.get("/llm", (c) => c.json(publicSettings()));
+settingsRoutes.get("/llm", async (c) => {
+  const userId = workspaceContext.getStore()?.userId;
+  const byokEntitled = userId ? await hasEntitlement(getPool(), userId, "byok") : false;
+  const value = publicSettings();
+  return c.json({ ...value, configured: value.source === "user" && !byokEntitled ? false : value.configured, byokEntitled });
+});
 
 settingsRoutes.put(
   "/llm",
@@ -86,6 +94,10 @@ settingsRoutes.put(
     if (!body || typeof body !== "object") return c.json(fail("参数错误"), 400);
     const existing = readCustomLlmSettings();
     const mode = body.mode === "custom" ? "custom" : "operator";
+    const userId = workspaceContext.getStore()?.userId;
+    if (mode === "custom" && (!userId || !(await hasEntitlement(getPool(), userId, "byok")))) {
+      return c.json({ code: "BYOK_REQUIRED", message: "使用自己的模型需要先开通 BYOK" }, 403);
+    }
     try {
       setState(LLM_STATE_KEYS.mode, mode);
       if (mode === "custom") {

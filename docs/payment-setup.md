@@ -33,9 +33,46 @@ STRIPE_WEBHOOK_SECRET=whsec_test_or_live_secret
 - `BILLING_PUBLIC_ORIGIN` must be an HTTPS origin with no path or trailing slash in production. Local development may use `http://localhost:5273`; the availability check allows this only when `NODE_ENV !== "production"`.
 - `STRIPE_SECRET_KEY`: use `sk_test_…` while testing and `sk_live_…` in production. A restricted key (`rk_…`) is fine if it can create Checkout Sessions.
 - `STRIPE_WEBHOOK_SECRET`: the signing secret for the endpoint below. Test and live mode have different secrets.
+- `STRIPE_PRICE_BYOK_MONTHLY`: recurring Price ID for the $3/month BYOK plan. The $20 lifetime plan uses server-side `price_data`, so it does not need a Price ID.
 - No Stripe publishable key is needed: Checkout is hosted by Stripe and the server creates the session.
 
 Never put any Stripe secret in a `VITE_*` variable or in the browser.
+
+## BYOK subscription / lifetime
+
+The BYOK products are defined in `apps/server/src/billing/subscriptionCatalog.ts`:
+
+| Product | Stripe mode | Price | Entitlement |
+| --- | --- | --- | --- |
+| `byok_monthly` | subscription | $3/month | `byok` until current period end |
+| `byok_lifetime` | payment | $20 one-time | permanent `byok` |
+
+Create the monthly recurring Price in Stripe and put its ID in `STRIPE_PRICE_BYOK_MONTHLY`. The lifetime price is created from server-side `price_data`.
+
+The subscription endpoints are:
+
+```text
+GET  /api/credits/subscriptions/catalog
+GET  /api/credits/subscriptions/status
+GET  /api/credits/subscriptions/orders/current
+GET  /api/credits/subscriptions/orders/:id
+POST /api/credits/subscriptions/checkout
+```
+
+Webhook events needed for BYOK:
+
+```text
+checkout.session.completed
+checkout.session.async_payment_succeeded
+customer.subscription.updated
+customer.subscription.deleted
+invoice.paid
+invoice.payment_failed
+```
+
+The webhook grants the entitlement only after validating the Stripe event, amount, currency and mode. Monthly access follows `current_period_end`; cancellation and deletion revoke or expire the entitlement. BYOK does not consume platform credits.
+
+The **Settings → My model** purchase buttons are only enabled when Stripe and the monthly Price ID are configured. If `STRIPE_PRICE_BYOK_MONTHLY` is missing, monthly shows unavailable; lifetime can still work with the secret/webhook keys.
 
 ## Stripe Dashboard setup
 

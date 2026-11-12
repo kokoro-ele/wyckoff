@@ -8,6 +8,8 @@ import { bodyLimit } from "hono/body-limit";
 import { runAgent } from "../agent/run.js";
 import { hasLlmConfiguration } from "../config.js";
 import { resolveLlmSettings } from "../llm/settings.js";
+import { getPool } from "../cloud/postgres.js";
+import { hasEntitlement } from "../billing/entitlements.js";
 
 export const chatRoutes = new Hono();
 
@@ -20,8 +22,15 @@ chatRoutes.post("/", bodyLimit({ maxSize: 1024 * 1024 }), async (c) => {
   }
 
   // A user-supplied model is paid for by the user directly, so it must not
-  // consume platform analysis credits.
-  const usesOwnModel = resolveLlmSettings().source === "user";
+  // consume platform analysis credits. It requires an active BYOK entitlement.
+  const llm = resolveLlmSettings();
+  const usesOwnModel = llm.source === "user";
+  if (usesOwnModel) {
+    const userId = workspaceContext.getStore()?.userId;
+    if (!userId || !(await hasEntitlement(getPool(), userId, "byok"))) {
+      return c.json({ code: "BYOK_REQUIRED", message: "使用自己的模型需要先开通 BYOK" }, 403);
+    }
+  }
   let lease: Awaited<ReturnType<typeof beginWorkspaceUsage>> | null = null;
   if (!usesOwnModel) {
     try { lease = await beginWorkspaceUsage(c.req.header("Idempotency-Key")); }

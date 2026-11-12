@@ -2,6 +2,7 @@ import type { Pool } from "pg";
 import { billingErrorResponse, BillingError } from "./catalog.js";
 import { availability, verifyStripe } from "./providers.js";
 import { fulfillPayment } from "./store.js";
+import { fulfillSubscriptionCheckout, handleSubscriptionEvent } from "./subscriptionWebhook.js";
 
 export { BillingError, billingErrorResponse } from "./catalog.js";
 
@@ -26,17 +27,24 @@ export async function handleBillingWebhook(request: Request, pool: Pool): Promis
       request.headers.get("stripe-signature") ?? "",
       process.env.STRIPE_WEBHOOK_SECRET!,
     );
+    const live =
+      process.env.STRIPE_SECRET_KEY!.startsWith("sk_live_") ||
+      process.env.STRIPE_SECRET_KEY!.startsWith("rk_live_");
+    if (event.account || event.livemode !== live) {
+      throw new BillingError("INVALID_EVENT", "Payment event does not match merchant mode");
+    }
+    if (await handleSubscriptionEvent(pool, event)) {
+      return Response.json({ received: true });
+    }
     if (!["checkout.session.completed", "checkout.session.async_payment_succeeded"].includes(event.type)) {
       return Response.json({ received: true });
     }
     const session = event.data?.object;
     if (session?.payment_status !== "paid") return Response.json({ received: true });
-    const live =
-      process.env.STRIPE_SECRET_KEY!.startsWith("sk_live_") ||
-      process.env.STRIPE_SECRET_KEY!.startsWith("rk_live_");
+    if (await fulfillSubscriptionCheckout(pool, session, event)) {
+      return Response.json({ received: true });
+    }
     if (
-      event.account ||
-      event.livemode !== live ||
       session.mode !== "payment" ||
       !session.id ||
       typeof session.payment_intent !== "string" ||

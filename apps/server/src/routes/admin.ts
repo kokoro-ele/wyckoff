@@ -2,6 +2,7 @@ import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { getAuth } from "../cloud/auth.js";
 import { getPool } from "../cloud/postgres.js";
+import { grantEntitlement, revokeEntitlement } from "../billing/entitlements.js";
 
 export const adminRoutes = new Hono();
 
@@ -170,6 +171,31 @@ adminRoutes.post(
       [userId, balance],
     );
     return c.json({ ok: true, updated: result.rowCount ?? 0, balance });
+  },
+);
+
+adminRoutes.post(
+  "/entitlements",
+  bodyLimit({ maxSize: 8 * 1024, onError: (c) => c.json({ code: "TOO_LARGE" }, 413) }),
+  async (c) => {
+    const denied = await guard(c);
+    if (denied) return denied;
+    const body = (await c.req.json().catch(() => null)) as
+      | { userId?: unknown; active?: unknown; days?: unknown }
+      | null;
+    const userId = typeof body?.userId === "string" ? body.userId : "";
+    if (!userId) return c.json({ code: "BAD_REQUEST", message: "缺少 userId" }, 400);
+    if (body?.active === false) {
+      await revokeEntitlement(getPool(), userId, "byok");
+      return c.json({ ok: true, active: false });
+    }
+    const days = body?.days === undefined ? null : Math.min(Math.max(1, Number(body.days)), 3650);
+    await grantEntitlement(getPool(), userId, {
+      product: "byok",
+      source: "admin",
+      currentPeriodEnd: days ? new Date(Date.now() + days * 86_400_000) : null,
+    });
+    return c.json({ ok: true, active: true });
   },
 );
 
