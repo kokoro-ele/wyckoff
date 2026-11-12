@@ -187,7 +187,8 @@ export function AdminPage() {
             <div className="admin-columns">
               <section className="admin-section hand-card">
                 <h2>{zh ? "分析消耗" : "Analysis usage"}</h2>
-                <div className="admin-retention">
+                <MiniBars rows={analytics.analyses.map((row) => ({ label: row.date.slice(5), value: row.analyses }))} />
+                <div className="admin-retention mt-3">
                   <div><span>{zh ? "近 30 天次数" : "30d analyses"}</span><span className="font-mono">{analytics.cost.analyses30d}</span></div>
                   <div><span>{zh ? "人均（已验证用户）" : "Per verified user"}</span><span className="font-mono">{analytics.cost.avgPerVerifiedUser.toFixed(2)}</span></div>
                   <div><span>{zh ? "人均（活跃用户）" : "Per active user"}</span><span className="font-mono">{analytics.cost.avgPerActiveUser.toFixed(2)}</span></div>
