@@ -5,6 +5,7 @@ import { annotationRoutes } from "./routes/annotations.js";
 import { chatRoutes } from "./routes/chat.js";
 import { libraryRoutes } from "./routes/library.js";
 import { marketRoutes } from "./routes/market.js";
+import { onboardingRoutes } from "./routes/onboarding.js";
 import { researchRoutes } from "./routes/research.js";
 import { settingsRoutes } from "./routes/settings.js";
 import { tradePlanRoutes } from "./routes/tradePlan.js";
@@ -29,6 +30,7 @@ app.route("/api/annotations", annotationRoutes);
 app.route("/api/sessions", sessionRoutes);
 app.route("/api/settings", settingsRoutes);
 app.route("/api/trade-plan", tradePlanRoutes);
+app.route("/api/onboarding", onboardingRoutes);
 app.route("/api/admin", adminRoutes);
 app.route("/api/chat", chatRoutes);
 

@@ -56,6 +56,79 @@ adminRoutes.get("/overview", async (c) => {
   });
 });
 
+
+adminRoutes.get("/analytics", async (c) => {
+  const denied = await guard(c);
+  if (denied) return denied;
+  const pool = getPool();
+  const [signups, logins, analyses, today, retention, perUser] = await Promise.all([
+    pool.query(
+      `SELECT to_char("createdAt",'YYYY-MM-DD') AS date, count(*)::int AS count
+       FROM "user" WHERE "createdAt" >= now() - interval '30 days'
+       GROUP BY 1 ORDER BY 1`,
+    ),
+    pool.query(
+      `SELECT to_char("createdAt",'YYYY-MM-DD') AS date, count(DISTINCT "userId")::int AS count
+       FROM session WHERE "createdAt" >= now() - interval '30 days'
+       GROUP BY 1 ORDER BY 1`,
+    ),
+    pool.query(
+      `SELECT to_char(created_at,'YYYY-MM-DD') AS date, count(*)::int AS analyses,
+              count(DISTINCT user_id)::int AS users
+       FROM credit_usage
+       WHERE state='consumed' AND created_at >= now() - interval '30 days'
+       GROUP BY 1 ORDER BY 1`,
+    ),
+    pool.query(
+      `SELECT
+        (SELECT count(*)::int FROM "user" WHERE "createdAt"::date = current_date) AS "newToday",
+        (SELECT count(DISTINCT "userId")::int FROM session WHERE "createdAt"::date = current_date) AS "loginsToday",
+        (SELECT count(*)::int FROM credit_usage WHERE state='consumed' AND created_at::date = current_date) AS "analysesToday",
+        (SELECT count(DISTINCT user_id)::int FROM credit_usage WHERE state='consumed' AND created_at >= now() - interval '7 days') AS "active7d"`,
+    ),
+    pool.query(
+      `WITH s AS (
+         SELECT id, "createdAt"::date AS day FROM "user" WHERE "createdAt" >= now() - interval '30 days'
+       ), a AS (
+         SELECT DISTINCT "userId", "createdAt"::date AS day FROM session
+       )
+       SELECT s.day::text AS date, count(*)::int AS signups,
+         count(*) FILTER (WHERE EXISTS (
+           SELECT 1 FROM a WHERE a."userId"=s.id AND a.day=s.day + 1
+         ))::int AS "d1"
+       FROM s GROUP BY s.day ORDER BY s.day`,
+    ),
+    pool.query(
+      `SELECT u.email, u.name, count(*)::int AS analyses
+       FROM credit_usage cu JOIN "user" u ON u.id=cu.user_id
+       WHERE cu.state='consumed' AND cu.created_at >= now() - interval '30 days'
+       GROUP BY u.id,u.email,u.name ORDER BY analyses DESC LIMIT 10`,
+    ),
+  ]);
+  const totalAnalyses = analyses.rows.reduce((sum, row) => sum + row.analyses, 0);
+  const [totals] = (
+    await pool.query<{ users: string; active: string }>(
+      `SELECT
+        (SELECT count(*)::text FROM "user" WHERE "emailVerified"=true) AS users,
+        (SELECT count(DISTINCT user_id)::text FROM credit_usage WHERE state='consumed' AND created_at >= now() - interval '30 days') AS active`,
+    )
+  ).rows;
+  return c.json({
+    signups: signups.rows,
+    logins: logins.rows,
+    analyses: analyses.rows,
+    today: today.rows[0] ?? { newToday: 0, loginsToday: 0, analysesToday: 0, active7d: 0 },
+    retention: retention.rows,
+    perUser: perUser.rows,
+    cost: {
+      analyses30d: totalAnalyses,
+      avgPerVerifiedUser: Number(totals?.users ?? 0) ? totalAnalyses / Number(totals.users) : 0,
+      avgPerActiveUser: Number(totals?.active ?? 0) ? totalAnalyses / Number(totals.active) : 0,
+      creditsPerAnalysis: 1,
+      note: "当前只记录分析次数/credits，未记录模型 token 成本；精确美元成本需要接入模型 usage 字段。",
+    },
+  });
+});
 adminRoutes.get("/users", async (c) => {
   const denied = await guard(c);
   if (denied) return denied;

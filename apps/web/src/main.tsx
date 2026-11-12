@@ -9,6 +9,7 @@ import { AuthProvider } from "./auth/AuthProvider.js";
 import { LandingPage } from "./landing/LandingPage.js";
 import { AdminPage } from "./AdminPage.js";
 import { LegalPage } from "./LegalPage.js";
+import { LearnPage } from "./LearnPage.js";
 
 const container = document.getElementById("root");
 if (!container) throw new Error("找不到 #root 挂载点");
@@ -16,6 +17,7 @@ if (!container) throw new Error("找不到 #root 挂载点");
 const isWorkbench = window.location.pathname === "/app" || window.location.pathname.startsWith("/app/");
 const isAdmin = window.location.pathname === "/admin" || window.location.pathname.startsWith("/admin/");
 const legalKind = window.location.pathname === "/privacy" ? "privacy" : window.location.pathname === "/terms" ? "terms" : window.location.pathname === "/refund" ? "refund" : window.location.pathname === "/contact" ? "contact" : null;
+const learnLang = window.location.pathname === "/learn/zh" ? "zh" : window.location.pathname === "/learn/en" ? "en" : null;
 createRoot(container).render(
   <StrictMode>
     <I18nProvider>
@@ -30,6 +32,8 @@ createRoot(container).render(
           </AuthProvider>
         ) : legalKind ? (
           <LegalPage kind={legalKind} />
+        ) : learnLang ? (
+          <LearnPage pathLang={learnLang} />
         ) : (
           <LandingPage />
         )}

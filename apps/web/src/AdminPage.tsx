@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, Coins, RefreshCw, Search, ShieldCheck, Users, WalletCards } from "lucide-react";
+import { Activity, ArrowLeft, BarChart3, Coins, RefreshCw, Search, ShieldCheck, Users, WalletCards } from "lucide-react";
 import * as api from "@/lib/api.js";
 import { useAuth } from "@/auth/AuthProvider.js";
 import { authClient } from "@/lib/auth.js";
@@ -22,6 +22,7 @@ export function AdminPage() {
   const [loginError, setLoginError] = useState("");
   const [loginBusy, setLoginBusy] = useState(false);
   const [overview, setOverview] = useState<api.AdminOverview | null>(null);
+  const [analytics, setAnalytics] = useState<api.AdminAnalytics | null>(null);
   const [users, setUsers] = useState<api.AdminUser[]>([]);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
@@ -31,9 +32,14 @@ export function AdminPage() {
   const load = async (q = query) => {
     setError("");
     try {
-      const [o, u] = await Promise.all([api.fetchAdminOverview(), api.fetchAdminUsers(q)]);
+      const [o, u, a] = await Promise.all([
+        api.fetchAdminOverview(),
+        api.fetchAdminUsers(q),
+        api.fetchAdminAnalytics(),
+      ]);
       setOverview(o);
       setUsers(u.users);
+      setAnalytics(a);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Admin unavailable");
     }
@@ -153,6 +159,52 @@ export function AdminPage() {
           </div>
         )}
 
+        {analytics && (
+          <>
+            <div className="admin-stats admin-today">
+              <div className="hand-card"><Users size={16} /><span>{zh ? "今日注册" : "New today"}</span><strong>{analytics.today.newToday}</strong></div>
+              <div className="hand-card"><Activity size={16} /><span>{zh ? "今日登录" : "Logins today"}</span><strong>{analytics.today.loginsToday}</strong></div>
+              <div className="hand-card"><BarChart3 size={16} /><span>{zh ? "今日分析" : "Analyses today"}</span><strong>{analytics.today.analysesToday}</strong></div>
+              <div className="hand-card"><Activity size={16} /><span>{zh ? "7 日活跃" : "Active 7d"}</span><strong>{analytics.today.active7d}</strong></div>
+            </div>
+
+            <div className="admin-columns">
+              <section className="admin-section hand-card">
+                <h2>{zh ? "注册 / 登录" : "Signups / logins"}</h2>
+                <MiniBars rows={analytics.signups.map((row) => ({ label: row.date.slice(5), value: row.count, other: analytics.logins.find((l) => l.date === row.date)?.count ?? 0 }))} />
+                <p className="admin-legend">{zh ? "实线：注册 · 浅色：登录" : "Solid: signups · light: logins"}</p>
+              </section>
+              <section className="admin-section hand-card">
+                <h2>{zh ? "次日留存" : "Next-day retention"}</h2>
+                <div className="admin-retention">
+                  {analytics.retention.slice(-8).map((row) => (
+                    <div key={row.date}><span>{row.date.slice(5)}</span><span className="font-mono">{row.d1}/{row.signups}</span></div>
+                  ))}
+                </div>
+              </section>
+            </div>
+
+            <div className="admin-columns">
+              <section className="admin-section hand-card">
+                <h2>{zh ? "分析消耗" : "Analysis usage"}</h2>
+                <div className="admin-retention">
+                  <div><span>{zh ? "近 30 天次数" : "30d analyses"}</span><span className="font-mono">{analytics.cost.analyses30d}</span></div>
+                  <div><span>{zh ? "人均（已验证用户）" : "Per verified user"}</span><span className="font-mono">{analytics.cost.avgPerVerifiedUser.toFixed(2)}</span></div>
+                  <div><span>{zh ? "人均（活跃用户）" : "Per active user"}</span><span className="font-mono">{analytics.cost.avgPerActiveUser.toFixed(2)}</span></div>
+                  <div><span>{zh ? "单次对话" : "Per conversation"}</span><span className="font-mono">{analytics.cost.creditsPerAnalysis} credit</span></div>
+                </div>
+                <p className="admin-legend">{analytics.cost.note}</p>
+              </section>
+              <section className="admin-section hand-card">
+                <h2>{zh ? "用户消耗 Top 10" : "Top users by usage"}</h2>
+                {analytics.perUser.map((row) => (
+                  <div key={row.email} className="admin-list-row"><span>{row.email}</span><span className="font-mono">{row.analyses}</span></div>
+                ))}
+              </section>
+            </div>
+          </>
+        )}
+
         <section className="admin-section">
           <div className="admin-section-head">
             <h2>{zh ? "用户次数" : "User credits"}</h2>
@@ -201,6 +253,21 @@ export function AdminPage() {
           </section>
         </div>
       </main>
+    </div>
+  );
+}
+
+function MiniBars({ rows }: { rows: { label: string; value: number; other?: number }[] }) {
+  const max = Math.max(1, ...rows.flatMap((row) => [row.value, row.other ?? 0]));
+  return (
+    <div className="admin-bars">
+      {rows.map((row) => (
+        <div key={row.label} className="admin-bar" title={`${row.label}: ${row.value}${row.other !== undefined ? ` / ${row.other}` : ""}`}>
+          <i style={{ height: `${Math.max(2, (row.value / max) * 100)}%` }} />
+          {row.other !== undefined && <b style={{ height: `${Math.max(2, (row.other / max) * 100)}%` }} />}
+          <span>{row.label}</span>
+        </div>
+      ))}
     </div>
   );
 }

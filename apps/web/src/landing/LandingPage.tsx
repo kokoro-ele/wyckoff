@@ -60,7 +60,7 @@ export function LandingPage() {
                 {copy.hero.cta}
                 <ArrowRight size={15} />
               </a>
-              <a className="hand-btn" href="/wyckoff.html">
+              <a className="hand-btn" href={`/learn/${lang}`}>
                 <BookOpen size={14} />
                 {copy.hero.learn}
               </a>
@@ -87,7 +87,7 @@ export function LandingPage() {
             </div>
             <div className="site-glossary-links">
               <span className="site-glossary-note">{copy.glossary.note}</span>
-              <a className="site-glossary-more" href="/wyckoff.html">
+              <a className="site-glossary-more" href={`/learn/${lang}`}>
                 {copy.glossary.more}
                 <ArrowRight size={12} />
               </a>

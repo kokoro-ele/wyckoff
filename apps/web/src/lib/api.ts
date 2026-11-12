@@ -372,3 +372,31 @@ export function setAdminCredits(userId: string, balance: number): Promise<{ ok: 
 export function resetAdminCredits(balance = 3): Promise<{ ok: boolean; updated: number; balance: number }> {
   return request("/admin/credits/reset", { method: "POST", body: JSON.stringify({ balance }) });
 }
+
+export interface AdminAnalytics {
+  signups: { date: string; count: number }[];
+  logins: { date: string; count: number }[];
+  analyses: { date: string; analyses: number; users: number }[];
+  today: { newToday: number; loginsToday: number; analysesToday: number; active7d: number };
+  retention: { date: string; signups: number; d1: number }[];
+  perUser: { email: string; name: string | null; analyses: number }[];
+  cost: {
+    analyses30d: number;
+    avgPerVerifiedUser: number;
+    avgPerActiveUser: number;
+    creditsPerAnalysis: number;
+    note: string;
+  };
+}
+
+export function fetchAdminAnalytics(): Promise<AdminAnalytics> {
+  return request("/admin/analytics");
+}
+
+export function fetchOnboarding(): Promise<{ seen: boolean }> {
+  return request("/onboarding");
+}
+
+export function completeOnboarding(): Promise<{ ok: boolean }> {
+  return request("/onboarding/complete", { method: "POST", body: JSON.stringify({}) });
+}

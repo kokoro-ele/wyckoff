@@ -6,6 +6,7 @@ import { ChartPanel } from "./components/ChartPanel.js";
 import { ChatPanel } from "./components/ChatPanel.js";
 import { SearchModal } from "./components/SearchModal.js";
 import { Toast } from "./components/Toast.js";
+import { OnboardingModal } from "./components/OnboardingModal.js";
 import { AccountPanel } from "./components/AccountPanel.js";
 import { useAuth } from "./auth/AuthProvider.js";
 import { useI18n } from "./i18n.js";
@@ -124,6 +125,7 @@ export function App() {
 
       <SearchModal />
       <Toast />
+      <OnboardingModal />
       {accountOpen && (
         <AccountPanel
           onClose={() => setAccountOpen(false)}
