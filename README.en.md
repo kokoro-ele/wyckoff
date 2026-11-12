@@ -161,7 +161,7 @@ data/                    Local SQLite cache (Git ignored)
 - Workspace writes use PostgreSQL row locks and a version CAS; read-only requests do not reserialize unchanged data.
 - Near the 64 MiB cap, re-fetchable market caches are evicted automatically; user annotations, sessions, and favorites are never discarded.
 - Payment amounts, credits, currency, and orders are server-snapshotted; callbacks must pass signature and amount checks.
-- Users cannot override the model URL, model ID, or API key; operator credentials come only from the environment.
+- Operator model credentials come only from the environment. Users may optionally configure their own model URL, model ID and API key; they are stored in the user's AES-encrypted workspace, used only for that user's analyses, and never returned to the browser.
 - Production Agent responses contain only text, annotations and progress; `tool_start`/`tool_end` and tool arguments are filtered by the server.
 - The research panel's fundamentals are a read-only data view; it never calls the model. The trade plan appears after an Agent analysis and does not consume extra credits.
 - Language and theme are stored in the browser; previews accept `?lang=zh|en`, `?theme=light|dark`, `?auth=1` and `?account=1`.

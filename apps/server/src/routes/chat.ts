@@ -36,7 +36,7 @@ chatRoutes.post("/", bodyLimit({ maxSize: 1024 * 1024 }), async (c) => {
       if (succeeded) await lease.complete();
     } catch (error) {
       workspaceContext.getStore()?.state.delete("chatDone");
-      console.error("[chat] 流式输出中断：", error);
+      console.error("[chat] 流式输出中断：", error instanceof Error ? error.message : "unknown error");
       await stream.writeSSE({
         data: JSON.stringify({ type: "error", message: (error as Error).message || "对话中断" }),
       });

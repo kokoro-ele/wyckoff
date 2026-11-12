@@ -164,7 +164,7 @@ export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent
     sessions.appendMessage(sessionId, assistantMessage);
     yield { type: "done", messageId: assistantMessage.id };
   } catch (error) {
-    console.error("[agent] 运行失败：", error);
+    console.error("[agent] 运行失败：", error instanceof Error ? error.message : "unknown error");
     yield { type: "error", message: (error as Error).message || "Agent 运行失败" };
   }
 }
