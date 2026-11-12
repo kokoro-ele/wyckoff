@@ -84,7 +84,7 @@ export function SearchModal() {
 
   return (
     <div
-      className="fixed inset-0 z-40 flex items-start justify-center bg-black/50 pt-[12vh] backdrop-blur-sm"
+      className="mobile-modal-backdrop fixed inset-0 z-40 flex items-start justify-center bg-black/50 pt-[12vh] backdrop-blur-sm"
       onClick={() => setSearchOpen(false)}
     >
       <div
@@ -117,7 +117,7 @@ export function SearchModal() {
             placeholder={t("search.placeholder")}
             className="h-12 flex-1 text-sm text-ink placeholder:text-ink-faint"
           />
-          <button type="button" className="rounded-lg p-1.5 text-ink-faint hover:bg-panel-2 hover:text-ink" onClick={() => setSearchOpen(false)}>
+          <button type="button" aria-label={t("action.close")} className="rounded-lg p-1.5 text-ink-faint hover:bg-panel-2 hover:text-ink" onClick={() => setSearchOpen(false)}>
             <X size={16} />
           </button>
         </div>

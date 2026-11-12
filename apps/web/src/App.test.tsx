@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 vi.hoisted(() => {
   vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {} });
   vi.stubGlobal("navigator", { language: "zh-CN" });
@@ -29,6 +29,25 @@ vi.mock("./auth/AuthProvider.js", () => ({
 }));
 import { App } from "./App.js";
 import { I18nProvider } from "./i18n.js";
+
+afterEach(() => {
+  window.innerWidth = 1400;
+});
+
+it("leaves the chart unobstructed when opened on a phone", () => {
+  window.innerWidth = 390;
+  const html = renderToStaticMarkup(<I18nProvider><App /></I18nProvider>);
+  expect(html).toMatch(/aria-label="自选"[^>]*aria-pressed="false"/);
+  expect(html).toMatch(/aria-label="分析"[^>]*aria-pressed="false"/);
+  expect(html).toMatch(/class="canvas-dock canvas-dock-left"[^>]*hidden/);
+  expect(html).toMatch(/class="canvas-dock canvas-dock-right"[^>]*hidden/);
+});
+
+it("keeps both desktop docks open on a wide screen", () => {
+  const html = renderToStaticMarkup(<I18nProvider><App /></I18nProvider>);
+  expect(html).toMatch(/aria-label="自选"[^>]*aria-pressed="true"/);
+  expect(html).toMatch(/aria-label="分析"[^>]*aria-pressed="true"/);
+});
 
 it("keeps the five workbench actions in the top bar", () => {
   const html = renderToStaticMarkup(

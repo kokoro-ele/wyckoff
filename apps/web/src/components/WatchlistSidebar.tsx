@@ -17,7 +17,7 @@ import { cn, localizedInstrumentName } from "@/lib/utils.js";
 import { useAuth } from "@/auth/AuthProvider.js";
 import { useI18n } from "@/i18n.js";
 
-export function WatchlistSidebar() {
+export function WatchlistSidebar({ onSelect }: { onSelect?: () => void }) {
   const { t, lang } = useI18n();
   const { isVerified, openAuth } = useAuth();
   const symbol = useWorkbench((s) => s.symbol);
@@ -240,7 +240,10 @@ export function WatchlistSidebar() {
                         >
                           <div className={cn("watch-item group flex w-full items-center gap-1 rounded-[11px] px-1.5 py-1.5 transition-colors", active ? "bg-accent-soft" : "hover:bg-panel-2")}>
                             <GripVertical size={12} className="shrink-0 text-ink-faint/50" />
-                            <button type="button" className="min-w-0 flex-1 text-left" onClick={() => void setSymbol(item.symbol, item.name)}>
+                            <button type="button" className="min-w-0 flex-1 text-left" onClick={() => {
+                              void setSymbol(item.symbol, item.name);
+                              onSelect?.();
+                            }}>
                               <div className={cn("truncate font-mono text-[12px]", active ? "text-accent" : "text-ink")}>
                                 {item.symbol.split(".")[0]}
                               </div>

@@ -175,6 +175,14 @@
         header.hero { padding: 20px 18px; }
         header.hero h1 { font-size: 34px; }
         nav { margin-bottom: 20px; }
+        .topline { flex-wrap: wrap; }
+        .back, .app-link, nav a { min-height: 44px; }
+        nav a { display: inline-flex; align-items: center; }
+        .cards { grid-template-columns: minmax(0, 1fr); }
+        .card { min-width: 0; overflow-wrap: anywhere; }
+        table { display: block; max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; }
+        .diagram { overscroll-behavior-x: contain; }
+        .diagram-cap::after { content: " · Swipe to explore the diagram →"; }
       }
     </style>
   </head>

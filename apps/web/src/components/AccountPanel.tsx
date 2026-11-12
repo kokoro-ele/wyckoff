@@ -55,7 +55,7 @@ export function AccountPanel({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-ink/35 px-4 pt-[10vh] backdrop-blur-[3px]"
+      className="mobile-modal-backdrop fixed inset-0 z-50 flex items-start justify-center bg-ink/35 px-4 pt-[10vh] backdrop-blur-[3px]"
       onMouseDown={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}

@@ -44,7 +44,7 @@ export function ChartToolbar({ dataReady = true }: { dataReady?: boolean }) {
 
   return (
     <div className="chart-toolbar flex flex-col gap-1.5 border-b border-line-soft px-3 py-2.5">
-      <div className="flex flex-wrap items-center gap-1">
+      <div className="chart-toolbar-row flex flex-wrap items-center gap-1">
         <ToolGroup label={t("toolbar.period")}>
           {ALL_PERIODS.map((p) => {
             const locked = freeTier && !FREE_TIER_PERIODS.includes(p);
@@ -89,7 +89,7 @@ export function ChartToolbar({ dataReady = true }: { dataReady?: boolean }) {
         </ToolGroup>
       </div>
 
-      <div className="flex flex-wrap items-center gap-1">
+      <div className="chart-toolbar-row flex flex-wrap items-center gap-1">
         <ToolGroup label={t("toolbar.indicator")}>
           {INDICATORS.map((ind) => (
             <Chip key={ind.id} active={indicators.includes(ind.id)} onClick={() => toggleIndicator(ind.id)}>
@@ -164,7 +164,7 @@ export function ChartToolbar({ dataReady = true }: { dataReady?: boolean }) {
 
 function ToolGroup({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex flex-wrap items-center gap-1">
+    <div className="chart-tool-group flex flex-wrap items-center gap-1">
       <span className="mr-1 font-mono text-[8px] font-semibold uppercase tracking-[0.14em] text-ink-faint">{label}</span>
       {children}
     </div>
