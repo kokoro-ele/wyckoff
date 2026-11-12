@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Copy, Crown, LogIn, LogOut, RefreshCw, X } from "lucide-react";
 import { authClient } from "../lib/auth.js";
-import { fetchCreditStatus, type CreditStatus } from "../lib/api.js";
+import { fetchByokSubscriptionStatus, fetchCreditStatus, type ByokStatus, type CreditStatus } from "../lib/api.js";
 import { useAuth } from "../auth/AuthProvider.js";
 import { useI18n } from "../i18n.js";
 
@@ -12,9 +12,10 @@ export function AccountPanel({
   onClose: () => void;
   onOpenTopUp: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { session, isVerified, openAuth } = useAuth();
   const [status, setStatus] = useState<CreditStatus | null>(null);
+  const [byok, setByok] = useState<ByokStatus | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -23,13 +24,14 @@ export function AccountPanel({
     if (!isVerified) return;
     setLoading(true);
     setError("");
-    try {
-      setStatus(await fetchCreditStatus());
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : t("account.error"));
-    } finally {
-      setLoading(false);
-    }
+    const [credit, subscription] = await Promise.allSettled([
+      fetchCreditStatus(),
+      fetchByokSubscriptionStatus(),
+    ]);
+    if (credit.status === "fulfilled") setStatus(credit.value);
+    else setError(credit.reason instanceof Error ? credit.reason.message : t("account.error"));
+    if (subscription.status === "fulfilled") setByok(subscription.value);
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -60,7 +62,7 @@ export function AccountPanel({
         if (event.target === event.currentTarget) onClose();
       }}
     >
-      <section role="dialog" aria-modal="true" aria-labelledby="account-title" className="hand-card w-full max-w-[420px] p-5">
+      <section role="dialog" aria-modal="true" aria-labelledby="account-title" className="hand-card w-full max-w-[520px] p-5">
         <div className="flex items-start justify-between gap-3">
           <div>
             <div className="hand-eyebrow">WYCKOFF · ACCOUNT</div>
@@ -98,19 +100,40 @@ export function AccountPanel({
               </div>
             </div>
 
-            <section className="rounded-2xl border border-line bg-panel-2/70 p-4">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs text-ink-dim">{t("account.balance")}</span>
-                <button type="button" aria-label={t("action.refresh")} className="hand-icon" onClick={() => void reload()}>
-                  <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-                </button>
-              </div>
-              <p className="mt-1 text-3xl font-semibold text-accent">
-                {status ? status.balance : loading ? "…" : "—"}
-                <span className="ml-1 text-sm font-normal text-ink-dim">{t("common.credits")}</span>
-              </p>
-              {error && <p role="alert" className="mt-2 text-xs text-warn">{error}</p>}
-            </section>
+            <div className="grid grid-cols-2 gap-3">
+              <section className="rounded-2xl border border-line bg-panel-2/70 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-ink-dim">{t("account.balance")}</span>
+                  <button type="button" aria-label={t("action.refresh")} className="hand-icon" onClick={() => void reload()}>
+                    <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+                  </button>
+                </div>
+                <p className="mt-1 text-3xl font-semibold text-accent">
+                  {status ? status.balance : loading ? "…" : "—"}
+                  <span className="ml-1 text-sm font-normal text-ink-dim">{t("common.credits")}</span>
+                </p>
+                {error && <p role="alert" className="mt-2 text-xs text-warn">{error}</p>}
+              </section>
+
+              <section className="rounded-2xl border border-line bg-panel-2/70 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-ink-dim">{t("account.subscription")}</span>
+                  <Crown size={14} className="text-accent" />
+                </div>
+                <p className="mt-1 text-sm font-semibold text-ink">
+                  {byok?.byok
+                    ? byok.entitlement?.source === "lifetime"
+                      ? t("account.subscriptionLifetime")
+                      : t("account.subscriptionActive")
+                    : t("account.subscriptionNone")}
+                </p>
+                <p className="mt-1 text-[10px] text-ink-faint">
+                  {byok?.byok && byok.entitlement?.currentPeriodEnd
+                    ? t("account.subscriptionExpires", { date: new Date(byok.entitlement.currentPeriodEnd).toLocaleDateString(lang === "zh" ? "zh-CN" : "en-US") })
+                    : ""}
+                </p>
+              </section>
+            </div>
 
             {status && (
               <section className="rounded-2xl border border-line bg-panel-2/70 p-4">

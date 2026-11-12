@@ -192,8 +192,9 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
           <p className="mt-2 text-[10px] leading-relaxed text-warn">当前是 Stripe 测试模式：请使用测试卡，不会真实扣款。上线前需要切换到 live keys。</p>
         )}
 
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {byok && (
-          <section className="mt-4 rounded-2xl border border-line bg-panel-2/70 p-4">
+          <section className="rounded-2xl border border-line bg-panel-2/70 p-4">
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-semibold">BYOK</span>
               <span className={`rounded-full border px-2 py-0.5 text-[10px] ${byok.byok ? "border-down/40 text-down" : "border-line text-ink-faint"}`}>
@@ -214,7 +215,7 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
         )}
 
         {status && (
-          <section className="mt-4 rounded-2xl border border-line bg-panel-2/70 p-4">
+          <section className="rounded-2xl border border-line bg-panel-2/70 p-4">
             <div className="flex items-center justify-between">
               <p className="text-sm">{t("membership.balance", { n: status.balance })}</p>
               <button type="button" aria-label={t("membership.refresh")} className="hand-icon" onClick={() => void reload()}>
@@ -237,6 +238,7 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
             {notice && <p role="status" className="mt-2 text-[11px] text-accent">{notice}</p>}
           </section>
         )}
+        </div>
 
         {!catalog && !error && <p className="py-8 text-center text-ink-dim">{t("action.loading")}</p>}
         {catalog && (
