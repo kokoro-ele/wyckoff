@@ -37,9 +37,17 @@ Rules:
 - Add Customer Portal for cancellation and invoices.
 - Taxes, receipts, refund policy and business entity details must be finalized before enabling live payments.
 
+## BYOK access pricing
+
+- **$3/month**: the app, chart, Agent tools, research panel and encrypted workspace; the user pays their own model provider directly.
+- **$20 one-time**: lifetime access to the same BYOK feature. This is about 6.7 months of the monthly plan, so treat it as a launch/early-user price. A normal lifetime price should be $29–$39.
+- BYOK does **not** include platform-model credits or the platform Pro daily bonus.
+- One entitlement per account, non-transferable. Define whether “lifetime” means the life of the product, not the user's lifetime, in the final terms.
+- Keep the BYOK setting encrypted and server-side; a subscription must not expose the key.
+
 ## Current state
 
-Online payment is not enabled yet. The free allowance is 3 analyses. Admin can adjust balances from `/admin`. The product does not advertise a price until the Stripe catalog and compliance pages are reviewed.
+Online payment is not enabled yet. The free allowance is 3 analyses. Admin can adjust balances from `/admin`. BYOK is currently still free in the running product; the paid BYOK entitlement and Stripe subscription/lifetime checkout are not implemented yet. Do not enable the prices in Stripe until the entitlement and webhook paths are live.
 
 ## Review of the proposed numbers
 
@@ -63,7 +71,8 @@ The monthly proposal needs adjustment:
 | Small pack | $5 one-time | 30 permanent credits |
 | Big pack | $10 one-time | 80 permanent credits |
 | Pro monthly | $20/month | 200 monthly credits + 5/day check-in (monthly cap 150) |
-| Own model | Free with account | No platform credits consumed |
+| BYOK monthly | $3/month | Use your own model/key; no platform credits consumed |
+| BYOK lifetime | $20 one-time (launch price) | Lifetime BYOK access; no platform credits consumed |
 | Day pass | Optional $6 | 20 platform credits valid 24h |
 
 ## Stripe setup checklist
