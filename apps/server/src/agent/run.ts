@@ -16,8 +16,8 @@ import type {
   ResponseInputItem,
   ResponseStreamEvent,
 } from "openai/resources/responses/responses";
-import { config, hasLlmConfiguration } from "../config.js";
 import { getOpenAiClient } from "../llm/client.js";
+import { resolveLlmSettings, type ResolvedLlmSettings } from "../llm/settings.js";
 import { listAnnotations } from "../services/annotations.js";
 import { getInstrument } from "../services/instruments.js";
 import { getKlines } from "../services/market.js";
@@ -44,10 +44,11 @@ function logJson(label: string, payload: unknown): void {
  * 若当前网关没有 `/v1/responses`，再回退到 Chat Completions（无联网搜索）。
  */
 export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent> {
-  if (!hasLlmConfiguration()) {
+  const llm = resolveLlmSettings();
+  if (!llm.apiKey) {
     yield {
       type: "error",
-      message: "分析服务尚未配置。请联系运营方检查服务端模型凭据。",
+      message: "分析服务尚未配置。请先在设置里填写你自己的模型 Key，或联系运营方。",
     };
     return;
   }
@@ -102,14 +103,15 @@ export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent
         userContent,
         instructions,
         mode,
-        webSearch: config.llm.webSearch,
+        webSearch: llm.webSearch,
+        llm,
         toolTrace,
         onText: (delta) => {
           answer += delta;
         },
       }), showTrace);
     } catch (error) {
-      if (config.llm.webSearch && isWebSearchUnsupported(error)) {
+      if (llm.webSearch && isWebSearchUnsupported(error)) {
         console.warn("[agent] 当前模型/网关不支持 web_search，关闭联网后重试");
         yield* visibleEvents(runResponsesLoop({
           ctx,
@@ -118,6 +120,7 @@ export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent
           instructions,
           mode,
           webSearch: false,
+          llm,
           toolTrace,
           onText: (delta) => {
             answer += delta;
@@ -131,6 +134,7 @@ export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent
           userContent,
           instructions,
           mode,
+          llm,
           toolTrace,
           onText: (delta) => {
             answer += delta;
@@ -178,6 +182,7 @@ interface LoopArgs {
   userContent: string;
   instructions: string;
   mode: AnalysisMode;
+  llm: ResolvedLlmSettings;
   toolTrace: NonNullable<ChatMessage["toolTrace"]>;
   onText: (delta: string) => void;
 }
@@ -191,12 +196,12 @@ async function* runResponsesLoop(args: LoopArgs & { webSearch: boolean }): Async
 
   for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
     logJson(
-      `model=${config.llm.model} responses iteration=${iteration + 1} web_search=${webSearch} items=${input.length}`,
+      `model=${args.llm.model} responses iteration=${iteration + 1} web_search=${webSearch} items=${input.length}`,
       input,
     );
 
     const stream = await getOpenAiClient().responses.create({
-      model: config.llm.model,
+      model: args.llm.model,
       instructions,
       input,
       tools: responseTools(webSearch, mode),
@@ -286,10 +291,10 @@ async function* runCompletionsLoop(args: LoopArgs): AsyncGenerator<AgentEvent> {
   ];
 
   for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
-    logJson(`model=${config.llm.model} completions iteration=${iteration + 1} messages=${messages.length}`, messages);
+    logJson(`model=${args.llm.model} completions iteration=${iteration + 1} messages=${messages.length}`, messages);
 
     const stream = await getOpenAiClient().chat.completions.create({
-      model: config.llm.model,
+      model: args.llm.model,
       messages,
       tools: toolDefinitionsForMode(mode),
       max_tokens: mode === "fundamental" ? 1_000 : 1_600,

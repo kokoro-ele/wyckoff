@@ -121,7 +121,7 @@ interface WorkbenchState {
   renameWatchGroup: (id: number, name: string) => Promise<void>;
   removeWatchGroup: (id: number) => Promise<void>;
   setSettingsOpen: (open: boolean) => void;
-  refreshRuntimeStatus: () => Promise<void>;
+  refreshRuntimeStatus: (authenticated?: boolean) => Promise<void>;
 
   loadAnnotations: () => Promise<void>;
   applyAnnotationBatch: (groupId: string, title: string, annotations: StoredAnnotation[]) => void;
@@ -252,14 +252,22 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
     }, 4000);
   },
 
-  async refreshRuntimeStatus() {
+  async refreshRuntimeStatus(authenticated = false) {
     const [capabilities, chatStatus] = await Promise.allSettled([api.fetchCapabilities(), api.fetchChatStatus()]);
     if (capabilities.status === "fulfilled") set({ freeTier: capabilities.value.freeTier });
     if (chatStatus.status === "fulfilled") set({ llmReady: chatStatus.value.configured });
+    if (authenticated) {
+      try {
+        const settings = await api.fetchLlmSettings();
+        set({ llmReady: settings.configured });
+      } catch {
+        // Keep the operator status when per-user settings cannot be loaded.
+      }
+    }
   },
 
   async bootstrap(authenticated = false) {
-    const tasks: Promise<unknown>[] = [get().refreshRuntimeStatus()];
+    const tasks: Promise<unknown>[] = [get().refreshRuntimeStatus(authenticated)];
     if (authenticated) {
       tasks.push(get().refreshWatchlist(), get().loadAnnotations(), get().restoreSessionForSymbol(get().symbol));
     }

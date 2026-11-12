@@ -204,6 +204,27 @@ export function fetchChatStatus(): Promise<{ configured: boolean }> {
   return request("/chat/status");
 }
 
+export interface LlmSettings {
+  configured: boolean;
+  source: "user" | "operator" | "none";
+  baseUrl: string;
+  model: string;
+  custom: boolean;
+  operatorConfigured: boolean;
+}
+
+export function fetchLlmSettings(): Promise<LlmSettings> {
+  return request("/settings/llm");
+}
+
+export function saveLlmSettings(payload: { apiKey?: string; baseUrl: string; model: string }): Promise<LlmSettings> {
+  return request("/settings/llm", { method: "PUT", body: JSON.stringify(payload) });
+}
+
+export function clearLlmSettings(): Promise<LlmSettings> {
+  return request("/settings/llm", { method: "DELETE" });
+}
+
 export interface ChatStreamParams {
   sessionId: string;
   symbol: string;

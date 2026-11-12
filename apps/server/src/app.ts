@@ -5,6 +5,7 @@ import { chatRoutes } from "./routes/chat.js";
 import { libraryRoutes } from "./routes/library.js";
 import { marketRoutes } from "./routes/market.js";
 import { researchRoutes } from "./routes/research.js";
+import { settingsRoutes } from "./routes/settings.js";
 import { sessionRoutes } from "./routes/sessions.js";
 import { indexSize } from "./services/instruments.js";
 
@@ -24,6 +25,7 @@ app.route("/api/research", researchRoutes);
 app.route("/api", libraryRoutes);
 app.route("/api/annotations", annotationRoutes);
 app.route("/api/sessions", sessionRoutes);
+app.route("/api/settings", settingsRoutes);
 app.route("/api/chat", chatRoutes);
 
 app.notFound((c) => c.json({ code: "NOT_FOUND", message: "接口不存在" }, 404));
