@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { Chart, DataLoaderGetBarsParams, Overlay } from "klinecharts";
+import type { Chart, DataLoaderGetBarsParams, KLineData, Overlay } from "klinecharts";
 import { dispose, init } from "klinecharts";
 import { Activity, Star } from "lucide-react";
 import type { Kline, StoredAnnotation } from "@wyckoff/shared";
@@ -11,6 +11,7 @@ import { getChartStyles } from "@/chart/theme.js";
 import { INDICATORS, useWorkbench, type IndicatorId } from "@/store.js";
 import { cn, localizedInstrumentName } from "@/lib/utils.js";
 import { ChartToolbar } from "./ChartToolbar.js";
+import { AnnotationEvidence, type AnnotationStats } from "./AnnotationEvidence.js";
 
 import { chartContextKey } from "@/chart/context.js";
 import { useTheme } from "@/theme.js";
@@ -62,6 +63,7 @@ function ChartContextPanel() {
   const [error, setError] = useState<string | null>(null);
   const [selecting, setSelecting] = useState<SelectionRect | null>(null);
   const [marketSnapshot, setMarketSnapshot] = useState<MarketSnapshot | null>(null);
+  const [evidence, setEvidence] = useState<{ annotation: StoredAnnotation; bar?: KLineData; stats?: AnnotationStats } | null>(null);
 
   const symbol = useWorkbench((s) => s.symbol);
   const chartRevision = useWorkbench((s) => s.chartRevision);
@@ -211,6 +213,7 @@ function ChartContextPanel() {
     chartRef.current?.removeOverlay();
     setSelecting(null);
     setError(null);
+    setEvidence(null);
   }, [chartRevision]);
 
   // —— 标的 / 周期变化时触发 DataLoader 重新拉取 ——
@@ -277,7 +280,40 @@ function ChartContextPanel() {
     const visible: StoredAnnotation[] = annotations.filter((a) => visibleIds.has(a.groupId));
 
     setOverlayLanguage(lang);
-    renderAnnotations(chart, visible, lang);
+    renderAnnotations(chart, visible, lang, (annotation) => {
+      const data = chart.getDataList() as KLineData[];
+      const target =
+        annotation.kind === "event"
+          ? annotation.timestamp
+          : annotation.kind === "zone"
+            ? annotation.endTime
+            : annotation.kind === "level"
+              ? annotation.endTime ?? annotation.startTime
+              : annotation.points[1].timestamp;
+      let index = data.findIndex((bar) => bar.timestamp === target);
+      if (index < 0 && target !== undefined) {
+        index = data.reduce((best, bar, i) => {
+          const distance = Math.abs(bar.timestamp - target);
+          return distance < Math.abs(data[best].timestamp - target) ? i : best;
+        }, 0);
+      }
+      const bar = data[index];
+      let stats: AnnotationStats | undefined;
+      if (bar && index >= 0) {
+        const prior = data.slice(Math.max(0, index - 20), index);
+        const avgVolume = prior.length ? prior.reduce((sum, item) => sum + (item.volume ?? 0), 0) / prior.length : 0;
+        const avgSpread = prior.length ? prior.reduce((sum, item) => sum + (item.high - item.low), 0) / prior.length : 0;
+        const previous = data[index - 1];
+        const spread = bar.high - bar.low;
+        stats = {
+          volumeRatio: avgVolume > 0 ? (bar.volume ?? 0) / avgVolume : null,
+          spreadRatio: avgSpread > 0 ? spread / avgSpread : null,
+          closePosition: spread > 0 ? (bar.close - bar.low) / spread : null,
+          changePct: previous && previous.close > 0 ? ((bar.close - previous.close) / previous.close) * 100 : null,
+        };
+      }
+      setEvidence({ annotation, bar, stats });
+    });
   }, [annotations, annotationGroups, chartRevision, ready, lang]);
 
   // —— Agent 请求聚焦某段区间 ——
@@ -407,6 +443,15 @@ function ChartContextPanel() {
       <div className="chart-surface relative min-h-0 flex-1">
         <div className="chart-reflection pointer-events-none absolute inset-0 z-[1]" />
         <div ref={containerRef} className="absolute inset-0" style={{ visibility: ready ? "visible" : "hidden" }} aria-hidden={!ready} />
+
+        {evidence && (
+          <AnnotationEvidence
+            annotation={evidence.annotation}
+            bar={evidence.bar}
+            stats={evidence.stats}
+            onClose={() => setEvidence(null)}
+          />
+        )}
 
         {ready && selectionMode && (
           <div

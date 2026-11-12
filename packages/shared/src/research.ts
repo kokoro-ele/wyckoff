@@ -101,6 +101,9 @@ export interface AgentTradePlan {
   adjust: string;
   bias: "long" | "wait" | "short";
   trigger: string;
+  /** Structured trigger used for deterministic next-session status. */
+  triggerCondition?: { direction: "above" | "below"; price: number } | null;
+  invalidationCondition?: { direction: "above" | "below"; price: number } | null;
   entryLow: number | null;
   entryHigh: number | null;
   stop: number | null;

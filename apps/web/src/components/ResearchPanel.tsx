@@ -169,6 +169,15 @@ export function ResearchPanel({
     { key: "fiscalYear", value: f.fiscalYear ?? "—" },
   ];
   const visibleMetrics = metrics.filter((metric) => metric.value !== "—");
+  const planStatus = plan
+    ? plan.invalidationCondition && (plan.invalidationCondition.direction === "above" ? data.quote.price >= plan.invalidationCondition.price : data.quote.price <= plan.invalidationCondition.price)
+      ? "invalidated"
+      : plan.triggerCondition && (plan.triggerCondition.direction === "above" ? data.quote.price >= plan.triggerCondition.price : data.quote.price <= plan.triggerCondition.price)
+        ? "triggered"
+        : plan.triggerCondition || plan.invalidationCondition
+          ? "waiting"
+          : "unstructured"
+    : null;
   const source = sourceLabel(f.source, t);
   const updated = new Date(data.generatedAt).toLocaleTimeString(lang === "zh" ? "zh-CN" : "en-US", {
     hour: "2-digit",
@@ -240,6 +249,19 @@ export function ResearchPanel({
             </div>
 
             <div className="research-trigger mt-2">{plan.trigger}</div>
+            <div className="research-plan-status mt-2">
+              <span>{t("research.plan.status")}</span>
+              <strong className={`research-plan-state ${planStatus ?? "unstructured"}`}>
+                {t(`research.plan.status.${planStatus ?? "unstructured"}`)}
+              </strong>
+              {plan.generatedAt && <span className="text-ink-faint">{new Date(plan.generatedAt).toLocaleDateString(lang === "zh" ? "zh-CN" : "en-US")}</span>}
+            </div>
+            {(plan.triggerCondition || plan.invalidationCondition) && (
+              <div className="research-plan-conditions">
+                {plan.triggerCondition && <span>{t("research.plan.watchTrigger")}: {plan.triggerCondition.direction === "above" ? "≥" : "≤"} {formatPrice(plan.triggerCondition.price)}</span>}
+                {plan.invalidationCondition && <span>{t("research.plan.watchInvalidation")}: {plan.invalidationCondition.direction === "above" ? "≥" : "≤"} {formatPrice(plan.invalidationCondition.price)}</span>}
+              </div>
+            )}
 
             <div className="research-plan mt-2">
               <PlanRow label={t("research.entry")} value={plan.entryLow !== null && plan.entryHigh !== null ? `${formatPrice(plan.entryLow)}–${formatPrice(plan.entryHigh)}` : "—"} />

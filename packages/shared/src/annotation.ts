@@ -27,6 +27,12 @@ const baseFields = {
   groupId: z.string().optional(),
   /** 补充说明，会显示在标注的悬浮提示里。 */
   note: z.string().optional(),
+  /** 判读强度：confirmed=量价确认，probable=方向合理，unconfirmed=条件不足。 */
+  confidence: z.enum(["confirmed", "probable", "unconfirmed"]).optional(),
+  /** 支持这次判读的量价证据，最多 6 条。 */
+  evidence: z.array(z.string()).max(6).optional(),
+  /** 反例、不确定点或仍需确认的条件，最多 6 条。 */
+  counterEvidence: z.array(z.string()).max(6).optional(),
 };
 
 export const eventAnnotationSchema = z.object({

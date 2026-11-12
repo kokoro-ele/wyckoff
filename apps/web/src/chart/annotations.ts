@@ -52,8 +52,17 @@ function localizedLabel(label: string | undefined, lang: "zh" | "en", kind: "zon
  * 覆盖物的 id 直接复用标注 id、groupId 复用标注分组，这样整组显隐、整组删除、
  * 以及从图上反查回标注，都只是一次 `removeOverlay({ groupId })` 或 id 查表的事。
  */
-export function annotationToOverlay(annotation: StoredAnnotation, lang: "zh" | "en" = "zh"): OverlayCreate {
-  const base = { id: annotation.id, groupId: annotation.groupId, lock: annotation.source === "agent" };
+export function annotationToOverlay(
+  annotation: StoredAnnotation,
+  lang: "zh" | "en" = "zh",
+  onSelect?: (annotation: StoredAnnotation) => void,
+): OverlayCreate {
+  const base = {
+    id: annotation.id,
+    groupId: annotation.groupId,
+    lock: annotation.source === "agent",
+    ...(onSelect ? { onClick: () => onSelect(annotation) } : {}),
+  };
 
   switch (annotation.kind) {
     case "event": {
@@ -177,11 +186,16 @@ export function overlayToAnnotation(overlay: Overlay): WyckoffAnnotation | null 
 const renderedIds = new WeakMap<Chart, Set<string>>();
 
 /** 替换上一批语义标注，包括此次列表中已经消失的标注。 */
-export function renderAnnotations(chart: Chart, annotations: StoredAnnotation[], lang: "zh" | "en" = "zh"): void {
+export function renderAnnotations(
+  chart: Chart,
+  annotations: StoredAnnotation[],
+  lang: "zh" | "en" = "zh",
+  onSelect?: (annotation: StoredAnnotation) => void,
+): void {
   const ids = new Set([...(renderedIds.get(chart) ?? []), ...annotations.map(a => a.id)]);
   for (const id of ids) chart.removeOverlay({ id });
   renderedIds.set(chart, new Set(annotations.map(a => a.id)));
-  const creates = annotations.map((annotation) => annotationToOverlay(annotation, lang));
+  const creates = annotations.map((annotation) => annotationToOverlay(annotation, lang, onSelect));
   if (creates.length > 0) chart.createOverlay(creates);
 }
 

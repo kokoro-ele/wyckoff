@@ -106,6 +106,23 @@ const annotationItemSchema = {
     to_price: { type: "number", description: "仅 kind=trendline，终点价格" },
     extend: { type: "boolean", description: "仅 kind=trendline，是否向右延伸成射线" },
     note: { type: "string", description: "该标注的说明，使用与最终回答相同的语言，写清判读依据。" },
+    confidence: {
+      type: "string",
+      enum: ["confirmed", "probable", "unconfirmed"],
+      description: "confirmed=价格量能确认；probable=方向合理但缺确认；unconfirmed=只有形态、条件不足。",
+    },
+    evidence: {
+      type: "array",
+      items: { type: "string" },
+      maxItems: 6,
+      description: "支持该判读的量价证据，每条写具体数值或行为，例如量比 2.6、收盘位置 0.83。",
+    },
+    counter_evidence: {
+      type: "array",
+      items: { type: "string" },
+      maxItems: 6,
+      description: "反例、不确定点或仍需确认的条件；没有明确反例时写「目前未发现明确反例」。",
+    },
   },
   additionalProperties: false,
 } as const;
@@ -180,7 +197,7 @@ export const toolDefinitions = [
       name: "save_trade_plan",
       description:
         "把本次分析生成的交易计划保存到工作台。计划必须由你根据当前结构、价格与量价证据计算，不要套用固定阈值。" +
-        "当用户要求操作建议、交易计划，或你已完成结构判读且数据足够时调用。",
+        "当用户要求操作建议、交易计划，或你已完成结构判读且数据足够时调用。必须同时给出结构化的 trigger_direction/trigger_price 和 invalidation_direction/invalidation_price，方便下次打开时自动比较。",
       parameters: {
         type: "object",
         required: [
@@ -197,6 +214,8 @@ export const toolDefinitions = [
         properties: {
           bias: { type: "string", enum: ["long", "wait", "short"], description: "计划偏向" },
           trigger: { type: "string", description: "触发条件，写清价格与动作，例如「日线收盘站上 351.7」" },
+          trigger_direction: { type: "string", enum: ["above", "below"], description: "结构化触发方向：收盘站上/跌破" },
+          trigger_price: { type: "number", description: "结构化触发价格" },
           entry_low: { type: "number", description: "入场区间下沿" },
           entry_high: { type: "number", description: "入场区间上沿" },
           stop: { type: "number", description: "止损价" },
@@ -204,6 +223,8 @@ export const toolDefinitions = [
           target2: { type: "number", description: "第二目标价" },
           risk_reward: { type: "number", description: "风险收益比，例如 2.5 表示 2.5:1" },
           invalidation: { type: "string", description: "计划失效条件" },
+          invalidation_direction: { type: "string", enum: ["above", "below"], description: "结构化失效方向：收盘站上/跌破" },
+          invalidation_price: { type: "number", description: "结构化失效价格" },
           support: { type: "array", items: { type: "number" }, description: "关键支撑价" },
           resistance: { type: "array", items: { type: "number" }, description: "关键阻力价" },
           note: { type: "string", description: "一句话说明计划依据，与最终回答同语言" },
@@ -478,6 +499,19 @@ function normalizeAnnotations(raw: unknown, klines: Kline[], language: "zh" | "e
         return;
     }
 
+    const confidence =
+      a.confidence === "confirmed" || a.confidence === "probable" || a.confidence === "unconfirmed"
+        ? a.confidence
+        : undefined;
+    const evidence = Array.isArray(a.evidence)
+      ? a.evidence.filter((value): value is string => typeof value === "string").slice(0, 6)
+      : undefined;
+    const counterEvidence = Array.isArray(a.counter_evidence)
+      ? a.counter_evidence.filter((value): value is string => typeof value === "string").slice(0, 6)
+      : undefined;
+    if (typeof candidate === "object" && candidate !== null) {
+      Object.assign(candidate as Record<string, unknown>, { confidence, evidence, counterEvidence });
+    }
     const parsed = annotationSchema.safeParse(candidate);
     if (parsed.success) annotations.push(parsed.data);
     else errors.push(`${label}：${parsed.error.issues.map((issue) => `${issue.path.join(".")} ${issue.message}`).join("；")}`);
@@ -643,8 +677,16 @@ async function saveTradePlanTool(args: Args, ctx: RunContext): Promise<ToolResul
   if (entryLow > entryHigh) {
     return { content: "entry_low 不能高于 entry_high。", summary: "入场区间无效", ok: false };
   }
+  const direction = (value: unknown): "above" | "below" | null =>
+    value === "above" || value === "below" ? value : null;
   const plan = saveAgentTradePlan(ctx.symbol, ctx.period, ctx.adjust, {
     bias,
+    triggerCondition: direction(args.trigger_direction) && num(args.trigger_price)
+      ? { direction: direction(args.trigger_direction)!, price: num(args.trigger_price)! }
+      : null,
+    invalidationCondition: direction(args.invalidation_direction) && num(args.invalidation_price)
+      ? { direction: direction(args.invalidation_direction)!, price: num(args.invalidation_price)! }
+      : null,
     trigger,
     entryLow,
     entryHigh,
