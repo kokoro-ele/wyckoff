@@ -49,7 +49,7 @@
 
 ### 环境要求
 
-- Node.js 22.x 或更高版本
+- Node.js 22.x（与 `.nvmrc`、CI 和 Vercel 保持一致，避免原生依赖因自动升级 Node.js 主版本而编译失败）
 - pnpm 9
 - PostgreSQL（本地开发同样需要，登录与额度是强制路径）
 
