@@ -101,7 +101,6 @@ export function LearnPage({ pathLang }: { pathLang: "zh" | "en" }) {
 
         <section className="learn-section">
           <div className="learn-section-head"><span>03</span><h2>{zh ? "六个核心动作" : "Six core actions"}</h2></div>
-          <p className="learn-sub">{zh ? "示意图只画结构，不构成交易信号。" : "Schematic shapes, not trade signals."}</p>
           <div className="learn-term-grid">
             {TERMS.map((term) => (
               <article key={term.code} className="hand-card learn-term">

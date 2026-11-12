@@ -54,7 +54,6 @@ export function LandingPage() {
           <div className="site-home-copy">
             <div className="site-kicker">{copy.hero.kicker}</div>
             <h1 className="site-home-title">{copy.hero.title}</h1>
-            <p className="site-home-subtitle">{copy.hero.subtitle}</p>
             <div className="site-home-actions">
               <a className="hand-btn hand-btn-primary" href={appHref}>
                 {copy.hero.cta}
@@ -81,10 +80,8 @@ export function LandingPage() {
             <div>
               <div className="site-kicker">{copy.glossary.kicker}</div>
               <h2>{copy.glossary.title}</h2>
-              <p>{copy.glossary.intro}</p>
             </div>
             <div className="site-glossary-links">
-              <span className="site-glossary-note">{copy.glossary.note}</span>
               <a className="site-glossary-more" href={`/learn/${lang}`}>
                 {copy.glossary.more}
                 <ArrowRight size={12} />

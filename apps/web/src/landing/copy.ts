@@ -14,7 +14,6 @@ export interface LandingCopy {
   hero: {
     kicker: string;
     title: string;
-    subtitle: string;
     cta: string;
     learn: string;
     symbol: string;
@@ -30,8 +29,6 @@ export interface LandingCopy {
   glossary: {
     kicker: string;
     title: string;
-    intro: string;
-    note: string;
     more: string;
     terms: TermCopy[];
   };
@@ -44,7 +41,6 @@ const zh: LandingCopy = {
   hero: {
     kicker: "WYCKOFF · PRICE & VOLUME",
     title: "看见价格背后的结构",
-    subtitle: "用区间、量能和收盘位置，读懂六个基本动作。",
     cta: "现在开始",
     learn: "学习 Wyckoff",
     symbol: "NVDA.US",
@@ -60,8 +56,6 @@ const zh: LandingCopy = {
   glossary: {
     kicker: "THE LANGUAGE",
     title: "六个名词，读懂图上的语言",
-    intro: "示意图只画结构，不构成交易信号。",
-    note: "虚线为支撑 / 阻力",
     more: "全部名词与图例 →",
     terms: [
       { code: "Spring", name: "弹簧", body: "跌破区间下沿后快速收回，测试供给。" },
@@ -81,7 +75,6 @@ const en: LandingCopy = {
   hero: {
     kicker: "WYCKOFF · PRICE & VOLUME",
     title: "See the structure behind the price.",
-    subtitle: "Read ranges, volume and closes through six basic actions.",
     cta: "Start now",
     learn: "Learn Wyckoff",
     symbol: "NVDA.US",
@@ -97,8 +90,6 @@ const en: LandingCopy = {
   glossary: {
     kicker: "THE LANGUAGE",
     title: "Six terms, one visual language",
-    intro: "Schematic shapes, not trade signals.",
-    note: "Dashed lines are support / resistance",
     more: "All terms & diagrams →",
     terms: [
       { code: "Spring", name: "Spring", body: "Sweeps below support, then closes back inside." },
