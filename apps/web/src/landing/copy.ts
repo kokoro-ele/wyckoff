@@ -51,7 +51,7 @@ const zh: LandingCopy = {
     symbol: "NVDA.US",
     window: "2025-11-11 → 2026-11-10",
     zoneLabel: "派发区间",
-    chartCaption: "NVDA · 最近一年 · 5 个关键事件",
+    chartCaption: "NVDA · 固定历史窗口 · 5 个关键事件",
   },
   chart: {
     range: "交易区间",
@@ -89,7 +89,7 @@ const en: LandingCopy = {
     symbol: "NVDA.US",
     window: "2025-11-11 → 2026-11-10",
     zoneLabel: "Distribution",
-    chartCaption: "NVDA · last year · five key events",
+    chartCaption: "NVDA · fixed historical window · five key events",
   },
   chart: {
     range: "Trading range",
