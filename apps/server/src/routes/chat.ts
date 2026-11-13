@@ -61,7 +61,8 @@ chatRoutes.post("/", bodyLimit({ maxSize: 1024 * 1024 }), async (c) => {
     }
   }
   const context = workspaceContext.getStore();
-  if (context) context.signal = c.req.raw.signal;
+  const cancelSignal = context?.state.get("cancelSignal") as AbortSignal | undefined;
+  if (context) context.signal = cancelSignal ? AbortSignal.any([c.req.raw.signal, cancelSignal]) : c.req.raw.signal;
   let lease: Awaited<ReturnType<typeof beginWorkspaceUsage>> | null = null;
   if (!usesOwnModel) {
     try { lease = await beginWorkspaceUsage(c.req.header("Idempotency-Key")); }
@@ -71,7 +72,7 @@ chatRoutes.post("/", bodyLimit({ maxSize: 1024 * 1024 }), async (c) => {
     let succeeded = false;
     let usage: { inputTokens: number; outputTokens: number } | undefined;
     try {
-      for await (const event of runAgent(parsed.data, c.req.raw.signal)) {
+      for await (const event of runAgent(parsed.data, context?.signal)) {
         if (event.type === "usage") {
           usage = { inputTokens: event.inputTokens, outputTokens: event.outputTokens };
           continue;

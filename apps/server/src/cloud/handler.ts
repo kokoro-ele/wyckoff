@@ -103,9 +103,6 @@ export async function cloudFetch(request: Request): Promise<Response> {
       const channel = new TransformStream<Uint8Array, Uint8Array>();
       const writer = channel.writable.getWriter();
       const cancel = new AbortController();
-      const scopedRequest = new Request(request, {
-        signal: AbortSignal.any([request.signal, cancel.signal]),
-      });
       let clientGone = false;
 
       const write = async (chunk: Uint8Array) => {
@@ -126,7 +123,8 @@ export async function cloudFetch(request: Request): Promise<Response> {
 
       waitUntil(
         withWorkspace(session.user.id, true, async () => {
-          const response = await app.fetch(scopedRequest);
+          workspaceContext.getStore()?.state.set("cancelSignal", cancel.signal);
+          const response = await app.fetch(request);
           if (!response.ok) {
             const detail = (await response.json().catch(() => ({}))) as { message?: string; error?: string };
             await writeEvent({ type: "error", message: detail.message ?? detail.error ?? "请求失败，请重试" });
