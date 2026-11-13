@@ -137,6 +137,10 @@ export function AccountPanel({
               </section>
             </div>
 
+            <p className="rounded-xl border border-dashed border-accent/30 bg-accent-soft/50 px-3 py-2 text-[10px] text-accent">
+              {t("account.dailyReward")}
+            </p>
+
             {status && (
               <section className="rounded-2xl border border-line bg-panel-2/70 p-4">
                 <div className="flex items-center justify-between gap-2">

@@ -1954,3 +1954,9 @@
 
 .admin-danger { color: var(--color-up) !important; }
 .admin-danger:hover { background: color-mix(in srgb, var(--color-up) 12%, transparent) !important; }
+
+.daily-reward-card { position: relative; box-shadow: 6px 7px 0 var(--paper-shadow); }
+.daily-reward-icon { display: flex; width: 46px; height: 46px; align-items: center; justify-content: center; border: 1.5px solid var(--color-accent); border-radius: 14px 8px 15px 9px; background: var(--color-accent-soft); color: var(--color-accent); }
+.daily-reward-amount { display: flex; align-items: baseline; gap: 5px; margin-top: 14px; color: var(--color-accent); }
+.daily-reward-amount strong { font-family: var(--font-mono); font-size: 34px; line-height: 1; }
+.daily-reward-amount span { color: var(--color-ink-dim); font-size: 11px; }

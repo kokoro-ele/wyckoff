@@ -13,7 +13,7 @@ import {
 import { subscriptionCatalog } from "../billing/subscriptionCatalog.js";
 import { getEntitlement, hasEntitlement } from "../billing/entitlements.js";
 import { creditPacks } from "./catalog.js";
-import { creditStatus } from "./store.js";
+import { claimDailyLogin, creditStatus } from "./store.js";
 
 export function createCreditsRouter(pool: Pool, userId: string) {
   const app = new Hono();
@@ -23,6 +23,7 @@ export function createCreditsRouter(pool: Pool, userId: string) {
   });
 
   app.get("/status", async (c) => c.json(await creditStatus(pool, userId)));
+  app.post("/daily-login", async (c) => c.json(await claimDailyLogin(pool, userId)));
   app.get("/catalog", (c) => c.json({ packs: creditPacks(), providers: availability() }));
   app.get("/subscriptions/catalog", (c) => c.json({ products: subscriptionCatalog() }));
   app.get("/subscriptions/status", async (c) => {

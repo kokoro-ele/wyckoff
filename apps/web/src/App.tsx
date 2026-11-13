@@ -11,10 +11,12 @@ import { AccountPanel } from "./components/AccountPanel.js";
 import { MembershipPanel } from "./components/MembershipPanel.js";
 import { SettingsPanel } from "./components/SettingsPanel.js";
 import { StartAnalysisSheet } from "./components/StartAnalysisSheet.js";
+import { DailyRewardDialog } from "./components/DailyRewardDialog.js";
 import { trackXRegistration } from "./lib/xPixel.js";
 import { useAuth } from "./auth/AuthProvider.js";
 import { useI18n } from "./i18n.js";
 import { useSeo } from "./lib/seo.js";
+import * as api from "./lib/api.js";
 
 export function App() {
   const { t } = useI18n();
@@ -31,6 +33,7 @@ export function App() {
   const [watchOpen, setWatchOpen] = useState(true);
   const [chatOpen, setChatOpen] = useState(() => window.innerWidth >= 1100);
   const [startOpen, setStartOpen] = useState(() => new URLSearchParams(window.location.search).has("start"));
+  const [dailyReward, setDailyReward] = useState<{ amount: number; balance: number } | null>(null);
   // Keep desktop preferences separate when rotating/resizing a mobile viewport.
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [mobileDock, setMobileDock] = useState<"watch" | "chat" | null>(null);
@@ -86,6 +89,27 @@ export function App() {
     if (!isVerified) clearPersonalData();
     void bootstrap(isVerified);
   }, [bootstrap, clearPersonalData, isPending, isVerified]);
+
+  useEffect(() => {
+    if (!isVerified) return;
+    let disposed = false;
+    const claim = () => {
+      void api.claimDailyLogin()
+        .then((reward) => {
+          if (!disposed && reward.granted) setDailyReward({ amount: reward.amount, balance: reward.balance });
+        })
+        .catch(() => undefined);
+    };
+    claim();
+    const onVisible = () => {
+      if (document.visibilityState === "visible") claim();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      disposed = true;
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [isVerified]);
 
   useEffect(() => {
     if (!isVerified || !session?.user) return;
@@ -211,6 +235,7 @@ export function App() {
       </div>
 
       <StartAnalysisSheet open={startOpen} onClose={closeStart} onPick={(nextSymbol, name, nameEn) => void beginStartAnalysis(nextSymbol, name, nameEn)} />
+      <DailyRewardDialog reward={dailyReward} onClose={() => setDailyReward(null)} />
       <SearchModal />
       <Toast />
       <OnboardingModal />

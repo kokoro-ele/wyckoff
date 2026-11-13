@@ -235,6 +235,7 @@ export function AuthDialog({
               {title}
             </h2>
             <p className="mt-1.5 text-[12px] leading-relaxed text-ink-dim">{t("auth.subtitle")}</p>
+            <p className="mt-1 text-[10px] text-accent">{t("auth.dailyHint")}</p>
           </div>
           <button type="button" aria-label={t("action.close")} className="hand-icon" onClick={onClose} disabled={busy}>
             <X size={17} />

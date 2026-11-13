@@ -117,6 +117,17 @@ export function fetchCreditStatus(): Promise<CreditStatus> {
   return request("/credits/status");
 }
 
+export interface DailyLoginReward {
+  granted: boolean;
+  amount: number;
+  balance: number;
+  day: string;
+}
+
+export function claimDailyLogin(): Promise<DailyLoginReward> {
+  return request("/credits/daily-login", { method: "POST", body: JSON.stringify({}) });
+}
+
 // ————————————————— 检索与收藏 —————————————————
 
 export function searchInstruments(

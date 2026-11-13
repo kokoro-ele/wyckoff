@@ -9,6 +9,7 @@ type DB = Pool | PoolClient;
 export const WELCOME_CREDITS = 3;
 export const TOKENS_PER_CREDIT = 20_000;
 export const INVITE_CREDITS = 3;
+export const DAILY_LOGIN_CREDITS = 2;
 
 async function ensureAccount(db: DB, userId: string, newUser = false) {
   await db.query(
@@ -117,6 +118,28 @@ export async function grantVerifiedCredits(pool: Pool, userId: string) {
     }
 
     await db.query("UPDATE credit_accounts SET new_user=false WHERE user_id=$1", [userId]);
+  });
+}
+
+/** One small reward per calendar day in Asia/Shanghai. The ledger row is the idempotency key. */
+export async function claimDailyLogin(pool: Pool, userId: string) {
+  return withAccountLock(pool, userId, async (db) => {
+    const day = (await db.query<{ day: string }>(
+      "SELECT (now() AT TIME ZONE 'Asia/Shanghai')::date::text AS day",
+    )).rows[0]!.day;
+    const key = `daily-login:${userId}:${day}`;
+    const prior = await db.query("SELECT 1 FROM credit_ledger WHERE event_key=$1", [key]);
+    if (prior.rowCount) {
+      const balance = (
+        await db.query<{ balance: number }>("SELECT balance FROM credit_accounts WHERE user_id=$1", [userId])
+      ).rows[0]?.balance ?? 0;
+      return { granted: false, amount: 0, balance, day };
+    }
+    await addCredits(db, userId, DAILY_LOGIN_CREDITS, key);
+    const balance = (
+      await db.query<{ balance: number }>("SELECT balance FROM credit_accounts WHERE user_id=$1", [userId])
+    ).rows[0]?.balance ?? 0;
+    return { granted: true, amount: DAILY_LOGIN_CREDITS, balance, day };
   });
 }
 
