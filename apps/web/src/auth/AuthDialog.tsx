@@ -34,6 +34,7 @@ export function AuthDialog({
   const [name, setName] = useState("");
   const [otp, setOtp] = useState("");
   const [resendAt, setResendAt] = useState(0);
+  const [clock, setClock] = useState(Date.now());
   const [inviteCode, setInviteCode] = useState(() =>
     new URLSearchParams(window.location.search).get("invite")?.trim() ?? "",
   );
@@ -47,6 +48,12 @@ export function AuthDialog({
 
   const sessionUserId = session.data?.user.id;
   const sessionVerified = session.data?.user.emailVerified;
+  useEffect(() => {
+    if (mode !== "verify" || !resendAt) return;
+    const timer = window.setInterval(() => setClock(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, [mode, resendAt]);
+
   useEffect(() => {
     if (!open) return;
     const user = session.data?.user;
@@ -93,19 +100,34 @@ export function AuthDialog({
   }
 
   const sendCode = async (to: string) => {
-    check(
-      await authClient.emailOtp.sendVerificationOtp({
-        email: to,
-        type: "email-verification",
-      }),
-    );
+    // Start the resend timer before the SMTP round-trip. The user can enter
+    // the code immediately without waiting for delivery confirmation.
     setResendAt(Date.now() + 60_000);
+    setClock(Date.now());
     setMessage(t("auth.sentCode"));
+    try {
+      check(
+        await authClient.emailOtp.sendVerificationOtp({
+          email: to,
+          type: "email-verification",
+        }),
+      );
+    } catch (error) {
+      // A failed send should not lock the user out of trying again.
+      setResendAt(0);
+      throw error;
+    }
   };
 
-  const resend = async () => {
-    if (Date.now() < resendAt) throw new Error(t("auth.resendWait"));
-    await sendCode(session.data?.user.email || email);
+  const sendCodeInBackground = (to: string) => {
+    void sendCode(to).catch((error) => {
+      setMessage(error instanceof Error ? error.message : t("error.NETWORK"));
+    });
+  };
+
+  const resend = () => {
+    if (Date.now() < resendAt) return;
+    sendCodeInBackground(session.data?.user.email || email);
   };
 
   const submit = (event: FormEvent) => {
@@ -120,18 +142,27 @@ export function AuthDialog({
             name: name.trim() || email.split("@")[0] || "Reader",
           }),
         );
-        trackXRegistration(email);
-        try { localStorage.setItem("wyckoff:newUser", "1"); } catch { /* storage may be disabled */ }
+        try {
+          localStorage.setItem("wyckoff:newUser", "1");
+          localStorage.setItem("wyckoff:xSignupPending", email.trim().toLowerCase());
+        } catch { /* storage may be disabled */ }
         setMode("verify");
         setPassword("");
-        await sendCode(email);
+        sendCodeInBackground(email);
       } else if (mode === "verify") {
+        const verifiedEmail = (session.data?.user.email || email).trim().toLowerCase();
         check(
           await authClient.emailOtp.verifyEmail({
-            email: session.data?.user.email || email,
+            email: verifiedEmail,
             otp,
           }),
         );
+        try {
+          if (localStorage.getItem("wyckoff:xSignupPending") === verifiedEmail) {
+            trackXRegistration(verifiedEmail);
+            localStorage.removeItem("wyckoff:xSignupPending");
+          }
+        } catch { /* conversion tracking must not block verification */ }
         setMessage(t("auth.verified"));
         onVerified();
       } else if (mode === "forgot") {
@@ -148,7 +179,7 @@ export function AuthDialog({
         const result = await authClient.signIn.email({ email, password });
         if (result.error?.code === "EMAIL_NOT_VERIFIED") {
           setMode("verify");
-          await sendCode(email);
+          sendCodeInBackground(email);
           return;
         }
         check(result);
@@ -328,11 +359,14 @@ export function AuthDialog({
                             ? t("auth.reset")
                             : t("auth.signIn")}
                 </button>
-                {verifying && (
-                  <button type="button" disabled={busy} className="hand-link w-full text-center text-xs" onClick={() => void run(resend)}>
-                    {t("auth.resend")}
-                  </button>
-                )}
+                {verifying && (() => {
+                  const wait = Math.max(0, Math.ceil((resendAt - clock) / 1000));
+                  return (
+                    <button type="button" disabled={busy || wait > 0} className="hand-link w-full text-center text-xs" onClick={resend}>
+                      {wait > 0 ? t("auth.resendIn", { s: wait }) : t("auth.resend")}
+                    </button>
+                  );
+                })()}
               </form>
             ) : (
               <p className="mt-4 text-sm text-ink-dim">{t("auth.emailUnavailable")}</p>
