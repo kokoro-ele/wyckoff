@@ -1,6 +1,7 @@
 import { workspaceContext } from "./context.js";
 import { handleBillingWebhook } from "../billing/index.js";
 import { getPool } from "./postgres.js";
+import { cancelAgentRun } from "../services/agentRuns.js";
 import { createCreditsRouter } from "../credits/index.js";
 import { grantVerifiedCredits } from "../credits/store.js";
 import { waitUntil } from "@vercel/functions";
@@ -81,6 +82,15 @@ export async function cloudFetch(request: Request): Promise<Response> {
     const origin = request.headers.get("origin");
     if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && origin !== trustedOrigin(request)) {
       return Response.json({ code: "FORBIDDEN", message: "请求来源无效" }, { status: 403 });
+    }
+
+    // Stop signals must not wait behind the workspace row lock held by the
+    // streaming chat request they are trying to stop.
+    if (path === "/api/chat/interrupt" && request.method === "POST") {
+      const body = (await request.json().catch(() => ({}))) as { runId?: unknown };
+      const runId = typeof body.runId === "string" ? body.runId : "";
+      if (runId) await cancelAgentRun(session.user.id, runId);
+      return Response.json({ ok: true }, { headers: { "Cache-Control": "private, no-store" } });
     }
 
     // A referral bookkeeping failure must not take down every authenticated API.

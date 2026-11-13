@@ -57,6 +57,7 @@ export function ChatPanel() {
   const [memoryOpen, setMemoryOpen] = useState(false);
   const sendingRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
+  const runIdRef = useRef<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   const visible = useMemo(
@@ -115,6 +116,8 @@ export function ChatPanel() {
     state.appendMessage(assistantMsg);
 
     const controller = new AbortController();
+    const runId = crypto.randomUUID();
+    runIdRef.current = runId;
     abortRef.current = controller;
 
     const current = () => {
@@ -244,6 +247,7 @@ export function ChatPanel() {
           mode: "agent",
           language: lang,
           showTrace: SHOW_TRACE,
+          runId,
           context,
           viewport: state.viewport ?? undefined,
         },
@@ -294,8 +298,10 @@ export function ChatPanel() {
   const stop = () => {
     const state = useWorkbench.getState();
     const lastUser = [...state.messages].reverse().find((entry) => entry.role === "user" && (entry.mode ?? "agent") === "agent");
+    const runId = runIdRef.current;
     abortRef.current?.abort();
     abortRef.current = null;
+    runIdRef.current = null;
     sendingRef.current = false;
     setSending(false);
     state.updateLastAssistant((entry) => ({
@@ -307,7 +313,8 @@ export function ChatPanel() {
     }));
     state.notify(t("chat.stopped"), "info");
     if (lastUser?.content) {
-      void interruptChat({
+      if (runId) void interruptChat({
+        runId,
         symbol: state.symbol,
         period: state.period,
         sessionId: state.sessionId,

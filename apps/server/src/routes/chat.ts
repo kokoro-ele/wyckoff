@@ -68,11 +68,12 @@ chatRoutes.post("/", bodyLimit({ maxSize: 1024 * 1024 }), async (c) => {
     try { lease = await beginWorkspaceUsage(c.req.header("Idempotency-Key")); }
     catch (error) { const result = billingErrorResponse(error); return c.json(result.body, result.status); }
   }
+  const runId = c.req.header("Idempotency-Key") || undefined;
   return streamSSE(c, async (stream) => {
     let succeeded = false;
     let usage: { inputTokens: number; outputTokens: number } | undefined;
     try {
-      for await (const event of runAgent(parsed.data, context?.signal)) {
+      for await (const event of runAgent(parsed.data, context?.signal, runId)) {
         if (event.type === "usage") {
           usage = { inputTokens: event.inputTokens, outputTokens: event.outputTokens };
           continue;

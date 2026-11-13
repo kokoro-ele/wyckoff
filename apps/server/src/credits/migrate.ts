@@ -35,6 +35,15 @@ CREATE TABLE IF NOT EXISTS credit_meta(
   value TEXT NOT NULL
 );
 
+-- Cross-request stop signal for streaming Agent runs. This deliberately lives
+-- outside the workspace row lock so /interrupt cannot block behind the run.
+CREATE TABLE IF NOT EXISTS agent_run_cancels(
+  run_id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS agent_run_cancels_created ON agent_run_cancels(created_at);
+
 CREATE TABLE IF NOT EXISTS credit_accounts(
   user_id TEXT PRIMARY KEY REFERENCES "user"(id) ON DELETE CASCADE,
   invite_code TEXT NOT NULL UNIQUE,

@@ -24,6 +24,7 @@ import { getInstrument } from "../services/instruments.js";
 import { getKlines } from "../services/market.js";
 import * as sessions from "../services/sessions.js";
 import * as agentMemory from "../services/agentMemory.js";
+import { isAgentRunCancelled } from "../services/agentRuns.js";
 import { detectIntent, planForIntent } from "./intent.js";
 import { buildSystemPrompt } from "./prompt.js";
 import { executeTool, type RunContext, responseTools, toolDefinitionsForMode } from "./tools.js";
@@ -46,7 +47,7 @@ function logJson(label: string, payload: unknown): void {
  * 默认走 OpenAI Responses API，这样可以同时用内置 `web_search` 和本地画图工具。
  * 若当前网关没有 `/v1/responses`，再回退到 Chat Completions（无联网搜索）。
  */
-export async function* runAgent(request: ChatRequest, requestSignal?: AbortSignal): AsyncGenerator<AgentEvent> {
+export async function* runAgent(request: ChatRequest, requestSignal?: AbortSignal, runId?: string): AsyncGenerator<AgentEvent> {
   const llm = resolveLlmSettings();
   if (!llm.apiKey) {
     yield {
@@ -183,8 +184,8 @@ export async function* runAgent(request: ChatRequest, requestSignal?: AbortSigna
       );
     }
 
-    if (runContext?.state.get("clientGone") === true) {
-      throw new Error("客户端已断开");
+    if (runContext?.state.get("clientGone") === true || await isAgentRunCancelled(runId)) {
+      throw new Error("客户端已停止本次分析");
     }
 
     const totalTokens = usage.inputTokens + usage.outputTokens;
