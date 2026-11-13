@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 
 /** Bump when the SQLite workspace schema changes. */
-const SCHEMA_VERSION = 3;
+const SCHEMA_VERSION = 4;
 
 /**
  * Creates or upgrades the per-user SQLite workspace.
@@ -120,6 +120,21 @@ db.exec(`
   );
   CREATE INDEX IF NOT EXISTS idx_annotations_group ON annotations(group_id);
   CREATE INDEX IF NOT EXISTS idx_annotations_symbol ON annotations(symbol, period);
+
+  -- 跨会话研究记忆：当前问题、上次结论、用户纠正和未完成事项。
+  CREATE TABLE IF NOT EXISTS agent_memory (
+    id         TEXT PRIMARY KEY,
+    symbol     TEXT NOT NULL,
+    period     TEXT NOT NULL,
+    session_id TEXT,
+    kind       TEXT NOT NULL,
+    content    TEXT NOT NULL,
+    metadata   TEXT,
+    status     TEXT NOT NULL DEFAULT 'open',
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS idx_agent_memory_symbol ON agent_memory(symbol, period, kind, updated_at);
 
   CREATE TABLE IF NOT EXISTS app_state (
     key   TEXT PRIMARY KEY,

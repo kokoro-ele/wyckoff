@@ -16,17 +16,21 @@ import type {
   ResponseInputItem,
   ResponseStreamEvent,
 } from "openai/resources/responses/responses";
+import { workspaceContext } from "../cloud/context.js";
 import { getOpenAiClient } from "../llm/client.js";
 import { resolveLlmSettings, type ResolvedLlmSettings } from "../llm/settings.js";
 import { listAnnotations } from "../services/annotations.js";
 import { getInstrument } from "../services/instruments.js";
 import { getKlines } from "../services/market.js";
 import * as sessions from "../services/sessions.js";
+import * as agentMemory from "../services/agentMemory.js";
+import { clearInterruptedRuns, isAgentRunCancelled, listInterruptedRuns } from "../services/agentRuns.js";
+import { detectIntent, planForIntent } from "./intent.js";
 import { buildSystemPrompt } from "./prompt.js";
 import { executeTool, type RunContext, responseTools, toolDefinitionsForMode } from "./tools.js";
 
 /** Agent 每轮最多来回调用几次本地工具，防止模型陷入循环。 */
-const MAX_ITERATIONS = 8;
+const MAX_ITERATIONS = 10;
 /** 带入上下文的历史消息条数。 */
 const HISTORY_LIMIT = 20;
 
@@ -43,7 +47,7 @@ function logJson(label: string, payload: unknown): void {
  * 默认走 OpenAI Responses API，这样可以同时用内置 `web_search` 和本地画图工具。
  * 若当前网关没有 `/v1/responses`，再回退到 Chat Completions（无联网搜索）。
  */
-export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent> {
+export async function* runAgent(request: ChatRequest, requestSignal?: AbortSignal, runId?: string): AsyncGenerator<AgentEvent> {
   const llm = resolveLlmSettings();
   if (!llm.apiKey) {
     yield {
@@ -70,15 +74,47 @@ export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent
   };
   sessions.appendMessage(sessionId, userMessage);
 
+  const runStartedAt = new Date();
+  const runContext = workspaceContext.getStore();
+  const interrupted = runContext?.userId
+    ? await listInterruptedRuns(runContext.userId, symbol, period).catch(() => [])
+    : [];
+  const previousMemory = agentMemory.getSnapshot(symbol, period);
+  if (interrupted.length > 0) {
+    const known = new Set(previousMemory.open.map((entry) => entry.content));
+    previousMemory.open = [...interrupted.filter((entry) => !known.has(entry.content)), ...previousMemory.open].slice(0, 4);
+  }
+  const resumeQuestion = agentMemory.isResumeMessage(message) && previousMemory.open[0]
+    ? previousMemory.open[0].content
+    : null;
+  const question = resumeQuestion ?? message;
+  const intent = detectIntent(question, context);
+  const initialPlan = planForIntent(intent, language);
+  if (agentMemory.looksLikeCorrection(message)) {
+    agentMemory.rememberCorrection({ symbol, period, sessionId, content: message });
+  }
+  agentMemory.rememberFocus({ symbol, period, sessionId, question, intent, steps: initialPlan });
+  const memory = agentMemory.getSnapshot(symbol, period);
+  if (previousMemory.open.length > 0) {
+    const known = new Set(memory.open.map((entry) => entry.content));
+    memory.open = [...previousMemory.open.filter((entry) => !known.has(entry.content)), ...memory.open].slice(0, 4);
+  }
+  const memoryPrompt = agentMemory.formatMemoryPrompt(memory, language);
+
   let klinesPromise: Promise<Kline[]> | null = null;
   const ctx: RunContext = {
     symbol,
     period,
     adjust,
     language,
+    sessionId,
+    question,
+    signal: requestSignal ?? runContext?.signal,
     viewport,
     klines: () => (klinesPromise ??= getKlines({ symbol, period, adjust })),
   };
+
+  yield { type: "plan", question, intent, steps: initialPlan };
 
   const history = sessions
     .getMessages(sessionId)
@@ -91,7 +127,9 @@ export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent
     language === "en"
       ? "CRITICAL: Write the entire final answer in English, including headings and tables. Do not switch to Chinese."
       : "CRITICAL: 最终回答必须全部使用中文，包括标题和表格，不要切换成英文。";
-  const instructions = `${buildSystemPrompt(mode, language)}\n\n${languageRule}\n\n${situation}`;
+  const instructions = [buildSystemPrompt(mode, language), languageRule, memoryPrompt, situation]
+    .filter(Boolean)
+    .join("\n\n");
 
   const toolTrace: NonNullable<ChatMessage["toolTrace"]> = [];
   const usage = { inputTokens: 0, outputTokens: 0 };
@@ -107,6 +145,7 @@ export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent
         mode,
         webSearch: llm.webSearch,
         llm,
+        runId,
         usage,
         toolTrace,
         onText: (delta) => {
@@ -124,6 +163,7 @@ export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent
           mode,
           webSearch: false,
           llm,
+          runId,
           usage,
           toolTrace,
           onText: (delta) => {
@@ -139,6 +179,7 @@ export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent
           instructions,
           mode,
           llm,
+          runId,
           usage,
           toolTrace,
           onText: (delta) => {
@@ -158,6 +199,10 @@ export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent
       );
     }
 
+    if (runContext?.state.get("clientGone") === true || await isAgentRunCancelled(runId)) {
+      throw new Error("客户端已停止本次分析");
+    }
+
     const totalTokens = usage.inputTokens + usage.outputTokens;
     if (totalTokens > 0) {
       yield { type: "usage", ...usage, totalTokens };
@@ -168,18 +213,48 @@ export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent
       role: "assistant",
       content: answer,
       mode,
-      toolTrace: showTrace && toolTrace.length > 0 ? toolTrace : undefined,
+      toolTrace: toolTrace.length > 0
+        ? toolTrace.map(({ name, summary, ok, durationMs }) => ({ name, summary, ok, durationMs }))
+        : undefined,
       createdAt: Date.now(),
     };
     sessions.appendMessage(sessionId, assistantMessage);
+    agentMemory.rememberConclusion({ symbol, period, sessionId, content: answer });
+    agentMemory.resolveOpen(symbol, period);
+    if (runContext?.userId) {
+      await clearInterruptedRuns(runContext.userId, symbol, period, runStartedAt).catch(() => undefined);
+    }
     yield { type: "done", messageId: assistantMessage.id };
   } catch (error) {
+    const cancelled = runId ? await isAgentRunCancelled(runId).catch(() => false) : false;
+    const aborted = ctx.signal?.aborted || runContext?.state.get("clientGone") === true || cancelled || isAbortError(error);
+    agentMemory.rememberOpen({
+      symbol,
+      period,
+      sessionId,
+      content: question,
+    });
+    if (answer.trim()) {
+      sessions.appendMessage(sessionId, {
+        id: makeId("msg"),
+        role: "assistant",
+        content: `${answer}\n\n${language === "en" ? "_Stopped before completion._" : "_分析在这里中止，尚未完成。_"}`,
+        mode,
+        interrupted: true,
+        createdAt: Date.now(),
+      });
+    }
+    if (aborted) {
+      yield { type: "error", message: language === "en" ? "Analysis stopped. The unfinished question was saved." : "分析已停止，未完成的问题已保存。" };
+      return;
+    }
     console.error("[agent] 运行失败：", error instanceof Error ? error.message : "unknown error");
     yield { type: "error", message: (error as Error).message || "Agent 运行失败" };
   }
 }
 
 const PROGRESS_LABELS: Record<string, { zh: string; en: string }> = {
+  web_search: { zh: "正在联网核实背景资料…", en: "Checking background sources…" },
   get_features: { zh: "正在读取交易区间与摆动点…", en: "Reading the trading range and swing points…" },
   get_klines: { zh: "正在核对关键 K 线的量价明细…", en: "Checking the price and volume of key bars…" },
   draw_annotations: { zh: "正在把结构标注到图上…", en: "Drawing the structure on the chart…" },
@@ -187,6 +262,8 @@ const PROGRESS_LABELS: Record<string, { zh: string; en: string }> = {
   update_annotation: { zh: "正在更新标注…", en: "Updating an annotation…" },
   focus_range: { zh: "正在聚焦相关区间…", en: "Focusing the relevant range…" },
   get_instrument_info: { zh: "正在核对标的资料…", en: "Checking the instrument details…" },
+  set_research_focus: { zh: "正在明确研究问题与计划…", en: "Clarifying the question and plan…" },
+  verify_annotations: { zh: "正在回读核对标注的日期与价格…", en: "Verifying annotation dates and prices…" },
   save_trade_plan: { zh: "正在保存交易计划…", en: "Saving the trade plan…" },
 };
 
@@ -196,21 +273,40 @@ async function* visibleEvents(
   language: "zh" | "en",
 ): AsyncGenerator<AgentEvent> {
   for await (const event of events) {
-    if (!showTrace && event.type === "tool_start") {
-      yield { type: "progress", message: PROGRESS_LABELS[event.name]?.[language] ?? (language === "en" ? "Reading market data…" : "正在读取数据…") };
+    if (event.type === "tool_start") {
+      const label = PROGRESS_LABELS[event.name]?.[language] ?? (language === "en" ? "Reading market data…" : "正在读取数据…");
+      yield {
+        type: "activity",
+        id: event.id,
+        kind: event.name === "verify_annotations" ? "verify" : "tool",
+        label,
+        status: "running",
+      };
+      if (showTrace) yield event;
       continue;
     }
-    if (!showTrace && event.type === "tool_end") {
+    if (event.type === "tool_end") {
       yield {
-        type: "progress",
-        message: event.ok
-          ? language === "en" ? "Step complete. Preparing the next check…" : "已完成一步，继续整理…"
-          : language === "en" ? "A tool failed, adjusting…" : "工具执行失败，正在调整…",
+        type: "activity",
+        id: event.id,
+        kind: event.name === "verify_annotations" ? "verify" : "tool",
+        label: PROGRESS_LABELS[event.name]?.[language] ?? event.summary,
+        status: event.ok ? "done" : "failed",
+        detail: event.summary,
+        durationMs: event.durationMs,
       };
+      if (showTrace) yield event;
       continue;
     }
     yield event;
   }
+}
+
+function isAbortError(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const name = (error as { name?: string }).name;
+  const message = (error as { message?: string }).message ?? "";
+  return name === "AbortError" || /aborted|abort|取消|中止/i.test(message);
 }
 
 interface LoopArgs {
@@ -220,6 +316,7 @@ interface LoopArgs {
   instructions: string;
   mode: AnalysisMode;
   llm: ResolvedLlmSettings;
+  runId?: string;
   usage: { inputTokens: number; outputTokens: number };
   toolTrace: NonNullable<ChatMessage["toolTrace"]>;
   onText: (delta: string) => void;
@@ -233,6 +330,7 @@ async function* runResponsesLoop(args: LoopArgs & { webSearch: boolean }): Async
   ];
 
   for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+    if (args.runId && await isAgentRunCancelled(args.runId)) throw new Error("客户端已停止本次分析");
     logJson(
       `model=${args.llm.model} responses iteration=${iteration + 1} web_search=${webSearch} items=${input.length}`,
       input,
@@ -333,6 +431,7 @@ async function* runCompletionsLoop(args: LoopArgs): AsyncGenerator<AgentEvent> {
   ];
 
   for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+    if (args.runId && await isAgentRunCancelled(args.runId)) throw new Error("客户端已停止本次分析");
     logJson(`model=${args.llm.model} completions iteration=${iteration + 1} messages=${messages.length}`, messages);
 
     const stream = await getOpenAiClient().chat.completions.create({

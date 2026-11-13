@@ -31,7 +31,6 @@ export function listSessions(symbol?: string): SessionRow[] {
 }
 
 export function getMessages(sessionId: string): ChatMessage[] {
-  const showTrace = process.env.ALLOW_AGENT_TRACE === "1";
   return db
     .prepare<[string], { id: string; role: string; content: string; tool_trace: string | null; context: string | null; mode: string | null; created_at: number }>(
       "SELECT id, role, content, tool_trace, context, mode, created_at FROM messages WHERE session_id = ? ORDER BY created_at, rowid",
@@ -41,8 +40,7 @@ export function getMessages(sessionId: string): ChatMessage[] {
       id: row.id,
       role: row.role as ChatMessage["role"],
       content: row.content,
-      toolTrace:
-        showTrace && row.tool_trace ? (JSON.parse(row.tool_trace) as ChatMessage["toolTrace"]) : undefined,
+      toolTrace: row.tool_trace ? (JSON.parse(row.tool_trace) as ChatMessage["toolTrace"]) : undefined,
       context: row.context ? (JSON.parse(row.context) as ChatContext) : undefined,
       mode: (row.mode as AnalysisMode | null) ?? "agent",
       createdAt: row.created_at,

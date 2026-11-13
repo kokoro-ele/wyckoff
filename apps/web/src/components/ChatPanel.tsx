@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   BookOpen,
+  Brain,
+  ChevronDown,
+  ChevronRight,
+  CircleCheck,
+  CircleX,
   Loader2,
   LockKeyhole,
   MessageSquarePlus,
@@ -9,8 +14,15 @@ import {
   Square,
   X,
 } from "lucide-react";
-import type { AgentEvent, ChatContext } from "@wyckoff/shared";
-import { ApiError, streamChat } from "@/lib/api.js";
+import type {
+  AgentActivity,
+  AgentEvent,
+  AgentMemorySnapshot,
+  AgentPlan,
+  ChatContext,
+  ResearchIntent,
+} from "@wyckoff/shared";
+import { ApiError, interruptChat, streamChat } from "@/lib/api.js";
 import { cn, formatDate, formatDuration, formatPrice } from "@/lib/utils.js";
 import { useWorkbench, type ChatEntry, type ToolTraceItem } from "@/store.js";
 import { MarkdownContent } from "./MarkdownContent.js";
@@ -31,14 +43,21 @@ export function ChatPanel() {
   const resetSession = useWorkbench((s) => s.resetSession);
   const pendingContext = useWorkbench((s) => s.pendingContext);
   const setPendingContext = useWorkbench((s) => s.setPendingContext);
+  const agentMemory = useWorkbench((s) => s.agentMemory);
+  const loadAgentMemory = useWorkbench((s) => s.loadAgentMemory);
   const [dockTab, setDockTab] = useState<"research" | "agent">(() =>
     new URLSearchParams(window.location.search).get("tab") === "agent" ? "agent" : "research",
   );
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [progress, setProgress] = useState("");
+  const [plan, setPlan] = useState<AgentPlan | null>(null);
+  const [activities, setActivities] = useState<AgentActivity[]>([]);
+  const [activityOpen, setActivityOpen] = useState(false);
+  const [memoryOpen, setMemoryOpen] = useState(false);
   const sendingRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
+  const runIdRef = useRef<string | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   const visible = useMemo(
@@ -47,6 +66,10 @@ export function ChatPanel() {
   );
 
   useEffect(() => () => abortRef.current?.abort(), []);
+
+  useEffect(() => {
+    if (isVerified) void loadAgentMemory();
+  }, [isVerified, loadAgentMemory, symbol, period]);
 
   useEffect(() => {
     if (dockTab !== "agent") return;
@@ -68,6 +91,9 @@ export function ChatPanel() {
     sendingRef.current = true;
     setSending(true);
     setProgress("正在连接模型…");
+    setPlan(null);
+    setActivities([]);
+    setActivityOpen(false);
 
     const userMsg: ChatEntry = {
       id: `u_${Date.now()}`,
@@ -90,6 +116,8 @@ export function ChatPanel() {
     state.appendMessage(assistantMsg);
 
     const controller = new AbortController();
+    const runId = crypto.randomUUID();
+    runIdRef.current = runId;
     abortRef.current = controller;
 
     const current = () => {
@@ -119,6 +147,39 @@ export function ChatPanel() {
           break;
         case "progress":
           setProgress(event.message);
+          break;
+        case "plan":
+          setPlan({ question: event.question, intent: event.intent, steps: event.steps });
+          setProgress(event.question);
+          break;
+        case "activity":
+          setActivities((current) => {
+            const next = current.filter((item) => item.id !== event.id);
+            next.push({
+              id: event.id,
+              kind: event.kind,
+              label: event.label,
+              status: event.status,
+              detail: event.detail,
+              durationMs: event.durationMs,
+            });
+            return next.slice(-12);
+          });
+          updateAssistant((entry) => {
+            const live = entry.liveTrace ?? [];
+            return {
+              ...entry,
+              liveTrace: live.filter((item) => item.id !== event.id).concat({
+                id: event.id,
+                name: event.label,
+                summary: event.detail ?? event.label,
+                ok: event.status !== "failed",
+                running: event.status === "running",
+                durationMs: event.durationMs,
+              }),
+            };
+          });
+          if (event.status === "running") setProgress(event.label);
           break;
         case "tool_start":
           updateAssistant((entry) => ({
@@ -186,6 +247,7 @@ export function ChatPanel() {
           mode: "agent",
           language: lang,
           showTrace: SHOW_TRACE,
+          runId,
           context,
           viewport: state.viewport ?? undefined,
         },
@@ -211,6 +273,7 @@ export function ChatPanel() {
       useWorkbench.getState().notify(message, "error");
     } finally {
       window.dispatchEvent(new Event("credits:changed"));
+      void loadAgentMemory();
       unsubscribe();
       if (abortRef.current === controller) {
         sendingRef.current = false;
@@ -233,18 +296,34 @@ export function ChatPanel() {
   };
 
   const stop = () => {
+    const state = useWorkbench.getState();
+    const lastUser = [...state.messages].reverse().find((entry) => entry.role === "user" && (entry.mode ?? "agent") === "agent");
+    const runId = runIdRef.current;
     abortRef.current?.abort();
     abortRef.current = null;
+    runIdRef.current = null;
     sendingRef.current = false;
     setSending(false);
-    useWorkbench.getState().updateLastAssistant((entry) => ({
+    state.updateLastAssistant((entry) => ({
       ...entry,
       streaming: false,
       liveTrace: entry.liveTrace?.map((trace) =>
         trace.running ? { ...trace, running: false, ok: false, summary: t("chat.stopped") } : trace,
       ),
     }));
-    useWorkbench.getState().notify(t("chat.stopped"), "info");
+    state.notify(t("chat.stopped"), "info");
+    if (lastUser?.content) {
+      if (runId) void interruptChat({
+        runId,
+        symbol: state.symbol,
+        period: state.period,
+        sessionId: state.sessionId,
+        question: lastUser.content,
+        language: lang,
+      }).catch(() => undefined).finally(() => void loadAgentMemory());
+    } else {
+      window.setTimeout(() => void loadAgentMemory(), 700);
+    }
   };
 
   const analyze = () => {
@@ -295,17 +374,30 @@ export function ChatPanel() {
       ) : (
         <>
           <div ref={listRef} className="chat-stream flex-1 space-y-3 overflow-y-auto px-3 py-3">
+            {agentMemory && <MemoryCard memory={agentMemory} open={memoryOpen} onToggle={() => setMemoryOpen((value) => !value)} onResume={() => void send(t("agent.resumePrompt"))} />}
             {visible.length === 0 && (
               <TabIntro verified={isVerified} llmReady={llmReady} onLogin={openAuth} onRun={() => void send(t("chat.autoPrompt.agent"))} />
             )}
             {visible.map((message) => (
               <MessageBubble key={message.id} message={message} showTrace={SHOW_TRACE} />
             ))}
-            {sending && <ThinkingBubble label={thinking} />}
+            {sending && (
+              <ThinkingBubble
+                label={thinking}
+                plan={plan}
+                activities={activities}
+                open={activityOpen}
+                onToggle={() => setActivityOpen((value) => !value)}
+              />
+            )}
           </div>
 
           <div className="chat-composer border-t border-line-soft p-3">
             {pendingContext && <ContextCapsule context={pendingContext} onClear={() => setPendingContext(null)} />}
+            <QuickActions
+              disabled={sending || !llmReady}
+              onRun={(prompt) => void send(prompt)}
+            />
             <p className="mb-2 text-[10px] text-ink-faint">{t("chat.creditsNote")}</p>
             <form
               className="flex items-end gap-2"
@@ -343,6 +435,31 @@ export function ChatPanel() {
         </>
       )}
     </aside>
+  );
+}
+
+function QuickActions({ disabled, onRun }: { disabled: boolean; onRun: (prompt: string) => void }) {
+  const { t } = useI18n();
+  const actions = [
+    { key: "window", label: t("chat.quick.window"), prompt: t("chat.quick.windowPrompt") },
+    { key: "update", label: t("chat.quick.update"), prompt: t("chat.quick.updatePrompt") },
+    { key: "event", label: t("chat.quick.event"), prompt: t("chat.quick.eventPrompt") },
+    { key: "trade", label: t("chat.quick.trade"), prompt: t("chat.quick.tradePrompt") },
+  ];
+  return (
+    <div className="quick-actions" role="group" aria-label={t("chat.quick.label")}>
+      {actions.map((action) => (
+        <button
+          key={action.key}
+          type="button"
+          className="quick-chip"
+          disabled={disabled}
+          onClick={() => onRun(action.prompt)}
+        >
+          {action.label}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -384,22 +501,144 @@ function TabIntro({
   );
 }
 
-function ThinkingBubble({ label }: { label: string }) {
+function intentLabel(intent: ResearchIntent, t: (key: string, vars?: Record<string, string | number>) => string): string {
+  const key = `agent.intent.${intent}`;
+  const value = t(key);
+  return value === key ? intent : value;
+}
+
+function ThinkingBubble({
+  label,
+  plan,
+  activities,
+  open,
+  onToggle,
+}: {
+  label: string;
+  plan: AgentPlan | null;
+  activities: AgentActivity[];
+  open: boolean;
+  onToggle: () => void;
+}) {
+  const { t } = useI18n();
+  const running = activities.findLast((item) => item.status === "running");
   return (
-    <div className="thinking-bubble" role="status" aria-live="polite">
-      <span className="thinking-pencil" aria-hidden="true">✎</span>
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      <span className="thinking-dots" aria-hidden="true">
-        <i />
-        <i />
-        <i />
-      </span>
+    <div className={cn("thinking-bubble", open && "thinking-expanded")} role="status" aria-live="polite">
+      <button type="button" className="thinking-head" onClick={onToggle} aria-expanded={open}>
+        <span className="thinking-pencil" aria-hidden="true">✎</span>
+        <span className="min-w-0 flex-1 truncate text-left">{running?.label ?? label}</span>
+        <span className="thinking-dots" aria-hidden="true">
+          <i />
+          <i />
+          <i />
+        </span>
+        {open ? <ChevronDown size={13} className="shrink-0" /> : <ChevronRight size={13} className="shrink-0" />}
+      </button>
+      {open && (
+        <div className="thinking-body">
+          <div className="thinking-section-label">{t("agent.currentQuestion")}</div>
+          <div className="thinking-question">{plan?.question ?? label}</div>
+          {plan && (
+            <div className="thinking-intent">
+              <span>{t("agent.intent")}</span>
+              <strong>{intentLabel(plan.intent, t)}</strong>
+            </div>
+          )}
+          {plan && plan.steps.length > 0 && (
+            <>
+              <div className="thinking-section-label">{t("agent.plan")}</div>
+              <ol className="thinking-plan">
+                {plan.steps.map((step, index) => <li key={`${step}-${index}`}>{step}</li>)}
+              </ol>
+            </>
+          )}
+          <div className="thinking-section-label">{t("agent.activities")}</div>
+          {activities.length === 0 ? (
+            <div className="thinking-empty">{t("agent.activitiesEmpty")}</div>
+          ) : (
+            <div className="thinking-activities">
+              {activities.map((activity) => (
+                <div key={activity.id} className={cn("thinking-activity", `is-${activity.status}`)}>
+                  {activity.status === "running" ? (
+                    <Loader2 size={11} className="shrink-0 animate-spin text-accent" />
+                  ) : activity.status === "done" ? (
+                    <CircleCheck size={11} className="shrink-0 text-down" />
+                  ) : (
+                    <CircleX size={11} className="shrink-0 text-up" />
+                  )}
+                  <span className="min-w-0 flex-1">{activity.detail || activity.label}</span>
+                  {activity.durationMs !== undefined && (
+                    <span className="shrink-0 font-mono text-[9px] text-ink-faint">{formatDuration(activity.durationMs)}</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MemoryCard({
+  memory,
+  open,
+  onToggle,
+  onResume,
+}: {
+  memory: AgentMemorySnapshot;
+  open: boolean;
+  onToggle: () => void;
+  onResume: () => void;
+}) {
+  const { t } = useI18n();
+  const openQuestion = memory.open[0];
+  const conclusion = memory.conclusions[0];
+  if (!memory.focus && !openQuestion && !conclusion && memory.corrections.length === 0) return null;
+  return (
+    <div className={cn("memory-card", open && "memory-card-open")}>
+      <button type="button" className="memory-head" onClick={onToggle} aria-expanded={open}>
+        <Brain size={13} className="text-accent" />
+        <span className="min-w-0 flex-1 truncate text-left">{t("agent.memory.title")}</span>
+        {openQuestion && <span className="memory-badge">{t("agent.memory.unfinished")}</span>}
+        {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+      </button>
+      {open && (
+        <div className="memory-body">
+          {openQuestion && (
+            <div className="memory-row memory-open">
+              <span className="memory-label">{t("agent.memory.unfinished")}</span>
+              <span className="min-w-0 flex-1">{openQuestion.content}</span>
+              <button type="button" className="hand-btn memory-resume" onClick={onResume}>{t("agent.memory.resume")}</button>
+            </div>
+          )}
+          {memory.focus && (
+            <div className="memory-row">
+              <span className="memory-label">{t("agent.memory.focus")}</span>
+              <span className="min-w-0 flex-1">{memory.focus.content}</span>
+            </div>
+          )}
+          {conclusion && (
+            <div className="memory-row">
+              <span className="memory-label">{t("agent.memory.conclusion")}</span>
+              <span className="min-w-0 flex-1 line-clamp-3">{conclusion.content}</span>
+            </div>
+          )}
+          {memory.corrections.length > 0 && (
+            <div className="memory-row">
+              <span className="memory-label">{t("agent.memory.correction")}</span>
+              <span className="min-w-0 flex-1">{memory.corrections[0].content}</span>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
 function MessageBubble({ message, showTrace }: { message: ChatEntry; showTrace: boolean }) {
   const { t } = useI18n();
+  const [traceOpen, setTraceOpen] = useState(false);
   const isUser = message.role === "user";
   const trace = message.liveTrace?.length
     ? message.liveTrace
@@ -416,10 +655,14 @@ function MessageBubble({ message, showTrace }: { message: ChatEntry; showTrace: 
       >
         {isUser ? message.content || "…" : <MarkdownContent source={message.content} streaming={message.streaming} />}
       </div>
-      {showTrace && trace && trace.length > 0 && (
+      {trace && trace.length > 0 && (
         <div className="w-full space-y-1 px-1">
-          <div className="text-[9px] uppercase tracking-[0.18em] text-ink-faint">{t("chat.trace")}</div>
-          {trace.map((entry) => (
+          <button type="button" className="trace-toggle" onClick={() => setTraceOpen((value) => !value)} aria-expanded={traceOpen}>
+            {traceOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+            <span>{t("chat.trace")}</span>
+            <span className="text-ink-faint">· {trace.length}</span>
+          </button>
+          {traceOpen && trace.map((entry) => (
             <div
               key={entry.id}
               className={cn(
@@ -427,20 +670,20 @@ function MessageBubble({ message, showTrace }: { message: ChatEntry; showTrace: 
                 entry.ok === false ? "text-up" : "text-ink-dim",
               )}
             >
-              <div className="flex items-start gap-1.5">
+              <div className="trace-entry-head">
                 {entry.running ? (
-                  <Loader2 size={11} className="mt-0.5 shrink-0 animate-spin text-accent" />
+                  <Loader2 size={11} className="shrink-0 animate-spin text-accent" />
                 ) : (
-                  <span className="mt-0.5 shrink-0 font-mono text-[10px] text-ink-faint">
+                  <span className="trace-entry-title">
                     {t(`tool.${entry.name}`) === `tool.${entry.name}` ? entry.name : t(`tool.${entry.name}`)}
                   </span>
                 )}
-                <span className="min-w-0 flex-1">{entry.summary}</span>
                 {entry.durationMs !== undefined && !entry.running && (
-                  <span className="shrink-0 font-mono text-[10px] text-ink-faint">{formatDuration(entry.durationMs)}</span>
+                  <span className="trace-entry-duration">{formatDuration(entry.durationMs)}</span>
                 )}
               </div>
-              {entry.args !== undefined && entry.args !== null && (
+              <div className="trace-entry-summary">{entry.summary}</div>
+              {showTrace && entry.args !== undefined && entry.args !== null && (
                 <pre className="mt-1 max-h-28 overflow-auto whitespace-pre-wrap break-all rounded-[6px] bg-black/20 px-1.5 py-1 font-mono text-[10px] leading-relaxed text-ink-faint">
                   {formatToolArgs(entry.args)}
                 </pre>

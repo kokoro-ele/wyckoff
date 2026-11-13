@@ -90,9 +90,52 @@ export type ChatRequest = z.infer<typeof chatRequestSchema>;
 
 // ————————————————— Agent 流式事件 —————————————————
 
+export type ResearchIntent = "structure" | "event" | "verification" | "correction" | "trade" | "general";
+
+/** A visible, user-facing plan. The server emits an initial plan and the model may refine it. */
+export interface AgentPlan {
+  question: string;
+  intent: ResearchIntent;
+  steps: string[];
+}
+
+export interface AgentActivity {
+  id: string;
+  kind: "tool" | "verify" | "note";
+  label: string;
+  status: "running" | "done" | "failed";
+  detail?: string;
+  durationMs?: number;
+}
+
+export type AgentMemoryKind = "focus" | "conclusion" | "correction" | "open";
+
+export interface AgentMemoryEntry {
+  id: string;
+  symbol: string;
+  period: string;
+  sessionId: string | null;
+  kind: AgentMemoryKind;
+  content: string;
+  status: "open" | "resolved";
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface AgentMemorySnapshot {
+  focus: AgentMemoryEntry | null;
+  conclusions: AgentMemoryEntry[];
+  corrections: AgentMemoryEntry[];
+  open: AgentMemoryEntry[];
+}
+
 export type AgentEvent =
   /** 助手正文的增量文本。 */
   | { type: "text"; delta: string }
+  /** 本轮研究问题与执行计划。 */
+  | { type: "plan"; question: string; intent: ResearchIntent; steps: string[] }
+  /** 面向用户可见的真实活动。 */
+  | { type: "activity"; id: string; kind: AgentActivity["kind"]; label: string; status: AgentActivity["status"]; detail?: string; durationMs?: number }
   /** Agent 开始调用某个工具。 */
   | { type: "tool_start"; id: string; name: string; args: unknown }
   /** 工具执行结束。summary 是给用户看的一句话。 */
@@ -120,6 +163,8 @@ export interface ChatMessage {
   /** 助手消息附带的工具调用轨迹，用于在 UI 上展示 Agent 的思考过程。 */
   toolTrace?: { name: string; summary: string; ok: boolean; args?: unknown; durationMs?: number }[];
   context?: ChatContext;
+  /** Set when the user stopped or the request failed before a complete answer. */
+  interrupted?: boolean;
   createdAt: number;
 }
 

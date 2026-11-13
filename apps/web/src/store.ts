@@ -1,5 +1,6 @@
 import type {
   AdjustType,
+  AgentMemorySnapshot,
   AnnotationGroup,
   ChatContext,
   ChatMessage,
@@ -16,6 +17,7 @@ import { translate } from "./i18n.js";
 
 const LAST_SYMBOL_KEY = "wyckoff:last-symbol";
 let annotationLoadSequence = 0;
+let memoryLoadSequence = 0;
 
 /** 图表上可用的手动绘图工具，值即 KLineChart 的内置覆盖物名。 */
 export const DRAWING_TOOLS = [
@@ -84,6 +86,7 @@ interface WorkbenchState {
   // —— 标注 ——
   annotationGroups: AnnotationGroup[];
   annotations: StoredAnnotation[];
+  agentMemory: AgentMemorySnapshot | null;
 
   // —— 对话 ——
   sessionId: string;
@@ -125,6 +128,7 @@ interface WorkbenchState {
   refreshRuntimeStatus: (authenticated?: boolean) => Promise<void>;
 
   loadAnnotations: () => Promise<void>;
+  loadAgentMemory: () => Promise<void>;
   applyAnnotationBatch: (groupId: string, title: string, annotations: StoredAnnotation[]) => void;
   removeAnnotationGroup: (groupId: string) => Promise<void>;
   toggleAnnotationGroup: (groupId: string) => Promise<void>;
@@ -177,6 +181,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   settingsOpen: false,
   annotationGroups: [],
   annotations: [],
+  agentMemory: null,
 
   sessionId: newSessionId(),
   messages: [],
@@ -211,7 +216,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
       viewport: null,
     });
 
-    await Promise.all([get().loadAnnotations(), get().restoreSessionForSymbol(symbol)]);
+    await Promise.all([get().loadAnnotations(), get().loadAgentMemory(), get().restoreSessionForSymbol(symbol)]);
     if (!name) {
       try {
         const { instrument } = await api.fetchInstrument(symbol);
@@ -229,6 +234,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
     set({ period, messages: stopStreaming(get().messages), chartRevision: get().chartRevision + 1, annotations: [], annotationGroups: [],
       activeTool: null, selectionMode: false, focusRequest: null, pendingContext: null, viewport: null });
     void get().loadAnnotations();
+    void get().loadAgentMemory();
   },
 
   setAdjust(adjust) {
@@ -274,7 +280,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   async bootstrap(authenticated = false) {
     const tasks: Promise<unknown>[] = [get().refreshRuntimeStatus(authenticated)];
     if (authenticated) {
-      tasks.push(get().refreshWatchlist(), get().loadAnnotations(), get().restoreSessionForSymbol(get().symbol));
+      tasks.push(get().refreshWatchlist(), get().loadAnnotations(), get().loadAgentMemory(), get().restoreSessionForSymbol(get().symbol));
     }
     await Promise.allSettled(tasks);
 
@@ -294,6 +300,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
       activeWatchGroupId: null,
       annotationGroups: [],
       annotations: [],
+      agentMemory: null,
       messages: [],
       sessionId: newSessionId(),
       pendingContext: null,
@@ -406,6 +413,18 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
       watchItems: payload.items,
       activeWatchGroupId: active === id ? (firstUserGroup(payload.groups)?.id ?? null) : active,
     });
+  },
+
+  async loadAgentMemory() {
+    const { symbol, period, chartRevision } = get();
+    const sequence = ++memoryLoadSequence;
+    const current = () => get().chartRevision === chartRevision && sequence === memoryLoadSequence;
+    try {
+      const memory = await api.fetchAgentMemory({ symbol, period });
+      if (current()) set({ agentMemory: memory });
+    } catch {
+      if (current()) set({ agentMemory: null });
+    }
   },
 
   async loadAnnotations() {

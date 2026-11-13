@@ -1,6 +1,7 @@
 import type {
   AdjustType,
   AgentEvent,
+  AgentMemorySnapshot,
   AgentTradePlan,
   AnnotationGroup,
   ChatContext,
@@ -208,6 +209,31 @@ export function fetchChatStatus(): Promise<{ configured: boolean }> {
   return request("/chat/status");
 }
 
+export function fetchAgentMemory(params: { symbol: string; period: Period }): Promise<AgentMemorySnapshot> {
+  const query = new URLSearchParams({ symbol: params.symbol, period: params.period });
+  return request(`/chat/memory?${query}`);
+}
+
+export function interruptChat(params: {
+  runId: string;
+  symbol: string;
+  period: Period;
+  sessionId: string;
+  question: string;
+  language: "zh" | "en";
+}): Promise<{ ok: boolean; memory?: AgentMemorySnapshot }> {
+  return request(`/chat/interrupt?language=${params.language}`, {
+    method: "POST",
+    body: JSON.stringify({
+      runId: params.runId,
+      symbol: params.symbol,
+      period: params.period,
+      sessionId: params.sessionId,
+      question: params.question,
+    }),
+  });
+}
+
 export function fetchTradePlan(params: {
   symbol: string;
   period: Period;
@@ -289,6 +315,7 @@ export interface ChatStreamParams {
   mode: "fundamental" | "agent" | "trade";
   language: "zh" | "en";
   showTrace?: boolean;
+  runId?: string;
   context?: ChatContext;
   viewport?: { startTime: number; endTime: number };
 }
@@ -306,7 +333,7 @@ export async function streamChat(
 ): Promise<void> {
   const response = await fetch("/api/chat", {
     method: "POST",
-    headers: { "content-type": "application/json", "Idempotency-Key": crypto.randomUUID() },
+    headers: { "content-type": "application/json", "Idempotency-Key": params.runId ?? crypto.randomUUID() },
     body: JSON.stringify(params),
     signal,
   });

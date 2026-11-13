@@ -1,6 +1,7 @@
 import { workspaceContext } from "./context.js";
 import { handleBillingWebhook } from "../billing/index.js";
 import { getPool } from "./postgres.js";
+import { cancelAgentRun } from "../services/agentRuns.js";
 import { createCreditsRouter } from "../credits/index.js";
 import { grantVerifiedCredits } from "../credits/store.js";
 import { waitUntil } from "@vercel/functions";
@@ -83,6 +84,30 @@ export async function cloudFetch(request: Request): Promise<Response> {
       return Response.json({ code: "FORBIDDEN", message: "请求来源无效" }, { status: 403 });
     }
 
+    // Stop signals must not wait behind the workspace row lock held by the
+    // streaming chat request they are trying to stop.
+    if (path === "/api/chat/interrupt" && request.method === "POST") {
+      const body = (await request.json().catch(() => ({}))) as {
+        runId?: unknown;
+        symbol?: unknown;
+        period?: unknown;
+        sessionId?: unknown;
+        question?: unknown;
+      };
+      const runId = typeof body.runId === "string" ? body.runId : "";
+      if (runId) {
+        await cancelAgentRun({
+          userId: session.user.id,
+          runId,
+          symbol: typeof body.symbol === "string" ? body.symbol : undefined,
+          period: typeof body.period === "string" ? body.period : undefined,
+          sessionId: typeof body.sessionId === "string" ? body.sessionId : undefined,
+          question: typeof body.question === "string" ? body.question.slice(0, 500) : undefined,
+        });
+      }
+      return Response.json({ ok: true }, { headers: { "Cache-Control": "private, no-store" } });
+    }
+
     // A referral bookkeeping failure must not take down every authenticated API.
     try {
       await grantVerifiedCredits(getPool(), session.user.id);
@@ -102,6 +127,7 @@ export async function cloudFetch(request: Request): Promise<Response> {
     if (request.method === "POST" && (path === "/api/chat" || path === "/api/chat/")) {
       const channel = new TransformStream<Uint8Array, Uint8Array>();
       const writer = channel.writable.getWriter();
+      const cancel = new AbortController();
       let clientGone = false;
 
       const write = async (chunk: Uint8Array) => {
@@ -109,9 +135,11 @@ export async function cloudFetch(request: Request): Promise<Response> {
         try {
           await writer.write(chunk);
         } catch {
-          // The browser disconnected. Keep draining the agent stream so the
-          // completed analysis can still be persisted and accounted for.
+          // The browser disconnected. Abort the upstream model call instead of
+          // letting a stopped analysis finish and charge the user.
           clientGone = true;
+          cancel.abort();
+          workspaceContext.getStore()?.state.set("clientGone", true);
         }
       };
       const writeEvent = async (event: unknown) => {
@@ -120,6 +148,7 @@ export async function cloudFetch(request: Request): Promise<Response> {
 
       waitUntil(
         withWorkspace(session.user.id, true, async () => {
+          workspaceContext.getStore()?.state.set("cancelSignal", cancel.signal);
           const response = await app.fetch(request);
           if (!response.ok) {
             const detail = (await response.json().catch(() => ({}))) as { message?: string; error?: string };
