@@ -24,7 +24,7 @@ import { getInstrument } from "../services/instruments.js";
 import { getKlines } from "../services/market.js";
 import * as sessions from "../services/sessions.js";
 import * as agentMemory from "../services/agentMemory.js";
-import { clearInterruptedRuns, isAgentRunCancelled } from "../services/agentRuns.js";
+import { clearInterruptedRuns, isAgentRunCancelled, listInterruptedRuns } from "../services/agentRuns.js";
 import { detectIntent, planForIntent } from "./intent.js";
 import { buildSystemPrompt } from "./prompt.js";
 import { executeTool, type RunContext, responseTools, toolDefinitionsForMode } from "./tools.js";
@@ -75,7 +75,15 @@ export async function* runAgent(request: ChatRequest, requestSignal?: AbortSigna
   sessions.appendMessage(sessionId, userMessage);
 
   const runStartedAt = new Date();
+  const runContext = workspaceContext.getStore();
+  const interrupted = runContext?.userId
+    ? await listInterruptedRuns(runContext.userId, symbol, period).catch(() => [])
+    : [];
   const previousMemory = agentMemory.getSnapshot(symbol, period);
+  if (interrupted.length > 0) {
+    const known = new Set(previousMemory.open.map((entry) => entry.content));
+    previousMemory.open = [...interrupted.filter((entry) => !known.has(entry.content)), ...previousMemory.open].slice(0, 4);
+  }
   const resumeQuestion = agentMemory.isResumeMessage(message) && previousMemory.open[0]
     ? previousMemory.open[0].content
     : null;
@@ -87,8 +95,11 @@ export async function* runAgent(request: ChatRequest, requestSignal?: AbortSigna
   }
   agentMemory.rememberFocus({ symbol, period, sessionId, question, intent, steps: initialPlan });
   const memory = agentMemory.getSnapshot(symbol, period);
+  if (previousMemory.open.length > 0) {
+    const known = new Set(memory.open.map((entry) => entry.content));
+    memory.open = [...previousMemory.open.filter((entry) => !known.has(entry.content)), ...memory.open].slice(0, 4);
+  }
   const memoryPrompt = agentMemory.formatMemoryPrompt(memory, language);
-  const runContext = workspaceContext.getStore();
 
   let klinesPromise: Promise<Kline[]> | null = null;
   const ctx: RunContext = {
