@@ -72,8 +72,22 @@ export async function listInterruptedRuns(
 }
 
 /** Clear stop markers after a successful turn, or when the user explicitly resumes. */
-export async function clearInterruptedRuns(userId: string, symbol: string, period: string): Promise<void> {
-  console.log("[agent] clear interrupts", symbol, period);
+export async function clearInterruptedRuns(
+  userId: string,
+  symbol: string,
+  period: string,
+  before?: Date,
+): Promise<void> {
+  // Only clear markers that predate this run. A stop marker created during the
+  // current run must survive until the run loop has had a chance to observe it.
+  console.log("[agent] clear interrupts", symbol, period, before?.toISOString());
+  if (before) {
+    await getPool().query(
+      "DELETE FROM agent_run_cancels WHERE user_id = $1 AND symbol = $2 AND period = $3 AND created_at < $4",
+      [userId, symbol, period, before],
+    );
+    return;
+  }
   await getPool().query(
     "DELETE FROM agent_run_cancels WHERE user_id = $1 AND symbol = $2 AND period = $3",
     [userId, symbol, period],

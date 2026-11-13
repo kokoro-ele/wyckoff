@@ -74,6 +74,7 @@ export async function* runAgent(request: ChatRequest, requestSignal?: AbortSigna
   };
   sessions.appendMessage(sessionId, userMessage);
 
+  const runStartedAt = new Date();
   const previousMemory = agentMemory.getSnapshot(symbol, period);
   const resumeQuestion = agentMemory.isResumeMessage(message) && previousMemory.open[0]
     ? previousMemory.open[0].content
@@ -208,7 +209,7 @@ export async function* runAgent(request: ChatRequest, requestSignal?: AbortSigna
     sessions.appendMessage(sessionId, assistantMessage);
     agentMemory.rememberConclusion({ symbol, period, sessionId, content: answer });
     agentMemory.resolveOpen(symbol, period);
-    if (runContext?.userId) await clearInterruptedRuns(runContext.userId, symbol, period);
+    if (runContext?.userId) await clearInterruptedRuns(runContext.userId, symbol, period, runStartedAt);
     yield { type: "done", messageId: assistantMessage.id };
   } catch (error) {
     const aborted = ctx.signal?.aborted || runContext?.state.get("clientGone") === true || isAbortError(error);
