@@ -22,6 +22,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const openAuth = useCallback(() => setDialogOpen(true), []);
   const closeAuth = useCallback(() => {
     pending.current = null;
+    try {
+      // Closing the auth dialog cancels the mobile start-flow handoff too.
+      localStorage.removeItem("wyckoff:pendingStart");
+    } catch { /* storage may be disabled in private webviews */ }
     setDialogOpen(false);
   }, []);
 

@@ -292,7 +292,7 @@ export function AuthDialog({
                       className="hand-input"
                       required
                       type="password"
-                      minLength={12}
+                      minLength={mode === "login" ? undefined : 12}
                       maxLength={128}
                       autoComplete={mode === "login" ? "current-password" : "new-password"}
                       value={password}

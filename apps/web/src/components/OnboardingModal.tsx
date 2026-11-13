@@ -32,6 +32,10 @@ export function OnboardingModal() {
 
   useEffect(() => {
     if (!isVerified) return;
+    // The start flow already guides new users on phones. A spotlight tour on a
+    // small screen would cover the chart and the analysis drawer.
+    if (window.innerWidth < 768) return;
+    if (new URLSearchParams(window.location.search).has("start")) return;
     let cancelled = false;
     void api.fetchOnboarding().then(({ seen }) => {
       if (!cancelled && !seen) setOpen(true);
