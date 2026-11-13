@@ -30,6 +30,7 @@ export function getOpenAiClient(): OpenAI {
           ...init,
           signal: AbortSignal.any([
             AbortSignal.timeout(Math.max(1, context.deadline - Date.now())),
+            ...(context.signal ? [context.signal] : []),
             ...(init?.signal ? [init.signal] : []),
           ]),
         }),
