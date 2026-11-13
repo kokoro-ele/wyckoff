@@ -84,10 +84,10 @@ individual tables to Postgres and use a durable job queue.
 ## Serverless chat
 
 Streaming chat uses Vercel `waitUntil` to keep the workspace transaction alive while
-the model streams. If the browser disconnects, the server keeps draining the agent
-stream so a completed answer can still be persisted and charged; a client-side stop
-does not create a free successful analysis. Functions have a 300-second maximum and
-a 240-second model deadline.
+the model streams. The incoming request signal is passed to the upstream model call:
+when the browser aborts, the model request is aborted and the incomplete reservation
+is released. A completed answer is still persisted and charged by actual token usage.
+Functions have a 300-second maximum and a 240-second model deadline.
 
 The API exports a web-standard `fetch` handler from `api/index.mjs`. `.vercelignore`
 excludes local data, environment files, tests, docs, and personal artifacts from the

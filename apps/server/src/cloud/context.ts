@@ -8,6 +8,8 @@ export interface WorkspaceContext {
   database: Database.Database;
   /** Set by any scoped write so GET requests can skip needless snapshots. */
   dirty: boolean;
+  /** Incoming request signal, used to stop a model stream when the client aborts. */
+  signal?: AbortSignal;
   deferred: Array<() => Promise<unknown>>;
   state: Map<string, unknown>;
   deadline: number;

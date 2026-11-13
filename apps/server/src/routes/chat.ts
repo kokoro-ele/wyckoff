@@ -31,6 +31,8 @@ chatRoutes.post("/", bodyLimit({ maxSize: 1024 * 1024 }), async (c) => {
       return c.json({ code: "BYOK_REQUIRED", message: "使用自己的模型需要先开通 BYOK" }, 403);
     }
   }
+  const context = workspaceContext.getStore();
+  if (context) context.signal = c.req.raw.signal;
   let lease: Awaited<ReturnType<typeof beginWorkspaceUsage>> | null = null;
   if (!usesOwnModel) {
     try { lease = await beginWorkspaceUsage(c.req.header("Idempotency-Key")); }
