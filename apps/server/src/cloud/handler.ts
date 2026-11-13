@@ -95,6 +95,7 @@ export async function cloudFetch(request: Request): Promise<Response> {
         question?: unknown;
       };
       const runId = typeof body.runId === "string" ? body.runId : "";
+      console.log("[agent] interrupt body", JSON.stringify(body), "runId", runId);
       if (runId) {
         await cancelAgentRun({
           userId: session.user.id,
