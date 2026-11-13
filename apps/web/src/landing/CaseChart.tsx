@@ -76,11 +76,21 @@ export function CaseChart({
     const zoneX1 = x(Date.parse(`${study.zone.to}T00:00:00Z`));
     const zoneTop = y(study.zone.resistance);
     const zoneBottom = y(study.zone.support);
-    // The pencil follows the closes, offset a few pixels above the candles.
+    // Follow a lightly smoothed close path so the pencil glides instead of
+    // snapping to every candle. Keep its angle fixed: rotating with a jagged
+    // price path makes it look like it is spinning.
+    const smoothClose = (index: number) => {
+      const radius = 4;
+      const from = Math.max(0, index - radius);
+      const to = Math.min(bars.length - 1, index + radius);
+      let sum = 0;
+      for (let i = from; i <= to; i += 1) sum += bars[i].close;
+      return sum / (to - from + 1);
+    };
     const pencilPath = bars
       .map((bar, index) => {
         const px = Math.min(x(bar.timestamp) + 10, width - pad.right - 4);
-        return `${index === 0 ? "M" : "L"} ${px.toFixed(2)} ${(y(bar.close) - 8).toFixed(2)}`;
+        return `${index === 0 ? "M" : "L"} ${px.toFixed(2)} ${(y(smoothClose(index)) - 8).toFixed(2)}`;
       })
       .join(" ");
     return { width, height, pad, plotW, plotH, x, y, candleW, zoneX0, zoneX1, zoneTop, zoneBottom, min, max, pencilPath };
@@ -192,7 +202,7 @@ export function CaseChart({
           <path d="M 0 0 L 3 2.5 L 0 5 Z" className="site-chart-pencil-tip" />
           <path d="M -13 0 L -12 5" className="site-chart-pencil-band" />
         </g>
-        <animateMotion dur="11s" repeatCount="indefinite" path={pencilPath} rotate="auto" />
+        <animateMotion dur="10s" repeatCount="indefinite" path={pencilPath} rotate="0" />
       </g>
     </svg>
   );
