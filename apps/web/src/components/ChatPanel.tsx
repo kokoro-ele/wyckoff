@@ -45,6 +45,8 @@ export function ChatPanel() {
   const setPendingContext = useWorkbench((s) => s.setPendingContext);
   const agentMemory = useWorkbench((s) => s.agentMemory);
   const loadAgentMemory = useWorkbench((s) => s.loadAgentMemory);
+  const pendingAgentPrompt = useWorkbench((s) => s.pendingAgentPrompt);
+  const consumeAgentPrompt = useWorkbench((s) => s.consumeAgentPrompt);
   const [dockTab, setDockTab] = useState<"research" | "agent">(() =>
     new URLSearchParams(window.location.search).get("tab") === "agent" ? "agent" : "research",
   );
@@ -285,6 +287,15 @@ export function ChatPanel() {
       }
     }
   };
+
+  const executeRef = useRef(execute);
+  executeRef.current = execute;
+
+  useEffect(() => {
+    if (!pendingAgentPrompt || !isVerified || !llmReady || sendingRef.current) return;
+    consumeAgentPrompt();
+    void executeRef.current(pendingAgentPrompt);
+  }, [pendingAgentPrompt, isVerified, llmReady, consumeAgentPrompt]);
 
   const send = (text: string) => {
     if (!text.trim() || sendingRef.current) return;

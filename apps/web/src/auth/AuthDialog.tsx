@@ -171,7 +171,9 @@ export function AuthDialog({
           ? otp.length === 6 && password.length >= 12
           : mode === "forgot"
             ? email
-            : email && password.length >= 12),
+            : mode === "register"
+              ? email && password.length >= 12
+              : email && password.length > 0),
   );
 
   return (
@@ -217,6 +219,7 @@ export function AuthDialog({
                 onClick={() =>
                   void run(async () => {
                     if (inviteCode.trim()) await prepareReferral(inviteCode.trim());
+                    localStorage.setItem("wyckoff:postAuth", "/app");
                     check(await authClient.signIn.social({ provider: "google", callbackURL: `${window.location.origin}/app` }));
                   })
                 }
@@ -329,29 +332,29 @@ export function AuthDialog({
 
             {message && <p role="alert" className="mt-3 rounded-lg border border-warn/30 bg-warn/10 px-2.5 py-2 text-xs text-warn">{message}</p>}
 
-            <div className="mt-4 flex items-center justify-between gap-2 text-xs">
+            <div className="auth-switch-row mt-4">
               {mode === "login" && (
                 <>
-                  <button type="button" className="hand-link" onClick={() => setMode("register")}>
+                  <button type="button" className="auth-switch-cta" onClick={() => setMode("register")}>
                     {t("auth.noAccount")}
                   </button>
-                  <button type="button" className="hand-link text-ink-faint" onClick={() => setMode("forgot")}>
+                  <button type="button" className="hand-link self-center text-ink-faint" onClick={() => setMode("forgot")}>
                     {t("auth.forgot")}
                   </button>
                 </>
               )}
               {mode === "register" && (
-                <button type="button" className="hand-link" onClick={() => setMode("login")}>
+                <button type="button" className="auth-switch-cta" onClick={() => setMode("login")}>
                   {t("auth.hasAccount")}
                 </button>
               )}
               {(mode === "forgot" || mode === "reset") && (
-                <button type="button" className="hand-link" onClick={() => setMode("login")}>
+                <button type="button" className="auth-switch-cta" onClick={() => setMode("login")}>
                   {t("auth.hasAccount")}
                 </button>
               )}
               {mode === "verify" && (
-                <button type="button" className="hand-link text-ink-faint" onClick={onClose}>
+                <button type="button" className="hand-link self-center text-ink-faint" onClick={onClose}>
                   {t("action.cancel")}
                 </button>
               )}

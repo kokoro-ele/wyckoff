@@ -14,7 +14,7 @@ export function LandingPage() {
   const dark = theme === "dark";
   const invite =
     typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("invite");
-  const appHref = invite ? `/app?invite=${encodeURIComponent(invite)}` : "/app";
+  const appHref = invite ? `/app?start=1&invite=${encodeURIComponent(invite)}` : "/app?start=1";
 
   useSeo({
     title: lang === "zh" ? "EasyWyckoff · Wyckoff 市场结构与交易计划" : "EasyWyckoff · Wyckoff structure and trade plans",

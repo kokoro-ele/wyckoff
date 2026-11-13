@@ -10,13 +10,14 @@ import { OnboardingModal } from "./components/OnboardingModal.js";
 import { AccountPanel } from "./components/AccountPanel.js";
 import { MembershipPanel } from "./components/MembershipPanel.js";
 import { SettingsPanel } from "./components/SettingsPanel.js";
+import { StartAnalysisSheet } from "./components/StartAnalysisSheet.js";
 import { useAuth } from "./auth/AuthProvider.js";
 import { useI18n } from "./i18n.js";
 import { useSeo } from "./lib/seo.js";
 
 export function App() {
   const { t } = useI18n();
-  const { isPending, isVerified } = useAuth();
+  const { isPending, isVerified, openAuth } = useAuth();
   useSeo({
     title: "Wyckoff 研究工作台 · EasyWyckoff",
     description: "Wyckoff 研究工作台",
@@ -28,13 +29,17 @@ export function App() {
   const [accountOpen, setAccountOpen] = useState(() => new URLSearchParams(window.location.search).has("account"));
   const [watchOpen, setWatchOpen] = useState(true);
   const [chatOpen, setChatOpen] = useState(() => window.innerWidth >= 1100);
+  const [startOpen, setStartOpen] = useState(() => new URLSearchParams(window.location.search).has("start"));
   // Keep desktop preferences separate when rotating/resizing a mobile viewport.
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [mobileDock, setMobileDock] = useState<"watch" | "chat" | null>(null);
   const watchVisible = isMobile ? mobileDock === "watch" : watchOpen;
   const chatVisible = isMobile ? mobileDock === "chat" : chatOpen;
   const symbol = useWorkbench((s) => s.symbol);
+  const setSymbol = useWorkbench((s) => s.setSymbol);
   const setSearchOpen = useWorkbench((s) => s.setSearchOpen);
+  const pendingAgentPrompt = useWorkbench((s) => s.pendingAgentPrompt);
+  const requestAgent = useWorkbench((s) => s.requestAgent);
   const bootstrap = useWorkbench((s) => s.bootstrap);
   const clearPersonalData = useWorkbench((s) => s.clearPersonalData);
   const settingsOpen = useWorkbench((s) => s.settingsOpen);
@@ -51,6 +56,27 @@ export function App() {
   useEffect(() => setMobileDock(null), [symbol]);
 
   useEffect(() => {
+    if (!pendingAgentPrompt) return;
+    if (isMobile) setMobileDock("chat");
+    else setChatOpen(true);
+  }, [pendingAgentPrompt, isMobile]);
+
+  useEffect(() => {
+    if (!isVerified) return;
+    const pending = (() => {
+      try { return localStorage.getItem("wyckoff:pendingStart"); } catch { return null; }
+    })();
+    if (!pending) return;
+    try { localStorage.removeItem("wyckoff:pendingStart"); } catch { /* ignore */ }
+    const parsed = JSON.parse(pending) as { symbol?: unknown; prompt?: unknown };
+    if (typeof parsed.symbol !== "string" || typeof parsed.prompt !== "string") return;
+    void (async () => {
+      await setSymbol(parsed.symbol as string);
+      requestAgent(parsed.prompt as string);
+    })();
+  }, [isVerified, setSymbol, requestAgent]);
+
+  useEffect(() => {
     if (isPending) return;
     if (!isVerified) clearPersonalData();
     void bootstrap(isVerified);
@@ -65,6 +91,31 @@ export function App() {
     window.addEventListener("credits:exhausted", openTopUp);
     return () => window.removeEventListener("credits:exhausted", openTopUp);
   }, []);
+
+  const closeStart = () => {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("start");
+    window.history.replaceState(null, "", url);
+    setStartOpen(false);
+  };
+
+  const beginStartAnalysis = async (symbolToUse: string, name?: string | null, nameEn?: string | null) => {
+    const prompt = t("chat.quick.windowPrompt");
+    try {
+      localStorage.setItem("wyckoff:pendingStart", JSON.stringify({ symbol: symbolToUse, prompt }));
+    } catch { /* storage may be disabled in private webviews */ }
+    await setSymbol(symbolToUse, name, nameEn);
+    closeStart();
+    if (isVerified) {
+      try { localStorage.removeItem("wyckoff:pendingStart"); } catch { /* ignore */ }
+      requestAgent(prompt);
+      return;
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.set("auth", "register");
+    window.history.replaceState(null, "", url);
+    openAuth();
+  };
 
   return (
     <div className="app-shell canvas-workbench flex h-full min-h-0 w-full flex-col overflow-hidden text-ink">
@@ -114,7 +165,7 @@ export function App() {
       </header>
 
       <div className="app-stage canvas-stage relative flex min-h-0 min-w-0 flex-1 overflow-hidden p-2">
-        <div className="canvas-main flex min-h-0 min-w-0 flex-1" inert={isMobile && mobileDock !== null}>
+        <div className="canvas-main flex min-h-0 min-w-0 flex-1" inert={isMobile && mobileDock === "watch"}>
           <ChartPanel />
         </div>
         <div className="canvas-dock canvas-dock-left" id="watchlist-dock" hidden={!watchVisible}>
@@ -131,6 +182,7 @@ export function App() {
         </div>
       </div>
 
+      <StartAnalysisSheet open={startOpen} onClose={closeStart} onPick={(nextSymbol, name, nameEn) => void beginStartAnalysis(nextSymbol, name, nameEn)} />
       <SearchModal />
       <Toast />
       <OnboardingModal />

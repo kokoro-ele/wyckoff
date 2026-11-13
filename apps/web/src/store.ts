@@ -93,6 +93,8 @@ interface WorkbenchState {
   messages: ChatEntry[];
   llmReady: boolean;
   pendingContext: ChatContext | null;
+  /** A prompt handed to the Agent by the start flow; ChatPanel consumes it once. */
+  pendingAgentPrompt: string | null;
   /** 用于向图表层下发一次性指令（聚焦某段时间），由 ChartPanel 消费后清空。 */
   focusRequest: { startTime: number; endTime: number; nonce: number } | null;
   /** 画布当前可视时间范围，发给 Agent 作为视野上下文。 */
@@ -136,6 +138,8 @@ interface WorkbenchState {
   registerUserAnnotation: (annotation: Parameters<typeof api.saveAnnotations>[0]["annotations"][number]) => Promise<void>;
 
   setPendingContext: (context: ChatContext | null) => void;
+  requestAgent: (prompt: string) => void;
+  consumeAgentPrompt: () => void;
   setViewport: (viewport: { startTime: number; endTime: number } | null) => void;
   requestFocus: (startTime: number, endTime: number) => void;
   consumeFocus: () => void;
@@ -187,6 +191,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   messages: [],
   llmReady: false,
   pendingContext: null,
+  pendingAgentPrompt: null,
   focusRequest: null,
   viewport: null,
 
@@ -304,6 +309,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
       messages: [],
       sessionId: newSessionId(),
       pendingContext: null,
+      pendingAgentPrompt: null,
       viewport: null,
     });
   },
@@ -490,6 +496,8 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   },
 
   setPendingContext: (pendingContext) => set({ pendingContext }),
+  requestAgent: (pendingAgentPrompt) => set({ pendingAgentPrompt }),
+  consumeAgentPrompt: () => set({ pendingAgentPrompt: null }),
   setViewport: (viewport) => set({ viewport }),
   requestFocus: (startTime, endTime) => set({ focusRequest: { startTime, endTime, nonce: Date.now() } }),
   consumeFocus: () => set({ focusRequest: null }),

@@ -716,6 +716,78 @@
 }
 .auth-card .hand-icon { color: var(--color-ink-dim) !important; }
 .auth-card .hand-link { padding: 2px 0; font-family: var(--font-sans); font-size: 12px; text-align: left; }
+.auth-switch-row { display: flex; flex-direction: column; gap: 8px; }
+.auth-card .auth-switch-cta {
+  width: 100%;
+  min-height: 44px;
+  border: 1.5px dashed var(--color-line);
+  border-radius: 7px 10px 6px 9px;
+  background: var(--color-panel-2) !important;
+  color: var(--color-accent) !important;
+  box-shadow: 2px 3px 0 var(--paper-shadow);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+}
+.auth-card .auth-switch-cta:hover { border-color: var(--color-accent); }
+
+.start-sheet { position: relative; max-height: min(86dvh, 680px); overflow-y: auto; }
+.start-search {
+  border: 1.5px solid var(--color-line);
+  border-radius: 7px 10px 6px 9px;
+  background: var(--color-panel-2);
+  padding: 0 10px;
+}
+.start-search input {
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--color-ink);
+  font-size: 14px;
+  outline: none;
+}
+.start-label {
+  color: var(--color-ink-faint);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.start-popular { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.start-popular-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  border: 1px solid var(--color-line);
+  border-radius: 6px 9px 5px 8px;
+  background: var(--color-panel-2);
+  padding: 7px 9px;
+  color: var(--color-ink);
+  text-align: left;
+}
+.start-popular-chip:hover { border-color: var(--color-accent); background: var(--color-accent-soft); }
+.start-popular-chip span { font-size: 11px; font-weight: 600; }
+.start-popular-chip small { color: var(--color-ink-faint); font-family: var(--font-mono); font-size: 9px; }
+.start-results { display: flex; flex-direction: column; gap: 4px; max-height: 270px; overflow-y: auto; }
+.start-result {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid transparent;
+  border-radius: 7px 10px 6px 9px;
+  background: var(--color-panel-2);
+  padding: 8px 10px;
+  color: var(--color-ink);
+  text-align: left;
+}
+.start-result:hover { border-color: var(--color-accent); background: var(--color-accent-soft); }
+.start-result strong { display: block; font-size: 12px; font-weight: 600; }
+.start-result small { display: block; margin-top: 1px; color: var(--color-ink-faint); font-family: var(--font-mono); font-size: 9px; }
+.start-empty { padding: 16px 4px; color: var(--color-ink-faint); font-size: 11px; text-align: center; }
 .auth-card .hand-btn:not(.hand-btn-primary) {
   background: var(--color-panel-2) !important;
   color: var(--color-ink) !important;
@@ -1580,6 +1652,35 @@
     background: var(--color-panel);
   }
   .canvas-dock > aside { width: 100%; height: auto; flex: 1; min-height: 0; }
+  /* Analysis is a bottom sheet on phones: the chart stays visible and usable
+     above it. Only the watchlist remains a full-surface drawer. */
+  .canvas-dock-right {
+    top: auto;
+    right: max(0px, env(safe-area-inset-right));
+    bottom: 0;
+    left: max(0px, env(safe-area-inset-left));
+    height: min(56dvh, 540px);
+    border-radius: 18px 18px 0 0;
+    box-shadow: 0 -10px 35px #0003;
+  }
+  .canvas-dock-right > aside {
+    height: 100%;
+    border-radius: 18px 18px 0 0;
+  }
+  .canvas-dock-right .mobile-dock-close {
+    justify-content: space-between;
+    min-height: 38px;
+    padding: 5px 14px;
+    background: var(--paper-lilac);
+    border-radius: 18px 18px 0 0;
+  }
+  .canvas-dock-right .mobile-dock-close::before {
+    content: "";
+    width: 34px;
+    height: 4px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-line) 80%, transparent);
+  }
   .mobile-dock-close {
     display: flex;
     flex-shrink: 0;

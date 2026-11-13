@@ -14,6 +14,22 @@ import { LearnPage } from "./LearnPage.js";
 const container = document.getElementById("root");
 if (!container) throw new Error("找不到 #root 挂载点");
 
+// Some mobile OAuth returns land on `/` even when Better Auth was given an
+// `/app` callback URL. Keep a small marker and recover the intended route.
+try {
+  const postAuth = localStorage.getItem("wyckoff:postAuth");
+  if (postAuth) {
+    if (window.location.pathname === "/") {
+      localStorage.removeItem("wyckoff:postAuth");
+      window.location.replace(postAuth);
+    } else if (window.location.pathname === "/app" || window.location.pathname.startsWith("/app/")) {
+      localStorage.removeItem("wyckoff:postAuth");
+    }
+  }
+} catch {
+  /* storage can be unavailable in private webviews */
+}
+
 const isWorkbench = window.location.pathname === "/app" || window.location.pathname.startsWith("/app/");
 const isAdmin = window.location.pathname === "/admin" || window.location.pathname.startsWith("/admin/");
 const legalKind = window.location.pathname === "/privacy" ? "privacy" : window.location.pathname === "/terms" ? "terms" : window.location.pathname === "/refund" ? "refund" : window.location.pathname === "/contact" ? "contact" : null;

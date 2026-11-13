@@ -18,7 +18,7 @@ it("renders a compact intro, the NVDA chart and the glossary", () => {
   expect(html).toContain("SOS");
   expect(html).toContain("LPS");
   expect(html).toContain("UT");
-  expect(html).toContain('href="/app"');
+  expect(html).toContain('href="/app?start=1"');
   expect(html).toContain('href="/learn/zh"');
   expect(html).not.toContain("AAPL.US");
   expect(html).not.toContain("打开工作台");
