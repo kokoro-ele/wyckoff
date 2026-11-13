@@ -394,6 +394,10 @@ export function ChatPanel() {
 
           <div className="chat-composer border-t border-line-soft p-3">
             {pendingContext && <ContextCapsule context={pendingContext} onClear={() => setPendingContext(null)} />}
+            <QuickActions
+              disabled={sending || !llmReady}
+              onRun={(prompt) => void send(prompt)}
+            />
             <p className="mb-2 text-[10px] text-ink-faint">{t("chat.creditsNote")}</p>
             <form
               className="flex items-end gap-2"
@@ -431,6 +435,31 @@ export function ChatPanel() {
         </>
       )}
     </aside>
+  );
+}
+
+function QuickActions({ disabled, onRun }: { disabled: boolean; onRun: (prompt: string) => void }) {
+  const { t } = useI18n();
+  const actions = [
+    { key: "window", label: t("chat.quick.window"), prompt: t("chat.quick.windowPrompt") },
+    { key: "update", label: t("chat.quick.update"), prompt: t("chat.quick.updatePrompt") },
+    { key: "event", label: t("chat.quick.event"), prompt: t("chat.quick.eventPrompt") },
+    { key: "trade", label: t("chat.quick.trade"), prompt: t("chat.quick.tradePrompt") },
+  ];
+  return (
+    <div className="quick-actions" role="group" aria-label={t("chat.quick.label")}>
+      {actions.map((action) => (
+        <button
+          key={action.key}
+          type="button"
+          className="quick-chip"
+          disabled={disabled}
+          onClick={() => onRun(action.prompt)}
+        >
+          {action.label}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -641,19 +670,19 @@ function MessageBubble({ message, showTrace }: { message: ChatEntry; showTrace: 
                 entry.ok === false ? "text-up" : "text-ink-dim",
               )}
             >
-              <div className="flex items-start gap-1.5">
+              <div className="trace-entry-head">
                 {entry.running ? (
-                  <Loader2 size={11} className="mt-0.5 shrink-0 animate-spin text-accent" />
+                  <Loader2 size={11} className="shrink-0 animate-spin text-accent" />
                 ) : (
-                  <span className="mt-0.5 shrink-0 font-mono text-[10px] text-ink-faint">
+                  <span className="trace-entry-title">
                     {t(`tool.${entry.name}`) === `tool.${entry.name}` ? entry.name : t(`tool.${entry.name}`)}
                   </span>
                 )}
-                <span className="min-w-0 flex-1">{entry.summary}</span>
                 {entry.durationMs !== undefined && !entry.running && (
-                  <span className="shrink-0 font-mono text-[10px] text-ink-faint">{formatDuration(entry.durationMs)}</span>
+                  <span className="trace-entry-duration">{formatDuration(entry.durationMs)}</span>
                 )}
               </div>
+              <div className="trace-entry-summary">{entry.summary}</div>
               {showTrace && entry.args !== undefined && entry.args !== null && (
                 <pre className="mt-1 max-h-28 overflow-auto whitespace-pre-wrap break-all rounded-[6px] bg-black/20 px-1.5 py-1 font-mono text-[10px] leading-relaxed text-ink-faint">
                   {formatToolArgs(entry.args)}
