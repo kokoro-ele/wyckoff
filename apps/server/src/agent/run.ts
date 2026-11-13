@@ -184,7 +184,9 @@ export async function* runAgent(request: ChatRequest, requestSignal?: AbortSigna
       );
     }
 
-    if (runContext?.state.get("clientGone") === true || await isAgentRunCancelled(runId)) {
+    const cancelled = runId ? await isAgentRunCancelled(runId) : false;
+    console.log("[agent] finish check", runId, cancelled, runContext?.state.get("clientGone"));
+    if (runContext?.state.get("clientGone") === true || cancelled) {
       throw new Error("客户端已停止本次分析");
     }
 
