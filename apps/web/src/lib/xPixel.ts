@@ -11,10 +11,11 @@ export function trackXRegistration(email: string | null | undefined): void {
   const twq = (window as Window & { twq?: Twq }).twq;
   if (!twq) return;
   try {
-    twq("event", X_REGISTRATION_EVENT, {
-      value: null,
-      email_address: email || null,
-    });
+    const params: Record<string, string> = {};
+    if (email) params.email_address = email;
+    // X treats explicit nulls as "supplied but empty" parameters. Only send
+    // fields that actually have a value.
+    twq("event", X_REGISTRATION_EVENT, params);
   } catch {
     // Conversion tracking must never block registration.
   }

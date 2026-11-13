@@ -53,6 +53,18 @@
         "url": "https://easywyckoff.online"
       }
     </script>
+    <script>
+      // X ad URLs can append first_name/last_name macros. The UWT pixel tries
+      // to interpret unknown URL parameters as user fields and logs warnings.
+      // Drop only those ad macros before the pixel script runs.
+      try {
+        var xUrl = new URL(window.location.href);
+        ["first_name", "last_name"].forEach(function (key) { xUrl.searchParams.delete(key); });
+        if (xUrl.search !== window.location.search) {
+          window.history.replaceState(null, "", xUrl.pathname + xUrl.search + xUrl.hash);
+        }
+      } catch (e) { /* URL parsing is unavailable in some webviews */ }
+    </script>
     <!-- X conversion tracking base code -->
     <script>
       !function(e,t,n,s,u,a){e.twq||(s=e.twq=function(){s.exe?s.exe.apply(s,arguments):s.queue.push(arguments);
