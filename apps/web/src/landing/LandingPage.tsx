@@ -87,7 +87,7 @@ export function LandingPage() {
         <section className="site-home-hero">
           <div className="site-home-copy">
             <div className="site-kicker">{copy.hero.kicker}</div>
-            <h1 className="site-home-title">{copy.hero.title}</h1>
+            <h1 className={`site-home-title${lang === "en" ? " site-home-title-en" : ""}`}>{copy.hero.title}</h1>
             <div className="site-home-actions">
               <a className="hand-btn hand-btn-primary" href={appHref}>
                 {copy.hero.cta}
