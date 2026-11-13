@@ -221,7 +221,9 @@ export async function* runAgent(request: ChatRequest, requestSignal?: AbortSigna
     sessions.appendMessage(sessionId, assistantMessage);
     agentMemory.rememberConclusion({ symbol, period, sessionId, content: answer });
     agentMemory.resolveOpen(symbol, period);
-    if (runContext?.userId) await clearInterruptedRuns(runContext.userId, symbol, period, runStartedAt);
+    if (runContext?.userId) {
+      await clearInterruptedRuns(runContext.userId, symbol, period, runStartedAt).catch(() => undefined);
+    }
     yield { type: "done", messageId: assistantMessage.id };
   } catch (error) {
     const cancelled = runId ? await isAgentRunCancelled(runId).catch(() => false) : false;
