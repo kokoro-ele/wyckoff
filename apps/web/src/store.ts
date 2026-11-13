@@ -89,6 +89,7 @@ interface WorkbenchState {
   agentMemory: AgentMemorySnapshot | null;
 
   // —— 对话 ——
+  dockTab: "research" | "agent";
   sessionId: string;
   messages: ChatEntry[];
   llmReady: boolean;
@@ -137,6 +138,7 @@ interface WorkbenchState {
   clearAllAnnotations: () => Promise<void>;
   registerUserAnnotation: (annotation: Parameters<typeof api.saveAnnotations>[0]["annotations"][number]) => Promise<void>;
 
+  setDockTab: (tab: "research" | "agent") => void;
   setPendingContext: (context: ChatContext | null) => void;
   requestAgent: (prompt: string) => void;
   consumeAgentPrompt: () => void;
@@ -187,6 +189,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   annotations: [],
   agentMemory: null,
 
+  dockTab: typeof window !== "undefined" && new URLSearchParams(window.location.search).get("tab") === "agent" ? "agent" : "research",
   sessionId: newSessionId(),
   messages: [],
   llmReady: false,
@@ -495,6 +498,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
     if (get().chartRevision === chartRevision) get().applyAnnotationBatch(groupId, translate("chart.userAnnotation"), annotations);
   },
 
+  setDockTab: (dockTab) => set({ dockTab }),
   setPendingContext: (pendingContext) => set({ pendingContext }),
   requestAgent: (pendingAgentPrompt) => set({ pendingAgentPrompt }),
   consumeAgentPrompt: () => set({ pendingAgentPrompt: null }),

@@ -47,9 +47,8 @@ export function ChatPanel() {
   const loadAgentMemory = useWorkbench((s) => s.loadAgentMemory);
   const pendingAgentPrompt = useWorkbench((s) => s.pendingAgentPrompt);
   const consumeAgentPrompt = useWorkbench((s) => s.consumeAgentPrompt);
-  const [dockTab, setDockTab] = useState<"research" | "agent">(() =>
-    new URLSearchParams(window.location.search).get("tab") === "agent" ? "agent" : "research",
-  );
+  const dockTab = useWorkbench((s) => s.dockTab);
+  const setDockTab = useWorkbench((s) => s.setDockTab);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
   const [progress, setProgress] = useState("");

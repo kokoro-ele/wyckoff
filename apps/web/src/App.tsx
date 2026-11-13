@@ -40,6 +40,8 @@ export function App() {
   const setSearchOpen = useWorkbench((s) => s.setSearchOpen);
   const pendingAgentPrompt = useWorkbench((s) => s.pendingAgentPrompt);
   const requestAgent = useWorkbench((s) => s.requestAgent);
+  const dockTab = useWorkbench((s) => s.dockTab);
+  const setDockTab = useWorkbench((s) => s.setDockTab);
   const bootstrap = useWorkbench((s) => s.bootstrap);
   const clearPersonalData = useWorkbench((s) => s.clearPersonalData);
   const settingsOpen = useWorkbench((s) => s.settingsOpen);
@@ -57,9 +59,10 @@ export function App() {
 
   useEffect(() => {
     if (!pendingAgentPrompt) return;
+    setDockTab("agent");
     if (isMobile) setMobileDock("chat");
     else setChatOpen(true);
-  }, [pendingAgentPrompt, isMobile]);
+  }, [pendingAgentPrompt, isMobile, setDockTab]);
 
   useEffect(() => {
     if (!isVerified) return;
@@ -148,7 +151,20 @@ export function App() {
           aria-label={t("action.analysis")}
           aria-pressed={chatVisible}
           aria-controls="analysis-dock"
-          onClick={() => isMobile ? setMobileDock((value) => value === "chat" ? null : "chat") : setChatOpen((value) => !value)}
+          onClick={() => {
+            if (isMobile) {
+              if (mobileDock === "chat" && dockTab === "agent") setMobileDock(null);
+              else {
+                setDockTab("agent");
+                setMobileDock("chat");
+              }
+            } else if (chatOpen && dockTab === "agent") {
+              setChatOpen(false);
+            } else {
+              setDockTab("agent");
+              setChatOpen(true);
+            }
+          }}
         >
           <PanelRight size={16} />
           <span>{t("action.analysis")}</span>
