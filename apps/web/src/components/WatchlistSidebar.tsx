@@ -88,7 +88,7 @@ export function WatchlistSidebar({ onSelect }: { onSelect?: () => void }) {
           </div>
           <p className="mt-3 text-xs font-semibold">{t("watch.login")}</p>
           <p className="mt-1 text-[11px] leading-relaxed text-ink-dim">{t("watch.loginHint")}</p>
-          <button type="button" className="hand-btn hand-btn-primary mt-4 px-3 py-2 text-xs" onClick={openAuth}>
+          <button type="button" className="hand-btn hand-btn-primary mt-4 px-3 py-2 text-xs" onClick={() => openAuth()}>
             {t("account.login")}
           </button>
         </div>

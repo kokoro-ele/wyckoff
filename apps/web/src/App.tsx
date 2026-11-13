@@ -117,7 +117,7 @@ export function App() {
     const url = new URL(window.location.href);
     url.searchParams.set("auth", "register");
     window.history.replaceState(null, "", url);
-    openAuth();
+    openAuth("register");
   };
 
   return (

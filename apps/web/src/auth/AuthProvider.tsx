@@ -7,7 +7,7 @@ interface AuthValue {
   isPending: boolean;
   isVerified: boolean;
   requireAuth: (action: () => void) => void;
-  openAuth: () => void;
+  openAuth: (mode?: "login" | "register") => void;
   closeAuth: () => void;
 }
 
@@ -15,13 +15,22 @@ const AuthContext = createContext<AuthValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const { data: session, isPending, refetch } = authClient.useSession();
+  const initialAuthMode = (() => {
+    const requested = new URLSearchParams(window.location.search).get("auth");
+    return requested === "register" ? "register" as const : "login" as const;
+  })();
   const [dialogOpen, setDialogOpen] = useState(() => new URLSearchParams(window.location.search).has("auth"));
+  const [requestedMode, setRequestedMode] = useState<"login" | "register">(initialAuthMode);
   const pending = useRef<(() => void) | null>(null);
   const isVerified = Boolean(session?.user.emailVerified);
 
-  const openAuth = useCallback(() => setDialogOpen(true), []);
+  const openAuth = useCallback((mode: "login" | "register" = "login") => {
+    setRequestedMode(mode);
+    setDialogOpen(true);
+  }, []);
   const closeAuth = useCallback(() => {
     pending.current = null;
+    setRequestedMode("login");
     try {
       // Closing the auth dialog cancels the mobile start-flow handoff too.
       localStorage.removeItem("wyckoff:pendingStart");
@@ -57,7 +66,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={{ session, isPending, isVerified, requireAuth, openAuth, closeAuth }}>
       {children}
-      <AuthDialog open={dialogOpen} onClose={closeAuth} onVerified={() => void refetch()} />
+      <AuthDialog open={dialogOpen} requestedMode={requestedMode} onClose={closeAuth} onVerified={() => void refetch()} />
     </AuthContext.Provider>
   );
 }

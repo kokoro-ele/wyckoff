@@ -80,7 +80,7 @@ export function AccountPanel({
             </div>
             <p className="mt-4 text-sm font-semibold">{t("account.guest")}</p>
             <p className="mt-1 text-xs leading-relaxed text-ink-dim">{t("account.guestHint")}</p>
-            <button type="button" className="hand-btn hand-btn-primary mt-5 flex w-full items-center justify-center gap-2 px-3 py-2.5 text-sm" onClick={openAuth}>
+            <button type="button" className="hand-btn hand-btn-primary mt-5 flex w-full items-center justify-center gap-2 px-3 py-2.5 text-sm" onClick={() => openAuth()}>
               <LogIn size={15} />
               {t("account.login")}
             </button>

@@ -177,7 +177,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
           {!isVerified ? (
             <div className="mt-3 rounded-lg border border-dashed border-line p-3 text-[11px] text-ink-dim">
               <p>{t("settings.llm.login")}</p>
-              <button type="button" className="hand-btn hand-btn-primary mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs" onClick={openAuth}>
+              <button type="button" className="hand-btn hand-btn-primary mt-2 inline-flex items-center gap-1.5 px-3 py-1.5 text-xs" onClick={() => openAuth()}>
                 <LockKeyhole size={13} />
                 {t("auth.loginToAnalyze")}
               </button>

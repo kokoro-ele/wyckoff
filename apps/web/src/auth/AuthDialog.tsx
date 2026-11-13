@@ -13,10 +13,12 @@ interface Providers {
 
 export function AuthDialog({
   open,
+  requestedMode = "login",
   onClose,
   onVerified,
 }: {
   open: boolean;
+  requestedMode?: "login" | "register";
   onClose: () => void;
   onVerified: () => void;
 }) {
@@ -55,12 +57,11 @@ export function AuthDialog({
       setMode("verify");
       setEmail(user.email);
     } else if (!user) {
-      const requested = new URLSearchParams(window.location.search).get("auth");
-      setMode(requested === "register" ? "register" : "login");
+      setMode(requestedMode);
     }
     // Depend on scalar session identity; the hook may return a new user object
     // on unrelated renders, and resetting a half-typed form is unacceptable.
-  }, [open, sessionUserId, sessionVerified]);
+  }, [open, sessionUserId, sessionVerified, requestedMode]);
 
   if (!open) return null;
 
