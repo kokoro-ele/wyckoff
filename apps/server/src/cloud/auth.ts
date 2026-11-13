@@ -123,6 +123,17 @@ export function authOptions(): BetterAuthOptions {
           },
         }
       : {},
+    account: {
+      accountLinking: {
+        enabled: true,
+        trustedProviders: ["google"],
+        // Google has already verified this email. Allow it to link to an
+        // existing password account even if that local account has not
+        // completed its OTP step yet; otherwise Google login returns to the
+        // app without a session.
+        requireLocalEmailVerified: false,
+      },
+    },
     plugins: [
       emailOTP({
         otpLength: 6,

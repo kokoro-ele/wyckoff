@@ -26,21 +26,40 @@ async function request<T>(path: string, params: Record<string, string | number |
   const headers: Record<string, string> = { accept: "application/json" };
   if (config.tickflow.apiKey) headers["x-api-key"] = config.tickflow.apiKey;
 
-  const response = await fetch(url, { headers, signal: AbortSignal.timeout(30_000) });
-  const text = await response.text();
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    try {
+      const response = await fetch(url, { headers, signal: AbortSignal.timeout(15_000) });
+      const text = await response.text();
 
-  let body: unknown;
-  try {
-    body = text ? JSON.parse(text) : {};
-  } catch {
-    throw new TickflowError("BAD_RESPONSE", `TickFlow 返回了非 JSON 内容：${text.slice(0, 200)}`, response.status);
-  }
+      let body: unknown;
+      try {
+        body = text ? JSON.parse(text) : {};
+      } catch {
+        throw new TickflowError("BAD_RESPONSE", `TickFlow 返回了非 JSON 内容：${text.slice(0, 200)}`, response.status);
+      }
 
-  if (!response.ok) {
-    const err = body as { code?: string; message?: string };
-    throw new TickflowError(err.code ?? "HTTP_ERROR", err.message ?? `请求失败（HTTP ${response.status}）`, response.status);
+      if (!response.ok) {
+        const err = body as { code?: string; message?: string };
+        const retryable = response.status === 429 || response.status >= 500;
+        if (retryable && attempt < 2) {
+          lastError = new TickflowError(err.code ?? "HTTP_ERROR", err.message ?? `请求失败（HTTP ${response.status}）`, response.status);
+          await new Promise((resolve) => setTimeout(resolve, 220 * (attempt + 1)));
+          continue;
+        }
+        throw new TickflowError(err.code ?? "HTTP_ERROR", err.message ?? `请求失败（HTTP ${response.status}）`, response.status);
+      }
+      return body as T;
+    } catch (error) {
+      if (error instanceof TickflowError && !(error.status === 429 || error.status >= 500)) throw error;
+      if (error instanceof TickflowError && attempt >= 2) throw error;
+      lastError = error;
+      if (attempt >= 2) break;
+      await new Promise((resolve) => setTimeout(resolve, 220 * (attempt + 1)));
+    }
   }
-  return body as T;
+  if (lastError instanceof Error) throw lastError;
+  throw new TickflowError("UPSTREAM", "行情服务暂时不可用，请稍后重试", 503);
 }
 
 /**

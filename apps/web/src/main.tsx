@@ -14,6 +14,24 @@ import { LearnPage } from "./LearnPage.js";
 const container = document.getElementById("root");
 if (!container) throw new Error("找不到 #root 挂载点");
 
+// OAuth cookies are host-scoped. If the ad/landing link used a preview or www
+// host, the callback would be written to the canonical host while the user is
+// returned to the alias without a session. Normalize before booting the app.
+try {
+  const host = window.location.hostname;
+  const canonical =
+    host === "www.easywyckoff.online" || host === "wyckoff-one.vercel.app"
+      ? "https://easywyckoff.online"
+      : /^wyckoff-staging-.*\.vercel\.app$/.test(host)
+        ? "https://staging.easywyckoff.online"
+        : null;
+  if (canonical) {
+    window.location.replace(`${canonical}${window.location.pathname}${window.location.search}${window.location.hash}`);
+  }
+} catch {
+  /* ignore non-browser hosts */
+}
+
 // Some mobile OAuth returns land on `/` even when Better Auth was given an
 // `/app` callback URL. Keep a small marker and recover the intended route.
 try {

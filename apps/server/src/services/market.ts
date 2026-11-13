@@ -115,9 +115,13 @@ async function ensureCached(
       return;
     }
     if (error instanceof TickflowError) {
-      throw new MarketDataError(error.message, error.code, error.status);
+      throw new MarketDataError(error.message, error.code, error.status >= 400 ? error.status : 503);
     }
-    throw error;
+    throw new MarketDataError(
+      "行情服务暂时不可用，请稍后重试",
+      "UPSTREAM",
+      503,
+    );
   }
 }
 

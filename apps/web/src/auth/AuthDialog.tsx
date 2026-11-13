@@ -119,6 +119,7 @@ export function AuthDialog({
             name: name.trim() || email.split("@")[0] || "Reader",
           }),
         );
+        try { localStorage.setItem("wyckoff:newUser", "1"); } catch { /* storage may be disabled */ }
         setMode("verify");
         setPassword("");
         await sendCode(email);

@@ -93,6 +93,8 @@ interface WorkbenchState {
   sessionId: string;
   messages: ChatEntry[];
   llmReady: boolean;
+  /** True only after the chart has loaded at least one bar. */
+  chartReady: boolean;
   pendingContext: ChatContext | null;
   /** A prompt handed to the Agent by the start flow; ChatPanel consumes it once. */
   pendingAgentPrompt: string | null;
@@ -139,6 +141,7 @@ interface WorkbenchState {
   registerUserAnnotation: (annotation: Parameters<typeof api.saveAnnotations>[0]["annotations"][number]) => Promise<void>;
 
   setDockTab: (tab: "research" | "agent") => void;
+  setChartReady: (ready: boolean) => void;
   setPendingContext: (context: ChatContext | null) => void;
   requestAgent: (prompt: string) => void;
   consumeAgentPrompt: () => void;
@@ -176,7 +179,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   period: "1d",
   adjust: "forward",
   timeSpan: "1Y",
-  indicators: ["MA", "VOL"],
+  indicators: [],
   activeTool: null,
   selectionMode: false,
   freeTier: true,
@@ -193,6 +196,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   sessionId: newSessionId(),
   messages: [],
   llmReady: false,
+  chartReady: false,
   pendingContext: null,
   pendingAgentPrompt: null,
   focusRequest: null,
@@ -222,6 +226,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
       pendingContext: null,
       sessionId: newSessionId(),
       viewport: null,
+      chartReady: false,
     });
 
     await Promise.all([get().loadAnnotations(), get().loadAgentMemory(), get().restoreSessionForSymbol(symbol)]);
@@ -240,14 +245,14 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   setPeriod(period) {
     if (get().period === period) return;
     set({ period, messages: stopStreaming(get().messages), chartRevision: get().chartRevision + 1, annotations: [], annotationGroups: [],
-      activeTool: null, selectionMode: false, focusRequest: null, pendingContext: null, viewport: null });
+      activeTool: null, selectionMode: false, focusRequest: null, pendingContext: null, viewport: null, chartReady: false });
     void get().loadAnnotations();
     void get().loadAgentMemory();
   },
 
   setAdjust(adjust) {
     if (get().adjust === adjust) return;
-    set({ adjust, messages: stopStreaming(get().messages), chartRevision: get().chartRevision + 1, pendingContext: null, focusRequest: null, viewport: null, activeTool: null, selectionMode: false });
+    set({ adjust, messages: stopStreaming(get().messages), chartRevision: get().chartRevision + 1, pendingContext: null, focusRequest: null, viewport: null, activeTool: null, selectionMode: false, chartReady: false });
     void get().loadAnnotations();
   },
   setTimeSpan: (timeSpan) => set({ timeSpan }),
@@ -499,6 +504,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   },
 
   setDockTab: (dockTab) => set({ dockTab }),
+  setChartReady: (chartReady) => set({ chartReady }),
   setPendingContext: (pendingContext) => set({ pendingContext }),
   requestAgent: (pendingAgentPrompt) => set({ pendingAgentPrompt }),
   consumeAgentPrompt: () => set({ pendingAgentPrompt: null }),

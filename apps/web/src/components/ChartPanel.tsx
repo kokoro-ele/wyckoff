@@ -84,6 +84,7 @@ function ChartContextPanel() {
   const consumeFocus = useWorkbench((s) => s.consumeFocus);
   const notify = useWorkbench((s) => s.notify);
   const setActiveTool = useWorkbench((s) => s.setActiveTool);
+  const setChartReady = useWorkbench((s) => s.setChartReady);
 
   // —— 初始化图表 ——
   useEffect(() => {
@@ -128,6 +129,8 @@ function ChartContextPanel() {
 
           if (!current()) return;
           setError(null);
+          const hasBars = bars.length > 0;
+          if (params.type === "init" || params.type === "update") setChartReady(hasBars);
           if ((params.type === "init" || params.type === "update") && bars.length > 0) {
             const latest = bars[bars.length - 1];
             const previous = bars[bars.length - 2];
@@ -161,6 +164,7 @@ function ChartContextPanel() {
             readyRef.current = false;
             setMarketSnapshot(null);
             setStatus("error");
+            setChartReady(false);
           }
           params.callback([], false);
           notify(message, "error");
@@ -224,9 +228,10 @@ function ChartContextPanel() {
     if (!chart) return;
     setMarketSnapshot(null);
     setRangeChange(null);
+    setChartReady(false);
     chart.setSymbol({ ticker: symbol, pricePrecision: 2, volumePrecision: 0 });
     chart.setPeriod(toChartPeriod(period));
-  }, [symbol, period]);
+  }, [symbol, period, setChartReady]);
 
   // —— 指标 ——
   useEffect(() => {

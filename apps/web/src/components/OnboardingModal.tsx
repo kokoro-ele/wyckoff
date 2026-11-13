@@ -32,6 +32,13 @@ export function OnboardingModal() {
 
   useEffect(() => {
     if (!isVerified) return;
+    // Only show this to accounts created in this browser. Existing sessions
+    // should never be interrupted by a first-run tour.
+    try {
+      if (localStorage.getItem("wyckoff:newUser") !== "1") return;
+    } catch {
+      return;
+    }
     // The start flow already guides new users on phones. A spotlight tour on a
     // small screen would cover the chart and the analysis drawer.
     if (window.innerWidth < 768) return;
@@ -65,6 +72,7 @@ export function OnboardingModal() {
 
   const finish = () => {
     setOpen(false);
+    try { localStorage.removeItem("wyckoff:newUser"); } catch { /* storage may be disabled */ }
     void api.completeOnboarding().catch(() => undefined);
   };
 

@@ -47,6 +47,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
   const loadAgentMemory = useWorkbench((s) => s.loadAgentMemory);
   const pendingAgentPrompt = useWorkbench((s) => s.pendingAgentPrompt);
   const consumeAgentPrompt = useWorkbench((s) => s.consumeAgentPrompt);
+  const chartReady = useWorkbench((s) => s.chartReady);
   const dockTab = useWorkbench((s) => s.dockTab);
   const setDockTab = useWorkbench((s) => s.setDockTab);
   const [input, setInput] = useState("");
@@ -291,10 +292,10 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
   executeRef.current = execute;
 
   useEffect(() => {
-    if (!pendingAgentPrompt || !isVerified || !llmReady || sendingRef.current) return;
+    if (!pendingAgentPrompt || !isVerified || !llmReady || !chartReady || sendingRef.current) return;
     consumeAgentPrompt();
     void executeRef.current(pendingAgentPrompt);
-  }, [pendingAgentPrompt, isVerified, llmReady, consumeAgentPrompt]);
+  }, [pendingAgentPrompt, isVerified, llmReady, chartReady, consumeAgentPrompt]);
 
   const send = (text: string) => {
     if (!text.trim() || sendingRef.current) return;
@@ -356,17 +357,12 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
           <div className="flex items-center gap-1">
             {agent && (
               <>
-                <button type="button" title={t("chat.method")} aria-label={t("chat.method")} className="hand-icon" onClick={() => window.open("/wyckoff.html", "_blank", "noopener")}>
+                <button type="button" title={t("chat.method")} aria-label={t("chat.method")} className="hand-icon chat-head-tool" onClick={() => window.open("/wyckoff.html", "_blank", "noopener")}>
                   <BookOpen size={15} />
                 </button>
-                <button type="button" title={t("chat.newSession")} aria-label={t("chat.newSession")} className="hand-icon" onClick={resetSession}>
+                <button type="button" title={t("chat.newSession")} aria-label={t("chat.newSession")} className="hand-icon chat-head-tool" onClick={resetSession}>
                   <MessageSquarePlus size={15} />
                 </button>
-                {onCloseDock && (
-                  <button type="button" title={t("action.close")} aria-label={t("action.close")} className="hand-icon md:hidden" onClick={onCloseDock}>
-                    <X size={15} />
-                  </button>
-                )}
               </>
             )}
           </div>
@@ -381,6 +377,14 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
             <Sparkles size={14} />
             <span>{t("research.agentTab")}</span>
           </button>
+          <button type="button" className="chat-mobile-tool" title={t("chat.method")} aria-label={t("chat.method")} onClick={() => window.open("/wyckoff.html", "_blank", "noopener")}>
+            <BookOpen size={14} />
+          </button>
+          {onCloseDock && (
+            <button type="button" className="chat-mobile-tool" title={t("action.close")} aria-label={t("action.close")} onClick={onCloseDock}>
+              <X size={14} />
+            </button>
+          )}
         </div>
       </div>
 

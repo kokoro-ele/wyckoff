@@ -471,6 +471,7 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 4px;
 }
+.chat-mobile-tool { display: none; }
 .chat-tab {
   display: inline-flex;
   min-width: 0;
@@ -1676,9 +1677,24 @@
   .canvas-dock-right .chat-head { padding: 5px 9px 4px; }
   .canvas-dock-right .chat-head .hand-eyebrow { display: none; }
   .canvas-dock-right .chat-head .mt-0\.5 { margin-top: 0; font-size: 13px; }
-  .canvas-dock-right .chat-tabs-two { margin-top: 3px; }
-  .canvas-dock-right .chat-tab { min-height: 30px; padding: 3px 4px; font-size: 11px; }
+  .canvas-dock-right .chat-tabs-two { margin-top: 3px; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .canvas-dock-right .chat-tab { min-height: 30px; padding: 3px 2px; font-size: 11px; }
   .canvas-dock-right .chat-tab svg { width: 12px; height: 12px; }
+  .canvas-dock-right .chat-head-tool { display: none; }
+  .canvas-dock-right .chat-mobile-tool {
+    display: inline-flex;
+    min-height: 30px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--color-line-soft);
+    border-radius: 6px 9px 5px 8px;
+    background: var(--color-panel-2);
+    color: var(--color-ink-dim);
+  }
+  .canvas-dock-right .chat-composer { padding: 6px 8px; }
+  .canvas-dock-right .chat-composer > p { display: none; }
+  .canvas-dock-right .chat-composer textarea { min-height: 44px !important; height: 44px; padding-block: 8px; }
+  .canvas-dock-right .chat-composer button { height: 44px !important; }
   .mobile-dock-close {
     display: flex;
     flex-shrink: 0;
@@ -1715,6 +1731,7 @@
     overflow-wrap: anywhere;
   }
   .mobile-modal-backdrop .auth-card { padding: 20px; }
+  .tour-title { font-family: var(--font-sans); font-weight: 600; letter-spacing: -.01em; }
   .mobile-modal-backdrop input, .mobile-modal-backdrop textarea, .mobile-modal-backdrop select { min-width: 0; font-size: 16px; }
   .mobile-modal-backdrop button { min-height: 44px; }
   .mobile-modal-backdrop button:has(> svg:only-child) { min-width: 44px; flex-shrink: 0; }
@@ -1925,3 +1942,11 @@
 .research-plan-state.invalidated { border-color: var(--color-up); color: var(--color-up); }
 .research-plan-state.unstructured { color: var(--color-ink-faint); }
 .research-plan-conditions { display: flex; flex-wrap: wrap; gap: 3px 10px; margin-top: 4px; color: var(--color-ink-dim); font-size: 9px; }
+
+@media (max-width: 767px) {
+  .tour-title {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    letter-spacing: -.01em;
+  }
+}
