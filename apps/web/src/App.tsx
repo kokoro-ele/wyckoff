@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { PanelLeft, PanelRight, Search, Settings2, UserRound, X } from "lucide-react";
 import { useWorkbench } from "./store.js";
 import { WatchlistSidebar } from "./components/WatchlistSidebar.js";
@@ -8,12 +8,11 @@ import { SearchModal } from "./components/SearchModal.js";
 import { Toast } from "./components/Toast.js";
 import { OnboardingModal } from "./components/OnboardingModal.js";
 import { AccountPanel } from "./components/AccountPanel.js";
+import { MembershipPanel } from "./components/MembershipPanel.js";
+import { SettingsPanel } from "./components/SettingsPanel.js";
 import { useAuth } from "./auth/AuthProvider.js";
 import { useI18n } from "./i18n.js";
 import { useSeo } from "./lib/seo.js";
-
-const MembershipPanel = lazy(() => import("./components/MembershipPanel.js").then((m) => ({ default: m.MembershipPanel })));
-const SettingsPanel = lazy(() => import("./components/SettingsPanel.js").then((m) => ({ default: m.SettingsPanel })));
 
 export function App() {
   const { t } = useI18n();
@@ -144,16 +143,8 @@ export function App() {
           }}
         />
       )}
-      {settingsOpen && (
-        <Suspense fallback={null}>
-          <SettingsPanel onClose={() => setSettingsOpen(false)} />
-        </Suspense>
-      )}
-      {membershipOpen && (
-        <Suspense fallback={null}>
-          <MembershipPanel onClose={() => setMembershipOpen(false)} />
-        </Suspense>
-      )}
+      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
+      {membershipOpen && <MembershipPanel onClose={() => setMembershipOpen(false)} />}
     </div>
   );
 }

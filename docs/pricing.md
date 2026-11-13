@@ -37,6 +37,27 @@ Rules:
 - Add Customer Portal for cancellation and invoices.
 - Taxes, receipts, refund policy and business entity details must be finalized before enabling live payments.
 
+## Token metering
+
+Platform-model usage is charged by model tokens, not by question count:
+
+```text
+1 credit = 20,000 input + output tokens
+minimum 1 credit for a successful reply
+server failures refund the reservation
+own-model (BYOK) requests do not consume platform credits
+```
+
+Examples:
+
+```text
+3,000-token reply  -> 1 credit
+25,000-token run   -> 2 credits
+60,000-token run   -> 3 credits
+```
+
+This keeps short follow-ups cheap and makes long, tool-heavy analyses pay for their actual usage. The current implementation records input/output tokens in `credit_usage` and caps a mid-answer overage at the remaining balance.
+
 ## BYOK access pricing
 
 - **$3/month**: the app, chart, Agent tools, research panel and encrypted workspace; the user pays their own model provider directly.

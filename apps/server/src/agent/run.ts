@@ -94,6 +94,7 @@ export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent
   const instructions = `${buildSystemPrompt(mode, language)}\n\n${languageRule}\n\n${situation}`;
 
   const toolTrace: NonNullable<ChatMessage["toolTrace"]> = [];
+  const usage = { inputTokens: 0, outputTokens: 0 };
   let answer = "";
 
   try {
@@ -106,11 +107,12 @@ export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent
         mode,
         webSearch: llm.webSearch,
         llm,
+        usage,
         toolTrace,
         onText: (delta) => {
           answer += delta;
         },
-      }), showTrace);
+      }), showTrace, language);
     } catch (error) {
       if (llm.webSearch && isWebSearchUnsupported(error)) {
         console.warn("[agent] 当前模型/网关不支持 web_search，关闭联网后重试");
@@ -122,11 +124,12 @@ export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent
           mode,
           webSearch: false,
           llm,
+          usage,
           toolTrace,
           onText: (delta) => {
             answer += delta;
           },
-        }), showTrace);
+        }), showTrace, language);
       } else if (isResponsesUnsupported(error)) {
         console.warn("[agent] Responses API 不可用，回退 Chat Completions（无联网搜索）：", (error as Error).message);
         yield* visibleEvents(runCompletionsLoop({
@@ -136,11 +139,12 @@ export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent
           instructions,
           mode,
           llm,
+          usage,
           toolTrace,
           onText: (delta) => {
             answer += delta;
           },
-        }), showTrace);
+        }), showTrace, language);
       } else {
         throw error;
       }
@@ -152,6 +156,11 @@ export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent
           ? "The model returned no answer. Please retry."
           : "模型没有返回有效回答，请重试。",
       );
+    }
+
+    const totalTokens = usage.inputTokens + usage.outputTokens;
+    if (totalTokens > 0) {
+      yield { type: "usage", ...usage, totalTokens };
     }
 
     const assistantMessage: ChatMessage = {
@@ -170,9 +179,36 @@ export async function* runAgent(request: ChatRequest): AsyncGenerator<AgentEvent
   }
 }
 
-async function* visibleEvents(events: AsyncGenerator<AgentEvent>, showTrace: boolean): AsyncGenerator<AgentEvent> {
+const PROGRESS_LABELS: Record<string, { zh: string; en: string }> = {
+  get_features: { zh: "正在读取交易区间与摆动点…", en: "Reading the trading range and swing points…" },
+  get_klines: { zh: "正在核对关键 K 线的量价明细…", en: "Checking the price and volume of key bars…" },
+  draw_annotations: { zh: "正在把结构标注到图上…", en: "Drawing the structure on the chart…" },
+  clear_annotations: { zh: "正在清理旧标注…", en: "Clearing the previous annotations…" },
+  update_annotation: { zh: "正在更新标注…", en: "Updating an annotation…" },
+  focus_range: { zh: "正在聚焦相关区间…", en: "Focusing the relevant range…" },
+  get_instrument_info: { zh: "正在核对标的资料…", en: "Checking the instrument details…" },
+  save_trade_plan: { zh: "正在保存交易计划…", en: "Saving the trade plan…" },
+};
+
+async function* visibleEvents(
+  events: AsyncGenerator<AgentEvent>,
+  showTrace: boolean,
+  language: "zh" | "en",
+): AsyncGenerator<AgentEvent> {
   for await (const event of events) {
-    if (!showTrace && (event.type === "tool_start" || event.type === "tool_end")) continue;
+    if (!showTrace && event.type === "tool_start") {
+      yield { type: "progress", message: PROGRESS_LABELS[event.name]?.[language] ?? (language === "en" ? "Reading market data…" : "正在读取数据…") };
+      continue;
+    }
+    if (!showTrace && event.type === "tool_end") {
+      yield {
+        type: "progress",
+        message: event.ok
+          ? language === "en" ? "Step complete. Preparing the next check…" : "已完成一步，继续整理…"
+          : language === "en" ? "A tool failed, adjusting…" : "工具执行失败，正在调整…",
+      };
+      continue;
+    }
     yield event;
   }
 }
@@ -184,6 +220,7 @@ interface LoopArgs {
   instructions: string;
   mode: AnalysisMode;
   llm: ResolvedLlmSettings;
+  usage: { inputTokens: number; outputTokens: number };
   toolTrace: NonNullable<ChatMessage["toolTrace"]>;
   onText: (delta: string) => void;
 }
@@ -228,6 +265,10 @@ async function* runResponsesLoop(args: LoopArgs & { webSearch: boolean }): Async
     }
 
     if (!completed) throw new Error("Responses 流未返回完整结果");
+    if (completed.usage) {
+      args.usage.inputTokens += completed.usage.input_tokens ?? 0;
+      args.usage.outputTokens += completed.usage.output_tokens ?? 0;
+    }
 
     const calls = completed.output.filter((item): item is ResponseFunctionToolCall => item.type === "function_call");
     if (calls.length === 0) return;
@@ -300,12 +341,17 @@ async function* runCompletionsLoop(args: LoopArgs): AsyncGenerator<AgentEvent> {
       tools: toolDefinitionsForMode(mode),
       max_tokens: mode === "fundamental" ? 1_000 : 1_600,
       stream: true,
+      stream_options: { include_usage: true },
     });
 
     let text = "";
     const pending: { id: string; name: string; args: string }[] = [];
 
     for await (const chunk of stream) {
+      if (chunk.usage) {
+        args.usage.inputTokens += chunk.usage.prompt_tokens ?? 0;
+        args.usage.outputTokens += chunk.usage.completion_tokens ?? 0;
+      }
       const delta = chunk.choices[0]?.delta;
       if (!delta) continue;
 

@@ -18,13 +18,6 @@ import { ResearchPanel } from "./ResearchPanel.js";
 import { useAuth } from "@/auth/AuthProvider.js";
 import { useI18n } from "@/i18n.js";
 
-const THINKING_KEYS = [
-  "chat.thinking.agent.1",
-  "chat.thinking.agent.2",
-  "chat.thinking.agent.3",
-  "chat.thinking.agent.4",
-];
-
 const SHOW_TRACE = import.meta.env.DEV || import.meta.env.VITE_SHOW_AGENT_TRACE === "1";
 
 export function ChatPanel() {
@@ -43,7 +36,7 @@ export function ChatPanel() {
   );
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
-  const [thinkingIndex, setThinkingIndex] = useState(0);
+  const [progress, setProgress] = useState("");
   const sendingRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const listRef = useRef<HTMLDivElement>(null);
@@ -60,13 +53,6 @@ export function ChatPanel() {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
   }, [visible, sending, dockTab]);
 
-  useEffect(() => {
-    if (!sending) return;
-    setThinkingIndex(0);
-    const timer = window.setInterval(() => setThinkingIndex((index) => (index + 1) % 4), 1800);
-    return () => window.clearInterval(timer);
-  }, [sending]);
-
   const execute = async (text: string) => {
     const content = text.trim();
     if (!content || sendingRef.current) return;
@@ -81,6 +67,7 @@ export function ChatPanel() {
     setInput("");
     sendingRef.current = true;
     setSending(true);
+    setProgress("正在连接模型…");
 
     const userMsg: ChatEntry = {
       id: `u_${Date.now()}`,
@@ -129,6 +116,9 @@ export function ChatPanel() {
       switch (event.type) {
         case "text":
           updateAssistant((entry) => ({ ...entry, content: entry.content + event.delta }));
+          break;
+        case "progress":
+          setProgress(event.message);
           break;
         case "tool_start":
           updateAssistant((entry) => ({
@@ -261,7 +251,7 @@ export function ChatPanel() {
     setDockTab("agent");
     send(t("chat.autoPrompt.agent"));
   };
-  const thinking = t(THINKING_KEYS[thinkingIndex] ?? THINKING_KEYS[0]);
+  const thinking = progress || "正在连接模型…";
   const agent = dockTab === "agent";
 
   return (
@@ -328,6 +318,7 @@ export function ChatPanel() {
                 value={input}
                 onChange={(event) => setInput(event.target.value)}
                 onKeyDown={(event) => {
+                  if (event.nativeEvent.isComposing || event.keyCode === 229) return;
                   if (event.key === "Enter" && !event.shiftKey) {
                     event.preventDefault();
                     void send(input);

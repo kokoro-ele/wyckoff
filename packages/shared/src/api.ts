@@ -97,6 +97,10 @@ export type AgentEvent =
   | { type: "tool_start"; id: string; name: string; args: unknown }
   /** 工具执行结束。summary 是给用户看的一句话。 */
   | { type: "tool_end"; id: string; name: string; ok: boolean; summary: string; durationMs: number }
+  /** 面向普通用户的真实进度；不包含工具参数或内部轨迹。 */
+  | { type: "progress"; message: string }
+  /** 本次回复实际消耗的模型 token（用于按 token 计费）。 */
+  | { type: "usage"; inputTokens: number; outputTokens: number; totalTokens: number }
   /** 下发一批标注到画布。 */
   | { type: "annotations"; groupId: string; title: string; annotations: Array<WyckoffAnnotation & { id: string; groupId: string; source: "agent" | "user" }> }
   /** 清除标注。groupId 省略表示清空当前标的的全部 Agent 标注。 */

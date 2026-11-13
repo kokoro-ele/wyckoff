@@ -7,6 +7,7 @@ import { getIdentity, registerIdentity, welcomeCreditsFor } from "./identity.js"
 type DB = Pool | PoolClient;
 
 export const WELCOME_CREDITS = 3;
+export const TOKENS_PER_CREDIT = 20_000;
 export const INVITE_CREDITS = 3;
 
 async function ensureAccount(db: DB, userId: string, newUser = false) {
@@ -207,7 +208,7 @@ export async function reserveCredit(db: PoolClient, userId: string, key: string)
 
   const id = randomUUID();
   await db.query(
-    "INSERT INTO credit_usage(id,user_id,request_key,state,source) VALUES($1,$2,$3,'reserved',$4)",
+    "INSERT INTO credit_usage(id,user_id,request_key,state,source,credits) VALUES($1,$2,$3,'reserved',$4,1)",
     [id, userId, key, source],
   );
   if (source === "subscription") {
@@ -220,16 +221,40 @@ export async function reserveCredit(db: PoolClient, userId: string, key: string)
   return id;
 }
 
-export async function finalizeCredit(db: PoolClient, userId: string, id: string, success: boolean) {
+export async function finalizeCredit(
+  db: PoolClient,
+  userId: string,
+  id: string,
+  success: boolean,
+  usage?: { inputTokens: number; outputTokens: number },
+) {
+  const totalTokens = success ? Math.max(0, (usage?.inputTokens ?? 0) + (usage?.outputTokens ?? 0)) : 0;
+  const credits = success ? Math.max(1, Math.ceil(totalTokens / TOKENS_PER_CREDIT)) : 0;
   const row = (
     await db.query<{ source: "permanent" | "subscription" }>(
-      "UPDATE credit_usage SET state=$3 WHERE id=$1 AND user_id=$2 AND state='reserved' RETURNING source",
-      [id, userId, success ? "consumed" : "released"],
+      "UPDATE credit_usage SET state=$3,credits=$4,input_tokens=$5,output_tokens=$6 WHERE id=$1 AND user_id=$2 AND state='reserved' RETURNING source",
+      [
+        id,
+        userId,
+        success ? "consumed" : "released",
+        credits,
+        usage?.inputTokens ?? null,
+        usage?.outputTokens ?? null,
+      ],
     )
   ).rows[0];
   if (!row) return;
-  if (row.source === "permanent" && !success) {
-    await db.query("UPDATE credit_accounts SET balance=balance+1 WHERE user_id=$1", [userId]);
+  if (row.source === "permanent") {
+    if (!success) {
+      await db.query("UPDATE credit_accounts SET balance=balance+1 WHERE user_id=$1", [userId]);
+    } else if (credits > 1) {
+      // The first credit was reserved before the stream. Charge any token overage,
+      // but never make the balance negative if the user runs out mid-answer.
+      await db.query("UPDATE credit_accounts SET balance=GREATEST(0,balance-$2) WHERE user_id=$1", [
+        userId,
+        credits - 1,
+      ]);
+    }
   }
   if (row.source === "subscription") {
     await db.query("UPDATE billing_usage SET state=$2 WHERE id=$1", [id, success ? "consumed" : "released"]);

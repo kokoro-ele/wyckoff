@@ -63,6 +63,7 @@ function ChartContextPanel() {
   const [error, setError] = useState<string | null>(null);
   const [selecting, setSelecting] = useState<SelectionRect | null>(null);
   const [marketSnapshot, setMarketSnapshot] = useState<MarketSnapshot | null>(null);
+  const [rangeChange, setRangeChange] = useState<number | null>(null);
   const [evidence, setEvidence] = useState<{ annotation: StoredAnnotation; bar?: KLineData; stats?: AnnotationStats } | null>(null);
 
   const symbol = useWorkbench((s) => s.symbol);
@@ -189,6 +190,7 @@ function ChartContextPanel() {
       const end = data[to];
       if (start && end) {
         useWorkbench.getState().setViewport({ startTime: start.timestamp, endTime: end.timestamp });
+        setRangeChange(start.close > 0 ? ((end.close - start.close) / start.close) * 100 : null);
       }
     };
     chart.subscribeAction("onVisibleRangeChange", onVisibleRange);
@@ -221,6 +223,7 @@ function ChartContextPanel() {
     const chart = chartRef.current;
     if (!chart) return;
     setMarketSnapshot(null);
+    setRangeChange(null);
     chart.setSymbol({ ticker: symbol, pricePrecision: 2, volumePrecision: 0 });
     chart.setPeriod(toChartPeriod(period));
   }, [symbol, period]);
@@ -408,6 +411,14 @@ function ChartContextPanel() {
               <span>{t(`adjust.${adjust}`)}</span>
               <span className="text-line">/</span>
               <span>{t(`span.${timeSpan}`)}</span>
+              {rangeChange !== null && (
+                <>
+                  <span className="text-line">/</span>
+                  <span className={cn("font-mono", rangeChange >= 0 ? "text-up" : "text-down")}>
+                    {rangeChange >= 0 ? "+" : ""}{rangeChange.toFixed(2)}%
+                  </span>
+                </>
+              )}
             </div>
           </div>
         </div>

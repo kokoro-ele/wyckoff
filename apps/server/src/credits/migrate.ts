@@ -52,6 +52,8 @@ CREATE TABLE IF NOT EXISTS credit_ledger(
 );
 
 CREATE TABLE IF NOT EXISTS credit_usage(
+  -- token metering; credits is the final charged amount for this request
+
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
   request_key TEXT NOT NULL,
@@ -117,6 +119,10 @@ WITH inserted AS (
 UPDATE credit_accounts c
 SET balance = balance + 10
 WHERE c.user_id IN (SELECT user_id FROM inserted);
+
+ALTER TABLE credit_usage ADD COLUMN IF NOT EXISTS input_tokens INTEGER;
+ALTER TABLE credit_usage ADD COLUMN IF NOT EXISTS output_tokens INTEGER;
+ALTER TABLE credit_usage ADD COLUMN IF NOT EXISTS credits INTEGER NOT NULL DEFAULT 1;
 
 ALTER TABLE user_identity ENABLE ROW LEVEL SECURITY;
 ALTER TABLE auth_referral_intents ENABLE ROW LEVEL SECURITY;

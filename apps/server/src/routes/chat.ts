@@ -38,8 +38,13 @@ chatRoutes.post("/", bodyLimit({ maxSize: 1024 * 1024 }), async (c) => {
   }
   return streamSSE(c, async (stream) => {
     let succeeded = false;
+    let usage: { inputTokens: number; outputTokens: number } | undefined;
     try {
       for await (const event of runAgent(parsed.data)) {
+        if (event.type === "usage") {
+          usage = { inputTokens: event.inputTokens, outputTokens: event.outputTokens };
+          continue;
+        }
         if (event.type === "done") {
           succeeded = true;
           workspaceContext.getStore()?.state.set("chatDone", event);
@@ -48,7 +53,7 @@ chatRoutes.post("/", bodyLimit({ maxSize: 1024 * 1024 }), async (c) => {
         if (event.type === "error") { succeeded = false; workspaceContext.getStore()?.state.delete("chatDone"); }
         await stream.writeSSE({ data: JSON.stringify(event) });
       }
-      if (succeeded && lease) await lease.complete();
+      if (succeeded && lease) await lease.complete(usage);
     } catch (error) {
       workspaceContext.getStore()?.state.delete("chatDone");
       console.error("[chat] 流式输出中断：", error instanceof Error ? error.message : "unknown error");

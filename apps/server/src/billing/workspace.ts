@@ -4,7 +4,7 @@ import { BillingError } from "./catalog.js";
 
 export interface UsageLease {
   /** Marks the durable result as successful; the workspace transaction finalizes it. */
-  complete: () => Promise<void>;
+  complete: (usage?: { inputTokens: number; outputTokens: number }) => Promise<void>;
   /** Reserved for symmetry; finalization is owned by the workspace transaction. */
   release: () => Promise<void>;
 }
@@ -21,7 +21,14 @@ export async function beginWorkspaceUsage(key?: string): Promise<UsageLease> {
   }
   const id = await reserveCredit(context.transaction, context.userId, key ?? "");
   let success = false;
+  let usage: { inputTokens: number; outputTokens: number } | undefined;
   context.finalizeUsage ??= [];
-  context.finalizeUsage.push(() => finalizeCredit(context.transaction!, context.userId, id, success));
-  return { complete: async () => void (success = true), release: async () => undefined };
+  context.finalizeUsage.push(() => finalizeCredit(context.transaction!, context.userId, id, success, usage));
+  return {
+    complete: async (value) => {
+      success = true;
+      usage = value;
+    },
+    release: async () => undefined,
+  };
 }
