@@ -214,6 +214,24 @@ export function fetchAgentMemory(params: { symbol: string; period: Period }): Pr
   return request(`/chat/memory?${query}`);
 }
 
+export function interruptChat(params: {
+  symbol: string;
+  period: Period;
+  sessionId: string;
+  question: string;
+  language: "zh" | "en";
+}): Promise<{ ok: boolean; memory: AgentMemorySnapshot }> {
+  return request(`/chat/interrupt?language=${params.language}`, {
+    method: "POST",
+    body: JSON.stringify({
+      symbol: params.symbol,
+      period: params.period,
+      sessionId: params.sessionId,
+      question: params.question,
+    }),
+  });
+}
+
 export function fetchTradePlan(params: {
   symbol: string;
   period: Period;

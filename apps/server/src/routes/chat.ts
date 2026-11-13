@@ -6,6 +6,7 @@ import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { bodyLimit } from "hono/body-limit";
 import { runAgent } from "../agent/run.js";
+import { detectIntent, planForIntent } from "../agent/intent.js";
 import { hasLlmConfiguration } from "../config.js";
 import { resolveLlmSettings } from "../llm/settings.js";
 import { getPool } from "../cloud/postgres.js";
@@ -21,6 +22,26 @@ chatRoutes.get("/memory", (c) => {
   const period = c.req.query("period") ?? "1d";
   if (!symbol) return c.json({ code: "BAD_REQUEST", message: "缺少 symbol" }, 400);
   return c.json(agentMemory.getSnapshot(symbol, period));
+});
+
+chatRoutes.post("/interrupt", bodyLimit({ maxSize: 64 * 1024 }), async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as {
+    symbol?: unknown;
+    period?: unknown;
+    sessionId?: unknown;
+    question?: unknown;
+  };
+  const symbol = typeof body.symbol === "string" ? body.symbol : "";
+  const period = typeof body.period === "string" ? body.period : "1d";
+  const sessionId = typeof body.sessionId === "string" ? body.sessionId : "";
+  const question = typeof body.question === "string" ? body.question.trim().slice(0, 500) : "";
+  if (!symbol || !question) return c.json({ code: "BAD_REQUEST", message: "缺少 symbol 或 question" }, 400);
+  const language = c.req.query("language") === "en" ? "en" : "zh";
+  const intent = detectIntent(question);
+  const steps = planForIntent(intent, language);
+  agentMemory.rememberFocus({ symbol, period, sessionId, question, intent, steps });
+  agentMemory.rememberOpen({ symbol, period, sessionId, content: question });
+  return c.json({ ok: true, memory: agentMemory.getSnapshot(symbol, period) });
 });
 
 chatRoutes.post("/", bodyLimit({ maxSize: 1024 * 1024 }), async (c) => {

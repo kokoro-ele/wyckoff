@@ -22,7 +22,7 @@ import type {
   ChatContext,
   ResearchIntent,
 } from "@wyckoff/shared";
-import { ApiError, streamChat } from "@/lib/api.js";
+import { ApiError, interruptChat, streamChat } from "@/lib/api.js";
 import { cn, formatDate, formatDuration, formatPrice } from "@/lib/utils.js";
 import { useWorkbench, type ChatEntry, type ToolTraceItem } from "@/store.js";
 import { MarkdownContent } from "./MarkdownContent.js";
@@ -292,19 +292,31 @@ export function ChatPanel() {
   };
 
   const stop = () => {
+    const state = useWorkbench.getState();
+    const lastUser = [...state.messages].reverse().find((entry) => entry.role === "user" && (entry.mode ?? "agent") === "agent");
     abortRef.current?.abort();
     abortRef.current = null;
     sendingRef.current = false;
     setSending(false);
-    useWorkbench.getState().updateLastAssistant((entry) => ({
+    state.updateLastAssistant((entry) => ({
       ...entry,
       streaming: false,
       liveTrace: entry.liveTrace?.map((trace) =>
         trace.running ? { ...trace, running: false, ok: false, summary: t("chat.stopped") } : trace,
       ),
     }));
-    useWorkbench.getState().notify(t("chat.stopped"), "info");
-    window.setTimeout(() => void loadAgentMemory(), 700);
+    state.notify(t("chat.stopped"), "info");
+    if (lastUser?.content) {
+      void interruptChat({
+        symbol: state.symbol,
+        period: state.period,
+        sessionId: state.sessionId,
+        question: lastUser.content,
+        language: lang,
+      }).catch(() => undefined).finally(() => void loadAgentMemory());
+    } else {
+      window.setTimeout(() => void loadAgentMemory(), 700);
+    }
   };
 
   const analyze = () => {
