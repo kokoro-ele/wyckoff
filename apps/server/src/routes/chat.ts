@@ -81,7 +81,6 @@ chatRoutes.post("/", bodyLimit({ maxSize: 1024 * 1024 }), async (c) => {
     catch (error) { const result = billingErrorResponse(error); return c.json(result.body, result.status); }
   }
   const runId = c.req.header("Idempotency-Key") || undefined;
-  console.log("[agent] chat run id", runId);
   return streamSSE(c, async (stream) => {
     let succeeded = false;
     let usage: { inputTokens: number; outputTokens: number } | undefined;

@@ -185,9 +185,7 @@ export async function* runAgent(request: ChatRequest, requestSignal?: AbortSigna
       );
     }
 
-    const cancelled = runId ? await isAgentRunCancelled(runId) : false;
-    console.log("[agent] finish check", runId, cancelled, runContext?.state.get("clientGone"));
-    if (runContext?.state.get("clientGone") === true || cancelled) {
+    if (runContext?.state.get("clientGone") === true || await isAgentRunCancelled(runId)) {
       throw new Error("客户端已停止本次分析");
     }
 
@@ -212,7 +210,8 @@ export async function* runAgent(request: ChatRequest, requestSignal?: AbortSigna
     if (runContext?.userId) await clearInterruptedRuns(runContext.userId, symbol, period, runStartedAt);
     yield { type: "done", messageId: assistantMessage.id };
   } catch (error) {
-    const aborted = ctx.signal?.aborted || runContext?.state.get("clientGone") === true || isAbortError(error);
+    const cancelled = runId ? await isAgentRunCancelled(runId).catch(() => false) : false;
+    const aborted = ctx.signal?.aborted || runContext?.state.get("clientGone") === true || cancelled || isAbortError(error);
     agentMemory.rememberOpen({
       symbol,
       period,

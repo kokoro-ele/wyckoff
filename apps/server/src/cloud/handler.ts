@@ -95,7 +95,6 @@ export async function cloudFetch(request: Request): Promise<Response> {
         question?: unknown;
       };
       const runId = typeof body.runId === "string" ? body.runId : "";
-      console.log("[agent] interrupt body", JSON.stringify(body), "runId", runId);
       if (runId) {
         await cancelAgentRun({
           userId: session.user.id,
@@ -106,7 +105,7 @@ export async function cloudFetch(request: Request): Promise<Response> {
           question: typeof body.question === "string" ? body.question.slice(0, 500) : undefined,
         });
       }
-      return Response.json({ ok: true, debug: { runId, body } }, { headers: { "Cache-Control": "private, no-store" } });
+      return Response.json({ ok: true }, { headers: { "Cache-Control": "private, no-store" } });
     }
 
     // A referral bookkeeping failure must not take down every authenticated API.

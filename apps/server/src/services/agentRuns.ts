@@ -12,7 +12,6 @@ export interface RunCancelInput {
 
 /** Marks a streaming run as stopped and stores enough context to resume it. */
 export async function cancelAgentRun(input: RunCancelInput): Promise<void> {
-  console.log("[agent] cancel run", input.runId, input.symbol, input.period, input.question?.slice(0, 40));
   const pool = getPool();
   await pool.query(
     `INSERT INTO agent_run_cancels (run_id, user_id, symbol, period, session_id, question)
@@ -80,7 +79,6 @@ export async function clearInterruptedRuns(
 ): Promise<void> {
   // Only clear markers that predate this run. A stop marker created during the
   // current run must survive until the run loop has had a chance to observe it.
-  console.log("[agent] clear interrupts", symbol, period, before?.toISOString());
   if (before) {
     await getPool().query(
       "DELETE FROM agent_run_cancels WHERE user_id = $1 AND symbol = $2 AND period = $3 AND created_at < $4",
