@@ -34,7 +34,7 @@ export async function cancelAgentRun(input: RunCancelInput): Promise<void> {
 }
 
 export async function isAgentRunCancelled(runId: string | undefined): Promise<boolean> {
-  if (!runId) return false;
+  if (!runId || !process.env.DATABASE_URL) return false;
   const result = await getPool().query("SELECT 1 FROM agent_run_cancels WHERE run_id = $1", [runId]);
   return (result.rowCount ?? 0) > 0;
 }
