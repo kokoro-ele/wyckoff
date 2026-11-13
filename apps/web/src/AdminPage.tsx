@@ -253,8 +253,9 @@ export function AdminPage() {
                         <button type="button" disabled={busy === user.id} onClick={() => void setBalance(user, user.balance + 3)}>+3</button>
                         <button type="button" disabled={busy === user.id} onClick={() => void setBalance(user, 3)}>3</button>
                         <button type="button" disabled={busy === user.id} onClick={() => void setBalance(user, 0)}>0</button>
-                        <button type="button" className="admin-danger" disabled={busy === user.id} title={zh ? "删除账户" : "Delete account"} aria-label={zh ? "删除账户" : "Delete account"} onClick={() => void removeUser(user)}>
+                        <button type="button" className="admin-danger admin-delete" disabled={busy === user.id} title={zh ? "删除账户" : "Delete account"} aria-label={zh ? "删除账户" : "Delete account"} onClick={() => void removeUser(user)}>
                           <Trash2 size={12} />
+                          <span>{zh ? "删除" : "Delete"}</span>
                         </button>
                       </div>
                     </td>
