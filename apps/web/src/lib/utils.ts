@@ -27,7 +27,14 @@ export function formatPercent(value: number): string {
 
 /** 日线及以上的时间戳落在 UTC 零点，用 UTC 取日期才是正确的交易日。 */
 export function formatDate(timestamp: number): string {
-  return new Date(timestamp).toISOString().slice(0, 10);
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(timestamp));
+  const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${value("year")}-${value("month")}-${value("day")}`;
 }
 
 export function formatDateTime(timestamp: number, intraday: boolean): string {

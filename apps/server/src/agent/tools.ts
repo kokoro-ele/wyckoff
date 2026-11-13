@@ -45,20 +45,38 @@ export interface ToolResult {
  * 让模型只写 `YYYY-MM-DD`、由服务端负责吸附，是这套工具最重要的一个约定：
  * 模型不必处理毫秒时间戳，也不会因为写了一个非交易日而让标注落空。
  */
+function marketDate(timestamp: number): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(timestamp));
+  const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  return `${value("year")}-${value("month")}-${value("day")}`;
+}
+
 function snapToBar(klines: Kline[], value: unknown): number | null {
   if (klines.length === 0) return null;
 
   let target: number | null = null;
+  let targetDate: string | null = null;
   if (typeof value === "number" && Number.isFinite(value)) {
     target = value > 1e11 ? value : value * 1000;
   } else if (typeof value === "string") {
     const trimmed = value.trim();
-    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) target = Date.parse(`${trimmed}T00:00:00Z`);
-    else if (/^\d+$/.test(trimmed)) target = Number(trimmed);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      targetDate = trimmed;
+      target = Date.parse(`${trimmed}T00:00:00Z`);
+    } else if (/^\d+$/.test(trimmed)) target = Number(trimmed);
     else {
       const parsed = Date.parse(trimmed);
       if (!Number.isNaN(parsed)) target = parsed;
     }
+  }
+  if (targetDate) {
+    const exact = klines.find((bar) => marketDate(bar.timestamp) === targetDate);
+    if (exact) return exact.timestamp;
   }
   if (target === null || Number.isNaN(target)) return null;
 

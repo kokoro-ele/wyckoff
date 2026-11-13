@@ -9,10 +9,22 @@ import type { BarFeature, Kline, MarketFeatures, TradingRange } from "./types.js
  * 给 LLM 看日期而不是 13 位数字，既省 token 又大幅降低它引用错 K 线的概率。
  */
 export function formatBarTime(timestamp: number, period: string): string {
-  const iso = new Date(timestamp).toISOString();
-  // 分钟/小时级周期带时刻；"1M" 是月线（大写 M，不匹配），只显示日期。
+  // TickFlow daily bars are stamped at the market's close/UTC offset, while the
+  // chart renders them in Asia/Shanghai. Format both with the same timezone so
+  // an annotation date can never point at the previous trading day.
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Shanghai",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date(timestamp));
+  const value = (type: string) => parts.find((part) => part.type === type)?.value ?? "";
+  const date = `${value("year")}-${value("month")}-${value("day")}`;
   const intraday = /^\d+m$/.test(period);
-  return intraday ? `${iso.slice(0, 10)} ${iso.slice(11, 16)}` : iso.slice(0, 10);
+  return intraday ? `${date} ${value("hour")}:${value("minute")}` : date;
 }
 
 /**
