@@ -351,7 +351,7 @@ async function* runResponsesLoop(args: LoopArgs & { webSearch: boolean }): Async
     const searchStartedAt = new Map<string, number>();
 
     for await (const event of stream) {
-      for (const emitted of handleResponseEvent(event, { searchStarted, searchStartedAt, toolTrace, onText })) {
+      for (const emitted of handleResponseEvent(event, { searchStarted, searchStartedAt, toolTrace, onText, language: ctx.language })) {
         yield emitted;
       }
       if (event.type === "response.completed" || event.type === "response.incomplete") {
@@ -393,6 +393,7 @@ function* handleResponseEvent(
     searchStartedAt: Map<string, number>;
     toolTrace: NonNullable<ChatMessage["toolTrace"]>;
     onText: (delta: string) => void;
+    language: "zh" | "en";
   },
 ): Generator<AgentEvent> {
   switch (event.type) {
@@ -413,8 +414,9 @@ function* handleResponseEvent(
       }
       const durationMs = Date.now() - (state.searchStartedAt.get(item.id) ?? Date.now());
       const { summary, args, ok } = summarizeWebSearch(item);
-      yield { type: "tool_end", id: item.id, name: "web_search", ok, summary, durationMs };
-      state.toolTrace.push({ name: "web_search", summary, ok, args, durationMs });
+      const displaySummary = state.language === "en" ? (ok ? "Web search completed" : "Web search failed") : summary;
+      yield { type: "tool_end", id: item.id, name: "web_search", ok, summary: displaySummary, durationMs };
+      state.toolTrace.push({ name: "web_search", summary: displaySummary, ok, args, durationMs });
       break;
     }
     default:
@@ -518,12 +520,13 @@ async function runLocalTool(id: string, name: string, rawArgs: string, ctx: RunC
     const result = await executeTool(name, args, ctx);
     const durationMs = Date.now() - started;
     const ok = result.ok !== false;
+    const summary = ctx.language === "en" ? englishToolSummary(name, ok) : result.summary;
     events.push(...(result.events ?? []));
-    events.push({ type: "tool_end", id, name, ok, summary: result.summary, durationMs });
+    events.push({ type: "tool_end", id, name, ok, summary, durationMs });
     return {
       events,
       content: result.content,
-      trace: { name, summary: result.summary, ok, args, durationMs },
+      trace: { name, summary, ok, args, durationMs },
     };
   } catch (error) {
     const durationMs = Date.now() - started;
@@ -535,6 +538,24 @@ async function runLocalTool(id: string, name: string, rawArgs: string, ctx: RunC
       trace: { name, summary: detail, ok: false, args, durationMs },
     };
   }
+}
+
+function englishToolSummary(name: string, ok: boolean): string {
+  if (!ok) return `Tool failed: ${name.replaceAll("_", " ")}`;
+  const labels: Record<string, string> = {
+    web_search: "Checked web sources",
+    get_features: "Read market structure features",
+    get_klines: "Read candle details",
+    draw_annotations: "Drew annotations",
+    clear_annotations: "Cleared annotations",
+    update_annotation: "Updated an annotation",
+    verify_annotations: "Verified annotation dates and prices",
+    focus_range: "Focused the chart range",
+    get_instrument_info: "Checked instrument information",
+    set_research_focus: "Clarified the research question and plan",
+    save_trade_plan: "Saved the trade plan",
+  };
+  return labels[name] ?? name.replaceAll("_", " ");
 }
 
 function webSearchArgs(item: ResponseFunctionWebSearch): Record<string, unknown> {

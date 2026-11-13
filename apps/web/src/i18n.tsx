@@ -274,6 +274,7 @@ const zh: Record<string, string> = {
   "chat.quick.eventPrompt": "请找出当前窗口内最值得核对的 Wyckoff 事件，说明量价证据、反证和还没有确认的条件。需要时标注到图上。",
   "chat.quick.tradePrompt": "请基于当前结构生成一份可验证的交易计划：偏向、触发条件、入场区间、止损、目标和失效条件。数据不足就直接说。",
   "chat.newSession": "新会话",
+  "chat.connecting": "正在连接模型…",
   "chat.method": "Wyckoff 方法说明",
   "chat.stop": "停止输出",
   "chat.stopped": "已停止接收输出；服务端可能仍会保存本次分析。",
@@ -715,6 +716,7 @@ const en: Record<string, string> = {
   "chat.quick.eventPrompt": "Find the Wyckoff events in the current window that most need verification. Explain the price-volume evidence, counter-evidence and what is still unconfirmed. Annotate the chart when useful.",
   "chat.quick.tradePrompt": "Build a checkable trade plan from the current structure: bias, trigger, entry zone, stop, targets and invalidation. If the data is insufficient, say so.",
   "chat.newSession": "New session",
+  "chat.connecting": "Connecting to the model…",
   "chat.method": "Wyckoff method",
   "chat.stop": "Stop output",
   "chat.stopped": "Stopped receiving output; the server may still save this analysis.",
@@ -930,6 +932,12 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setCurrentLang(lang);
     window.localStorage.setItem("wyckoff:lang", lang);
+    try {
+      const secure = window.location.protocol === "https:" ? "; Secure" : "";
+      document.cookie = `wyckoff_lang=${lang}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
+    } catch {
+      /* cookies can be disabled in private webviews */
+    }
   }, [lang]);
 
   const setLang = useCallback((next: Lang) => {

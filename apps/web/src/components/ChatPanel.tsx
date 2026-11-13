@@ -92,7 +92,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
     setInput("");
     sendingRef.current = true;
     setSending(true);
-    setProgress("正在连接模型…");
+    setProgress(t("chat.connecting"));
     setPlan(null);
     setActivities([]);
     setActivityOpen(false);
@@ -341,7 +341,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
     setDockTab("agent");
     send(t("chat.autoPrompt.agent"));
   };
-  const thinking = progress || "正在连接模型…";
+  const thinking = progress || t("chat.connecting");
   const agent = dockTab === "agent";
 
   return (

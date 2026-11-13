@@ -9,7 +9,20 @@ import { consumeRateLimit } from "../credits/rateLimit.js";
 
 let instance: ReturnType<typeof betterAuth> | undefined;
 const deliveryContext = new AsyncLocalStorage<{ failed: boolean }>();
+const emailLocaleContext = new AsyncLocalStorage<"zh" | "en">();
 const cookieName = "wyckoff_referral";
+
+function requestLocale(request: Request): "zh" | "en" {
+  const cookies = request.headers.get("cookie") ?? "";
+  const language = cookies
+    .split(";")
+    .map((entry) => entry.trim())
+    .find((entry) => entry.startsWith("wyckoff_lang="))
+    ?.slice("wyckoff_lang=".length);
+  if (language === "en" || language === "zh") return language;
+  const accept = request.headers.get("accept-language")?.toLowerCase() ?? "";
+  return accept.startsWith("en") ? "en" : "zh";
+}
 
 export function authAvailability() {
   const workspaceKey = process.env.WORKSPACE_ENCRYPTION_KEY ?? "";
@@ -80,11 +93,17 @@ export async function sendAuthOTP({ email, otp, type }: { email: string; otp: st
           ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
           : undefined,
     });
+    const language = emailLocaleContext.getStore() ?? "zh";
+    const english = language === "en";
     await transport.sendMail({
       from: process.env.SMTP_FROM,
       to: email,
-      subject: type === "forget-password" ? "重置密码验证码" : "验证你的邮箱",
-      text: `你的验证码是 ${otp}，5 分钟内有效。请勿分享此验证码。如果不是你本人操作，请忽略此邮件。`,
+      subject: english
+        ? type === "forget-password" ? "Reset your password" : "Verify your email"
+        : type === "forget-password" ? "重置密码验证码" : "验证你的邮箱",
+      text: english
+        ? `Your verification code is ${otp}. It expires in 5 minutes. Do not share this code. If you did not request it, ignore this email.`
+        : `你的验证码是 ${otp}，5 分钟内有效。请勿分享此验证码。如果不是你本人操作，请忽略此邮件。`,
     });
   } catch (error) {
     // Better Auth swallows mail errors internally; record the failure so the
@@ -246,5 +265,5 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
       },
     );
   }
-  return runAuthHandler(request);
+  return emailLocaleContext.run(requestLocale(request), () => runAuthHandler(request));
 }
