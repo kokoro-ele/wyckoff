@@ -12,16 +12,28 @@ import { resolveLlmSettings } from "../llm/settings.js";
 import { getPool } from "../cloud/postgres.js";
 import { hasEntitlement } from "../billing/entitlements.js";
 import * as agentMemory from "../services/agentMemory.js";
+import { listInterruptedRuns } from "../services/agentRuns.js";
 
 export const chatRoutes = new Hono();
 
 chatRoutes.get("/status", (c) => c.json({ configured: hasLlmConfiguration() }));
 
-chatRoutes.get("/memory", (c) => {
+chatRoutes.get("/memory", async (c) => {
   const symbol = c.req.query("symbol");
   const period = c.req.query("period") ?? "1d";
   if (!symbol) return c.json({ code: "BAD_REQUEST", message: "缺少 symbol" }, 400);
-  return c.json(agentMemory.getSnapshot(symbol, period));
+  const snapshot = agentMemory.getSnapshot(symbol, period);
+  const userId = workspaceContext.getStore()?.userId;
+  if (userId) {
+    const interrupted = await listInterruptedRuns(userId, symbol, period).catch(() => []);
+    const known = new Set(snapshot.open.map((entry) => entry.content));
+    const merged = interrupted.filter((entry) => !known.has(entry.content));
+    if (merged.length > 0) {
+      snapshot.open = [...merged, ...snapshot.open].slice(0, 4);
+      if (!snapshot.focus) snapshot.focus = { ...merged[0], kind: "focus" };
+    }
+  }
+  return c.json(snapshot);
 });
 
 chatRoutes.post("/interrupt", bodyLimit({ maxSize: 64 * 1024 }), async (c) => {

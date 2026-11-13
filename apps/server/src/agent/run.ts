@@ -24,7 +24,7 @@ import { getInstrument } from "../services/instruments.js";
 import { getKlines } from "../services/market.js";
 import * as sessions from "../services/sessions.js";
 import * as agentMemory from "../services/agentMemory.js";
-import { isAgentRunCancelled } from "../services/agentRuns.js";
+import { clearInterruptedRuns, isAgentRunCancelled } from "../services/agentRuns.js";
 import { detectIntent, planForIntent } from "./intent.js";
 import { buildSystemPrompt } from "./prompt.js";
 import { executeTool, type RunContext, responseTools, toolDefinitionsForMode } from "./tools.js";
@@ -206,6 +206,7 @@ export async function* runAgent(request: ChatRequest, requestSignal?: AbortSigna
     sessions.appendMessage(sessionId, assistantMessage);
     agentMemory.rememberConclusion({ symbol, period, sessionId, content: answer });
     agentMemory.resolveOpen(symbol, period);
+    if (runContext?.userId) await clearInterruptedRuns(runContext.userId, symbol, period);
     yield { type: "done", messageId: assistantMessage.id };
   } catch (error) {
     const aborted = ctx.signal?.aborted || runContext?.state.get("clientGone") === true || isAbortError(error);

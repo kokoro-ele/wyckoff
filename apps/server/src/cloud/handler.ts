@@ -87,9 +87,24 @@ export async function cloudFetch(request: Request): Promise<Response> {
     // Stop signals must not wait behind the workspace row lock held by the
     // streaming chat request they are trying to stop.
     if (path === "/api/chat/interrupt" && request.method === "POST") {
-      const body = (await request.json().catch(() => ({}))) as { runId?: unknown };
+      const body = (await request.json().catch(() => ({}))) as {
+        runId?: unknown;
+        symbol?: unknown;
+        period?: unknown;
+        sessionId?: unknown;
+        question?: unknown;
+      };
       const runId = typeof body.runId === "string" ? body.runId : "";
-      if (runId) await cancelAgentRun(session.user.id, runId);
+      if (runId) {
+        await cancelAgentRun({
+          userId: session.user.id,
+          runId,
+          symbol: typeof body.symbol === "string" ? body.symbol : undefined,
+          period: typeof body.period === "string" ? body.period : undefined,
+          sessionId: typeof body.sessionId === "string" ? body.sessionId : undefined,
+          question: typeof body.question === "string" ? body.question.slice(0, 500) : undefined,
+        });
+      }
       return Response.json({ ok: true }, { headers: { "Cache-Control": "private, no-store" } });
     }
 
