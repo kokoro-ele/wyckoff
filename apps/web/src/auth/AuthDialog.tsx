@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Sparkles, X } from "lucide-react";
 import { authClient, prepareReferral } from "../lib/auth.js";
+import { trackXRegistration } from "../lib/xPixel.js";
 import { useI18n } from "../i18n.js";
 
 type Mode = "login" | "register" | "verify" | "forgot" | "reset";
@@ -119,6 +120,7 @@ export function AuthDialog({
             name: name.trim() || email.split("@")[0] || "Reader",
           }),
         );
+        trackXRegistration(email);
         try { localStorage.setItem("wyckoff:newUser", "1"); } catch { /* storage may be disabled */ }
         setMode("verify");
         setPassword("");
@@ -222,7 +224,11 @@ export function AuthDialog({
                   void run(async () => {
                     if (inviteCode.trim()) await prepareReferral(inviteCode.trim());
                     localStorage.setItem("wyckoff:postAuth", "/app");
-                    check(await authClient.signIn.social({ provider: "google", callbackURL: `${window.location.origin}/app` }));
+                    check(await authClient.signIn.social({
+                      provider: "google",
+                      callbackURL: `${window.location.origin}/app`,
+                      newUserCallbackURL: `${window.location.origin}/app?registered=1`,
+                    }));
                   })
                 }
               >

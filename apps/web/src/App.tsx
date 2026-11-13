@@ -11,13 +11,14 @@ import { AccountPanel } from "./components/AccountPanel.js";
 import { MembershipPanel } from "./components/MembershipPanel.js";
 import { SettingsPanel } from "./components/SettingsPanel.js";
 import { StartAnalysisSheet } from "./components/StartAnalysisSheet.js";
+import { trackXRegistration } from "./lib/xPixel.js";
 import { useAuth } from "./auth/AuthProvider.js";
 import { useI18n } from "./i18n.js";
 import { useSeo } from "./lib/seo.js";
 
 export function App() {
   const { t } = useI18n();
-  const { isPending, isVerified, openAuth } = useAuth();
+  const { session, isPending, isVerified, openAuth } = useAuth();
   useSeo({
     title: "Wyckoff 研究工作台 · EasyWyckoff",
     description: "Wyckoff 研究工作台",
@@ -85,6 +86,16 @@ export function App() {
     if (!isVerified) clearPersonalData();
     void bootstrap(isVerified);
   }, [bootstrap, clearPersonalData, isPending, isVerified]);
+
+  useEffect(() => {
+    if (!isVerified || !session?.user) return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("registered") !== "1") return;
+    trackXRegistration(session.user.email);
+    url.searchParams.delete("registered");
+    const next = `${window.location.pathname}${url.search}${window.location.hash}`;
+    window.history.replaceState(null, "", next);
+  }, [isVerified, session?.user?.email]);
 
   useEffect(() => {
     if (new URLSearchParams(window.location.search).has("settings")) setSettingsOpen(true);
