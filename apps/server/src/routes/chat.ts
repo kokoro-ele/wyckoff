@@ -10,10 +10,18 @@ import { hasLlmConfiguration } from "../config.js";
 import { resolveLlmSettings } from "../llm/settings.js";
 import { getPool } from "../cloud/postgres.js";
 import { hasEntitlement } from "../billing/entitlements.js";
+import * as agentMemory from "../services/agentMemory.js";
 
 export const chatRoutes = new Hono();
 
 chatRoutes.get("/status", (c) => c.json({ configured: hasLlmConfiguration() }));
+
+chatRoutes.get("/memory", (c) => {
+  const symbol = c.req.query("symbol");
+  const period = c.req.query("period") ?? "1d";
+  if (!symbol) return c.json({ code: "BAD_REQUEST", message: "缺少 symbol" }, 400);
+  return c.json(agentMemory.getSnapshot(symbol, period));
+});
 
 chatRoutes.post("/", bodyLimit({ maxSize: 1024 * 1024 }), async (c) => {
   const parsed = chatRequestSchema.safeParse(await c.req.json().catch(() => ({})));
@@ -42,7 +50,7 @@ chatRoutes.post("/", bodyLimit({ maxSize: 1024 * 1024 }), async (c) => {
     let succeeded = false;
     let usage: { inputTokens: number; outputTokens: number } | undefined;
     try {
-      for await (const event of runAgent(parsed.data)) {
+      for await (const event of runAgent(parsed.data, c.req.raw.signal)) {
         if (event.type === "usage") {
           usage = { inputTokens: event.inputTokens, outputTokens: event.outputTokens };
           continue;

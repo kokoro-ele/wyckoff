@@ -1,6 +1,7 @@
 import type {
   AdjustType,
   AgentEvent,
+  AgentMemorySnapshot,
   AgentTradePlan,
   AnnotationGroup,
   ChatContext,
@@ -206,6 +207,11 @@ export function fetchSessionMessages(sessionId: string): Promise<{ messages: Cha
 
 export function fetchChatStatus(): Promise<{ configured: boolean }> {
   return request("/chat/status");
+}
+
+export function fetchAgentMemory(params: { symbol: string; period: Period }): Promise<AgentMemorySnapshot> {
+  const query = new URLSearchParams({ symbol: params.symbol, period: params.period });
+  return request(`/chat/memory?${query}`);
 }
 
 export function fetchTradePlan(params: {

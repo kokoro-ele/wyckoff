@@ -6,6 +6,7 @@ import {
   type Kline,
   makeId,
   type Period,
+  type ResearchIntent,
   WYCKOFF_EVENT_CODES,
   type WyckoffAnnotation,
 } from "@wyckoff/shared";
@@ -14,6 +15,7 @@ import { formatBarTime, nearestIndex, renderFeatureSummary } from "@wyckoff/wyck
 import { getInstrument } from "../services/instruments.js";
 import { getFeatures } from "../services/market.js";
 import * as annotationStore from "../services/annotations.js";
+import * as agentMemory from "../services/agentMemory.js";
 import { saveAgentTradePlan } from "../services/tradePlan.js";
 
 export interface RunContext {
@@ -21,6 +23,11 @@ export interface RunContext {
   period: Period;
   adjust: AdjustType;
   language: "zh" | "en";
+  sessionId: string;
+  /** The question this turn is trying to answer, after resume detection. */
+  question: string;
+  /** Client request signal, used by long-running model calls. */
+  signal?: AbortSignal;
   /** 本轮对话内缓存的全量 K 线，供日期吸附与切片使用。 */
   klines(): Promise<Kline[]>;
   /** 用户当前画布可视范围；工具默认围绕这里分析。 */
@@ -152,7 +159,7 @@ export const toolDefinitions = [
       name: "get_features",
       description:
         "获取当前标的的 Wyckoff 结构摘要：横盘交易区间及其上下沿与边界穿刺、摆动高低点、量价异常 K 线、均线与相对强度。" +
-        "这是分析的起点，回答任何涉及具体走势的问题前都应该先调用它。",
+        "需要完整结构时调用；如果画布状态、用户选区和研究记忆已经足够，不要机械重复读取。",
       parameters: {
         type: "object",
         properties: {
@@ -279,6 +286,47 @@ export const toolDefinitions = [
   {
     type: "function" as const,
     function: {
+      name: "set_research_focus",
+      description:
+        "明确本轮研究问题和意图，并记录 2-6 步计划。用户改变问题、纠正你或让你继续上次任务时，用它更新研究焦点。",
+      parameters: {
+        type: "object",
+        required: ["question", "intent", "steps"],
+        properties: {
+          question: { type: "string", description: "本轮要回答的具体问题，用与最终回答相同的语言" },
+          intent: {
+            type: "string",
+            enum: ["structure", "event", "verification", "correction", "trade", "general"],
+            description: "structure=结构分析，event=核对某事件，verification=验证，correction=用户纠正，trade=交易计划，general=一般问题",
+          },
+          steps: {
+            type: "array",
+            items: { type: "string" },
+            minItems: 1,
+            maxItems: 6,
+            description: "本轮计划步骤，每步一句话",
+          },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "verify_annotations",
+      description:
+        "回读图上已有标注，核对日期、价格和对应 K 线，返回一致与偏差。画完或修改标注后应调用它自检；发现偏差再用 update_annotation 修正。",
+      parameters: {
+        type: "object",
+        properties: { group_id: { type: "string", description: "只核对某一组；留空核对当前标的全部标注" } },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
       name: "focus_range",
       description: "把用户的画布滚动并缩放到指定时间范围，用于把注意力引导到你正在讲解的那一段。",
       parameters: {
@@ -310,9 +358,11 @@ const MODE_TOOL_NAMES: Record<AnalysisMode, string[]> = {
     "get_features",
     "get_klines",
     "get_instrument_info",
+    "set_research_focus",
     "draw_annotations",
     "clear_annotations",
     "update_annotation",
+    "verify_annotations",
     "focus_range",
     "save_trade_plan",
   ],
@@ -366,6 +416,10 @@ export async function executeTool(name: string, args: Args, ctx: RunContext): Pr
       return focusRangeTool(args, ctx);
     case "get_instrument_info":
       return instrumentInfoTool(args, ctx);
+    case "set_research_focus":
+      return setResearchFocusTool(args, ctx);
+    case "verify_annotations":
+      return verifyAnnotationsTool(args, ctx);
     case "save_trade_plan":
       return saveTradePlanTool(args, ctx);
     default:
@@ -633,6 +687,89 @@ async function updateAnnotationTool(args: Args, ctx: RunContext): Promise<ToolRe
         annotations: bundle.annotations.filter((a) => a.groupId === updated.groupId),
       },
     ],
+  };
+}
+
+async function setResearchFocusTool(args: Args, ctx: RunContext): Promise<ToolResult> {
+  const question = typeof args.question === "string" ? args.question.trim() : "";
+  const intents: ResearchIntent[] = ["structure", "event", "verification", "correction", "trade", "general"];
+  const intent = intents.find((value) => value === args.intent) ?? "general";
+  const steps = Array.isArray(args.steps)
+    ? args.steps.filter((value): value is string => typeof value === "string" && value.trim().length > 0).slice(0, 6)
+    : [];
+  if (!question || steps.length === 0) {
+    return { content: "研究焦点需要 question 和非空 steps。", summary: "研究焦点校验失败", ok: false };
+  }
+  agentMemory.rememberFocus({
+    symbol: ctx.symbol,
+    period: ctx.period,
+    sessionId: ctx.sessionId,
+    question,
+    intent,
+    steps,
+  });
+  return {
+    content: `已明确本轮研究问题：${question}\n计划：${steps.map((step, index) => `${index + 1}. ${step}`).join("；")}`,
+    summary: `明确研究问题：${question.slice(0, 60)}`,
+    events: [{ type: "plan", question, intent, steps }],
+  };
+}
+
+async function verifyAnnotationsTool(args: Args, ctx: RunContext): Promise<ToolResult> {
+  const klines = await ctx.klines();
+  const bundle = annotationStore.listAnnotations(ctx.symbol, ctx.period);
+  const groupId = typeof args.group_id === "string" ? args.group_id : undefined;
+  const items = groupId ? bundle.annotations.filter((item) => item.groupId === groupId) : bundle.annotations;
+  if (items.length === 0) {
+    return { content: "图上没有可核对的标注。", summary: "没有可核对的标注", ok: false };
+  }
+  const barAt = (timestamp: number) => klines.find((bar) => bar.timestamp === timestamp);
+  const lines: string[] = [];
+  let issues = 0;
+
+  for (const item of items) {
+    if (item.kind === "event") {
+      const bar = barAt(item.timestamp);
+      const date = formatBarTime(item.timestamp, ctx.period);
+      if (!bar) {
+        issues += 1;
+        lines.push(`${item.id} ${item.code} 日期 ${date}：找不到对应 K 线`);
+        continue;
+      }
+      const inside = item.price >= bar.low && item.price <= bar.high;
+      if (!inside) issues += 1;
+      lines.push(
+        `${item.id} ${item.code} 日期 ${date} 标注价 ${round(item.price)}；该 K 线 H${round(bar.high)} L${round(bar.low)}${inside ? "，价格在范围内" : "，价格不在该 K 线范围内"}`,
+      );
+    } else if (item.kind === "zone") {
+      const start = barAt(item.startTime);
+      const end = barAt(item.endTime);
+      const startDate = formatBarTime(item.startTime, ctx.period);
+      const endDate = formatBarTime(item.endTime, ctx.period);
+      if (!start || !end) issues += 1;
+      lines.push(
+        `${item.id} 区间「${item.label}」${startDate} ~ ${endDate}；${start ? "起点有 K 线" : "起点没有 K 线"}，${end ? "终点有 K 线" : "终点没有 K 线"}，价格 ${round(item.low)}–${round(item.high)}`,
+      );
+    } else if (item.kind === "level") {
+      const date = item.startTime ? formatBarTime(item.startTime, ctx.period) : "全图";
+      const bar = item.startTime ? barAt(item.startTime) : null;
+      if (item.startTime && !bar) issues += 1;
+      lines.push(`${item.id} 水平线「${item.label}」价格 ${round(item.price)}，锚点 ${date}${item.startTime && !bar ? "（找不到 K 线）" : ""}`);
+    } else {
+      const [from, to] = item.points;
+      const fromBar = barAt(from.timestamp);
+      const toBar = barAt(to.timestamp);
+      if (!fromBar || !toBar) issues += 1;
+      lines.push(
+        `${item.id} 趋势线「${item.label}」${formatBarTime(from.timestamp, ctx.period)} ~ ${formatBarTime(to.timestamp, ctx.period)}；${fromBar && toBar ? "两端都有 K 线" : "有端点找不到 K 线"}`,
+      );
+    }
+  }
+
+  return {
+    content: `回读核对 ${items.length} 条标注，发现 ${issues} 处需要确认：\n${lines.join("\n")}`,
+    summary: `回读核对 ${items.length} 条标注：${issues === 0 ? "全部有对应 K 线" : `${issues} 处需确认`}`,
+    ok: issues === 0,
   };
 }
 
