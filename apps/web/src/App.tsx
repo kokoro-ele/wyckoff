@@ -194,7 +194,7 @@ export function App() {
           <button type="button" className="mobile-dock-close" onClick={() => setMobileDock(null)}>
             <X size={16} />{t("action.close")}
           </button>
-          <ChatPanel />
+          <ChatPanel onCloseDock={isMobile ? () => setMobileDock(null) : undefined} />
         </div>
       </div>
 

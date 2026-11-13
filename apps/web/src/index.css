@@ -1672,21 +1672,7 @@
     width: 100%;
     border-radius: 12px 12px 8px 10px;
   }
-  .canvas-dock-right .mobile-dock-close {
-    justify-content: space-between;
-    min-height: 30px;
-    padding: 3px 10px;
-    background: var(--paper-lilac);
-    border-radius: 12px 12px 0 0;
-    font-size: 10px;
-  }
-  .canvas-dock-right .mobile-dock-close::before {
-    content: "";
-    width: 28px;
-    height: 3px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--color-line) 80%, transparent);
-  }
+  .canvas-dock-right .mobile-dock-close { display: none; }
   .canvas-dock-right .chat-head { padding: 5px 9px 4px; }
   .canvas-dock-right .chat-head .hand-eyebrow { display: none; }
   .canvas-dock-right .chat-head .mt-0\.5 { margin-top: 0; font-size: 13px; }

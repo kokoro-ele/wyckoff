@@ -32,7 +32,7 @@ import { useI18n } from "@/i18n.js";
 
 const SHOW_TRACE = import.meta.env.DEV || import.meta.env.VITE_SHOW_AGENT_TRACE === "1";
 
-export function ChatPanel() {
+export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
   const { t, lang } = useI18n();
   const { isVerified, requireAuth, openAuth } = useAuth();
   const symbol = useWorkbench((s) => s.symbol);
@@ -362,6 +362,11 @@ export function ChatPanel() {
                 <button type="button" title={t("chat.newSession")} aria-label={t("chat.newSession")} className="hand-icon" onClick={resetSession}>
                   <MessageSquarePlus size={15} />
                 </button>
+                {onCloseDock && (
+                  <button type="button" title={t("action.close")} aria-label={t("action.close")} className="hand-icon md:hidden" onClick={onCloseDock}>
+                    <X size={15} />
+                  </button>
+                )}
               </>
             )}
           </div>
