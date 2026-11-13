@@ -1960,3 +1960,5 @@
 .daily-reward-amount { display: flex; align-items: baseline; gap: 5px; margin-top: 14px; color: var(--color-accent); }
 .daily-reward-amount strong { font-family: var(--font-mono); font-size: 34px; line-height: 1; }
 .daily-reward-amount span { color: var(--color-ink-dim); font-size: 11px; }
+
+.auth-card .auth-switch-top { margin-top: 10px; }

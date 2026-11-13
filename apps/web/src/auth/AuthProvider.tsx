@@ -24,6 +24,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const pending = useRef<(() => void) | null>(null);
   const isVerified = Boolean(session?.user.emailVerified);
 
+  const clearAuthUrl = useCallback(() => {
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has("auth")) {
+        url.searchParams.delete("auth");
+        window.history.replaceState(null, "", url);
+      }
+    } catch { /* ignore malformed URLs */ }
+  }, []);
+
   const openAuth = useCallback((mode: "login" | "register" = "login") => {
     setRequestedMode(mode);
     setDialogOpen(true);
@@ -31,12 +41,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const closeAuth = useCallback(() => {
     pending.current = null;
     setRequestedMode("login");
+    clearAuthUrl();
     try {
       // Closing the auth dialog cancels the mobile start-flow handoff too.
       localStorage.removeItem("wyckoff:pendingStart");
     } catch { /* storage may be disabled in private webviews */ }
     setDialogOpen(false);
-  }, []);
+  }, [clearAuthUrl]);
 
   const requireAuth = useCallback(
     (action: () => void) => {
@@ -59,9 +70,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!isVerified || !dialogOpen) return;
     const action = pending.current;
     pending.current = null;
+    clearAuthUrl();
     setDialogOpen(false);
     if (action) action();
-  }, [dialogOpen, isVerified]);
+  }, [dialogOpen, isVerified, clearAuthUrl]);
 
   return (
     <AuthContext.Provider value={{ session, isPending, isVerified, requireAuth, openAuth, closeAuth }}>

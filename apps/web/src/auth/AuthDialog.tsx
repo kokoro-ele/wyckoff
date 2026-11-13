@@ -273,6 +273,12 @@ export function AuthDialog({
               </button>
             )}
 
+            {mode === "register" && (
+              <button type="button" className="auth-switch-cta auth-switch-top mt-3" onClick={() => setMode("login")}>
+                {t("auth.hasAccount")}
+              </button>
+            )}
+
             {providers.email ? (
               <form className="mt-4 space-y-3" onSubmit={submit} noValidate>
                 {mode === "register" && (
@@ -389,11 +395,6 @@ export function AuthDialog({
                     {t("auth.forgot")}
                   </button>
                 </>
-              )}
-              {mode === "register" && (
-                <button type="button" className="auth-switch-cta" onClick={() => setMode("login")}>
-                  {t("auth.hasAccount")}
-                </button>
               )}
               {(mode === "forgot" || mode === "reset") && (
                 <button type="button" className="auth-switch-cta" onClick={() => setMode("login")}>

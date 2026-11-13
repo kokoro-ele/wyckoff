@@ -52,6 +52,10 @@ export function AccountPanel({
 
   const logout = async () => {
     await authClient.signOut();
+    const url = new URL(window.location.href);
+    url.searchParams.delete("auth");
+    url.searchParams.delete("start");
+    window.history.replaceState(null, "", url);
     window.location.reload();
   };
 
