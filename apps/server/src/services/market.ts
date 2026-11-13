@@ -13,8 +13,14 @@ import { fetchKlines, TickflowError } from "../tickflow/client.js";
 
 /** 免费档日线在收盘后才更新，缓存 6 小时足够新鲜又能避免反复回源。 */
 const CACHE_TTL_MS = 6 * 60 * 60 * 1000;
-/** TickFlow 单次请求的 K 线上限。一次拉满就能覆盖全部历史，后续缩放不再回源。 */
+/** TickFlow 单次请求的 K 线上限。 */
 const MAX_COUNT = 10_000;
+/**
+ * First paint should not wait for a full 10k-bar history download. 900 daily
+ * bars cover the default 1Y view with plenty of room for indicators and
+ * annotations; larger ranges explicitly request a full refresh below.
+ */
+const INITIAL_COUNT = 900;
 
 const selectMeta = db.prepare<[string, string, string], { first_time: number; last_time: number; fetched_at: number }>(
   "SELECT first_time, last_time, fetched_at FROM kline_meta WHERE symbol = ? AND period = ? AND adjust = ?",
@@ -85,12 +91,19 @@ function assertPeriodAvailable(period: Period): void {
  * 一次就把上限根数全拉下来：日线 10000 根约等于 40 年，等于一次回源换来
  * 之后所有缩放、平移、特征计算的零延迟。回源失败但本地有旧数据时降级使用旧数据。
  */
-async function ensureCached(symbol: string, period: Period, adjust: AdjustType): Promise<void> {
+async function ensureCached(
+  symbol: string,
+  period: Period,
+  adjust: AdjustType,
+  wantedCount = 0,
+  forceFull = false,
+): Promise<void> {
   const meta = selectMeta.get(symbol, period, adjust);
-  if (meta && Date.now() - meta.fetched_at < CACHE_TTL_MS) return;
+  if (meta && Date.now() - meta.fetched_at < CACHE_TTL_MS && !forceFull) return;
 
   try {
-    const klines = await fetchKlines({ symbol, period, adjust, count: MAX_COUNT });
+    const fetchCount = forceFull ? MAX_COUNT : Math.max(INITIAL_COUNT, wantedCount);
+    const klines = await fetchKlines({ symbol, period, adjust, count: fetchCount });
     if (klines.length === 0 && !meta) {
       throw new MarketDataError(`标的 ${symbol} 没有返回任何 K 线数据。`, "NO_DATA", 404);
     }
@@ -111,7 +124,9 @@ async function ensureCached(symbol: string, period: Period, adjust: AdjustType):
 export async function getKlines(params: GetKlinesParams): Promise<Kline[]> {
   const { symbol, period, adjust, startTime, endTime, count } = params;
   assertPeriodAvailable(period);
-  await ensureCached(symbol, period, adjust);
+  // Large explicit ranges need the full history; the default mobile/agent view
+  // stays on the fast initial window.
+  await ensureCached(symbol, period, adjust, count ?? 0, (count ?? 0) > 1_000);
 
   const where: string[] = ["symbol = ?", "period = ?", "adjust = ?"];
   const args: (string | number)[] = [symbol, period, adjust];

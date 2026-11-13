@@ -1622,9 +1622,11 @@
   .canvas-action > svg { flex-shrink: 0; }
   .canvas-action kbd { display: none; }
   .canvas-stage {
+    flex-direction: column;
     padding: 8px max(6px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(6px, env(safe-area-inset-left));
     gap: 0;
   }
+  .canvas-main { flex: 1 1 auto; min-height: 0; }
   .canvas-stage::before { display: none; }
   .chart-panel > .panel-header { flex-shrink: 0; padding: 8px; gap: 6px; }
   .chart-panel > .panel-header > div:first-child { flex: 1; gap: 6px; }
@@ -1652,35 +1654,45 @@
     background: var(--color-panel);
   }
   .canvas-dock > aside { width: 100%; height: auto; flex: 1; min-height: 0; }
-  /* Analysis is a bottom sheet on phones: the chart stays visible and usable
-     above it. Only the watchlist remains a full-surface drawer. */
+  /* Phones use a vertical split, not an overlay: the chart stays above the
+     conversation and both get their own space. */
   .canvas-dock-right {
-    top: auto;
-    right: max(0px, env(safe-area-inset-right));
-    bottom: 0;
-    left: max(0px, env(safe-area-inset-left));
-    height: min(56dvh, 540px);
-    border-radius: 18px 18px 0 0;
-    box-shadow: 0 -10px 35px #0003;
+    position: relative;
+    inset: auto;
+    order: 3;
+    flex: 0 0 auto;
+    width: 100%;
+    height: min(45dvh, 430px);
+    margin-top: 6px;
+    border-radius: 12px 12px 8px 10px;
+    box-shadow: 2px 3px 0 var(--paper-shadow);
   }
   .canvas-dock-right > aside {
     height: 100%;
-    border-radius: 18px 18px 0 0;
+    width: 100%;
+    border-radius: 12px 12px 8px 10px;
   }
   .canvas-dock-right .mobile-dock-close {
     justify-content: space-between;
-    min-height: 38px;
-    padding: 5px 14px;
+    min-height: 30px;
+    padding: 3px 10px;
     background: var(--paper-lilac);
-    border-radius: 18px 18px 0 0;
+    border-radius: 12px 12px 0 0;
+    font-size: 10px;
   }
   .canvas-dock-right .mobile-dock-close::before {
     content: "";
-    width: 34px;
-    height: 4px;
+    width: 28px;
+    height: 3px;
     border-radius: 999px;
     background: color-mix(in srgb, var(--color-line) 80%, transparent);
   }
+  .canvas-dock-right .chat-head { padding: 5px 9px 4px; }
+  .canvas-dock-right .chat-head .hand-eyebrow { display: none; }
+  .canvas-dock-right .chat-head .mt-0\.5 { margin-top: 0; font-size: 13px; }
+  .canvas-dock-right .chat-tabs-two { margin-top: 3px; }
+  .canvas-dock-right .chat-tab { min-height: 30px; padding: 3px 4px; font-size: 11px; }
+  .canvas-dock-right .chat-tab svg { width: 12px; height: 12px; }
   .mobile-dock-close {
     display: flex;
     flex-shrink: 0;
