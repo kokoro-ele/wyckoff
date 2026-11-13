@@ -214,6 +214,10 @@ function ChartContextPanel() {
 
   useEffect(() => { chartRef.current?.setStyles(getChartStyles(theme)); }, [theme]);
 
+  useEffect(() => {
+    setChartReady(status === "ready");
+  }, [status, setChartReady]);
+
   // Clear every overlay before painting a different analysis context, including unfinished drawings.
   useLayoutEffect(() => {
     chartRef.current?.removeOverlay();
@@ -228,7 +232,6 @@ function ChartContextPanel() {
     if (!chart) return;
     setMarketSnapshot(null);
     setRangeChange(null);
-    setChartReady(false);
     chart.setSymbol({ ticker: symbol, pricePrecision: 2, volumePrecision: 0 });
     chart.setPeriod(toChartPeriod(period));
   }, [symbol, period, setChartReady]);

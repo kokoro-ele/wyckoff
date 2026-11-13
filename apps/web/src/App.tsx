@@ -39,6 +39,7 @@ export function App() {
   const setSymbol = useWorkbench((s) => s.setSymbol);
   const setSearchOpen = useWorkbench((s) => s.setSearchOpen);
   const pendingAgentPrompt = useWorkbench((s) => s.pendingAgentPrompt);
+  const chartReady = useWorkbench((s) => s.chartReady);
   const requestAgent = useWorkbench((s) => s.requestAgent);
   const dockTab = useWorkbench((s) => s.dockTab);
   const setDockTab = useWorkbench((s) => s.setDockTab);
@@ -58,11 +59,11 @@ export function App() {
   useEffect(() => setMobileDock(null), [symbol]);
 
   useEffect(() => {
-    if (!pendingAgentPrompt) return;
+    if (!pendingAgentPrompt || !chartReady) return;
     setDockTab("agent");
     if (isMobile) setMobileDock("chat");
     else setChatOpen(true);
-  }, [pendingAgentPrompt, isMobile, setDockTab]);
+  }, [pendingAgentPrompt, chartReady, isMobile, setDockTab]);
 
   useEffect(() => {
     if (!isVerified) return;
