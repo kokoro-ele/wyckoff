@@ -132,6 +132,10 @@ export function AuthDialog({
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (mode === "verify" && otp.length !== 6) {
+      setMessage(t("auth.enterCode"));
+      return;
+    }
     void run(async () => {
       if (mode === "register") {
         if (inviteCode.trim()) await prepareReferral(inviteCode.trim());
@@ -269,7 +273,7 @@ export function AuthDialog({
             )}
 
             {providers.email ? (
-              <form className="mt-4 space-y-3" onSubmit={submit}>
+              <form className="mt-4 space-y-3" onSubmit={submit} noValidate>
                 {mode === "register" && (
                   <label className="hand-label">
                     {t("auth.name")}
@@ -346,7 +350,7 @@ export function AuthDialog({
                   </p>
                 )}
 
-                <button type="submit" disabled={busy || !canSubmit} className="hand-btn hand-btn-primary w-full px-3 py-2.5 text-sm">
+                <button type="submit" disabled={busy || (mode !== "verify" && !canSubmit)} className="hand-btn hand-btn-primary w-full px-3 py-2.5 text-sm">
                   {busy
                     ? t("action.loading")
                     : mode === "register"
