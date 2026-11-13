@@ -1950,3 +1950,6 @@
     letter-spacing: -.01em;
   }
 }
+
+.admin-danger { color: var(--color-up) !important; }
+.admin-danger:hover { background: color-mix(in srgb, var(--color-up) 12%, transparent) !important; }

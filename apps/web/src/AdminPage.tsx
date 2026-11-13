@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Activity, ArrowLeft, BarChart3, Coins, RefreshCw, Search, ShieldCheck, Users, WalletCards } from "lucide-react";
+import { Activity, ArrowLeft, BarChart3, Coins, RefreshCw, Search, ShieldCheck, Trash2, Users, WalletCards } from "lucide-react";
 import * as api from "@/lib/api.js";
 import { useAuth } from "@/auth/AuthProvider.js";
 import { authClient } from "@/lib/auth.js";
@@ -66,6 +66,21 @@ export function AdminPage() {
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Update failed");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const removeUser = async (user: api.AdminUser) => {
+    const label = user.email;
+    if (!window.confirm(zh ? `永久删除 ${label} 的账户和全部私有数据？此操作不可撤销。` : `Permanently delete ${label} and all private data? This cannot be undone.`)) return;
+    setBusy(user.id);
+    setError("");
+    try {
+      await api.deleteAdminUser(user.id);
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Delete failed");
     } finally {
       setBusy("");
     }
@@ -238,6 +253,9 @@ export function AdminPage() {
                         <button type="button" disabled={busy === user.id} onClick={() => void setBalance(user, user.balance + 3)}>+3</button>
                         <button type="button" disabled={busy === user.id} onClick={() => void setBalance(user, 3)}>3</button>
                         <button type="button" disabled={busy === user.id} onClick={() => void setBalance(user, 0)}>0</button>
+                        <button type="button" className="admin-danger" disabled={busy === user.id} title={zh ? "删除账户" : "Delete account"} aria-label={zh ? "删除账户" : "Delete account"} onClick={() => void removeUser(user)}>
+                          <Trash2 size={12} />
+                        </button>
                       </div>
                     </td>
                   </tr>

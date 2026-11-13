@@ -437,6 +437,10 @@ export function resetAdminCredits(balance = 3): Promise<{ ok: boolean; updated: 
   return request("/admin/credits/reset", { method: "POST", body: JSON.stringify({ balance }) });
 }
 
+export function deleteAdminUser(userId: string): Promise<{ ok: boolean; deleted: string }> {
+  return request(`/admin/users/${encodeURIComponent(userId)}`, { method: "DELETE" });
+}
+
 export interface AdminAnalytics {
   signups: { date: string; count: number }[];
   logins: { date: string; count: number }[];

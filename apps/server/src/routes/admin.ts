@@ -156,6 +156,25 @@ adminRoutes.get("/users", async (c) => {
   return c.json({ users: rows });
 });
 
+adminRoutes.delete("/users/:id", async (c) => {
+  const denied = await guard(c);
+  if (denied) return denied;
+  const userId = c.req.param("id");
+  if (!userId) return c.json({ code: "BAD_REQUEST", message: "缺少 userId" }, 400);
+  const pool = getPool();
+  const target = await pool.query<{ email: string }>('SELECT email FROM "user" WHERE id=$1', [userId]);
+  const user = target.rows[0];
+  if (!user) return c.json({ code: "NOT_FOUND", message: "用户不存在" }, 404);
+  if (admins().includes(user.email.toLowerCase())) {
+    return c.json({ code: "FORBIDDEN", message: "不能删除管理员账户" }, 403);
+  }
+  // Better Auth, workspace, credits, billing and identity tables all cascade
+  // from "user"; a single delete removes the account and its private data.
+  await pool.query('DELETE FROM "user" WHERE id=$1', [userId]);
+  console.log(`[admin] deleted user ${user.email} (${userId})`);
+  return c.json({ ok: true, deleted: userId });
+});
+
 adminRoutes.post(
   "/credits",
   bodyLimit({ maxSize: 8 * 1024, onError: (c) => c.json({ code: "TOO_LARGE" }, 413) }),
