@@ -102,6 +102,10 @@ export async function cloudFetch(request: Request): Promise<Response> {
     if (request.method === "POST" && (path === "/api/chat" || path === "/api/chat/")) {
       const channel = new TransformStream<Uint8Array, Uint8Array>();
       const writer = channel.writable.getWriter();
+      const cancel = new AbortController();
+      const scopedRequest = new Request(request, {
+        signal: AbortSignal.any([request.signal, cancel.signal]),
+      });
       let clientGone = false;
 
       const write = async (chunk: Uint8Array) => {
@@ -109,9 +113,11 @@ export async function cloudFetch(request: Request): Promise<Response> {
         try {
           await writer.write(chunk);
         } catch {
-          // The browser disconnected. Keep draining the agent stream so the
-          // completed analysis can still be persisted and accounted for.
+          // The browser disconnected. Abort the upstream model call instead of
+          // letting a stopped analysis finish and charge the user.
           clientGone = true;
+          cancel.abort();
+          workspaceContext.getStore()?.state.set("clientGone", true);
         }
       };
       const writeEvent = async (event: unknown) => {
@@ -120,7 +126,7 @@ export async function cloudFetch(request: Request): Promise<Response> {
 
       waitUntil(
         withWorkspace(session.user.id, true, async () => {
-          const response = await app.fetch(request);
+          const response = await app.fetch(scopedRequest);
           if (!response.ok) {
             const detail = (await response.json().catch(() => ({}))) as { message?: string; error?: string };
             await writeEvent({ type: "error", message: detail.message ?? detail.error ?? "请求失败，请重试" });

@@ -183,6 +183,10 @@ export async function* runAgent(request: ChatRequest, requestSignal?: AbortSigna
       );
     }
 
+    if (runContext?.state.get("clientGone") === true) {
+      throw new Error("客户端已断开");
+    }
+
     const totalTokens = usage.inputTokens + usage.outputTokens;
     if (totalTokens > 0) {
       yield { type: "usage", ...usage, totalTokens };
@@ -203,7 +207,7 @@ export async function* runAgent(request: ChatRequest, requestSignal?: AbortSigna
     agentMemory.resolveOpen(symbol, period);
     yield { type: "done", messageId: assistantMessage.id };
   } catch (error) {
-    const aborted = ctx.signal?.aborted || isAbortError(error);
+    const aborted = ctx.signal?.aborted || runContext?.state.get("clientGone") === true || isAbortError(error);
     agentMemory.rememberOpen({
       symbol,
       period,
