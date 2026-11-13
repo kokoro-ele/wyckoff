@@ -76,7 +76,14 @@ export function CaseChart({
     const zoneX1 = x(Date.parse(`${study.zone.to}T00:00:00Z`));
     const zoneTop = y(study.zone.resistance);
     const zoneBottom = y(study.zone.support);
-    return { width, height, pad, plotW, plotH, x, y, candleW, zoneX0, zoneX1, zoneTop, zoneBottom, min, max };
+    // The pencil follows the closes, offset a few pixels above the candles.
+    const pencilPath = bars
+      .map((bar, index) => {
+        const px = Math.min(x(bar.timestamp) + 10, width - pad.right - 4);
+        return `${index === 0 ? "M" : "L"} ${px.toFixed(2)} ${(y(bar.close) - 8).toFixed(2)}`;
+      })
+      .join(" ");
+    return { width, height, pad, plotW, plotH, x, y, candleW, zoneX0, zoneX1, zoneTop, zoneBottom, min, max, pencilPath };
   }, [bars, study]);
 
   if (error) {
@@ -95,7 +102,7 @@ export function CaseChart({
     );
   }
 
-  const { width, height, pad, plotW, x, y, candleW, zoneX0, zoneX1, zoneTop, zoneBottom, min, max } = chart;
+  const { width, height, pad, plotW, x, y, candleW, zoneX0, zoneX1, zoneTop, zoneBottom, min, max, pencilPath } = chart;
   const zoneWidth = Math.max(zoneX1 - zoneX0, 2);
   const zoneLabelText = `${zoneLabel} · ${labels.phase} ${study.zone.phase}`;
 
@@ -178,6 +185,15 @@ export function CaseChart({
       <text x={width - pad.right + 4} y={height - pad.bottom} className="site-chart-date">
         {formatPrice(min)}
       </text>
+
+      <g className="site-chart-pencil" aria-hidden="true">
+        <g className="site-chart-pencil-body">
+          <path d="M 0 0 L -11 0 L -17 2.5 L -11 5 L 0 5 Z" className="site-chart-pencil-fill" />
+          <path d="M 0 0 L 3 2.5 L 0 5 Z" className="site-chart-pencil-tip" />
+          <path d="M -13 0 L -12 5" className="site-chart-pencil-band" />
+        </g>
+        <animateMotion dur="11s" repeatCount="indefinite" path={pencilPath} rotate="auto" />
+      </g>
     </svg>
   );
 }

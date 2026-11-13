@@ -56,7 +56,7 @@ export function LandingPage() {
   });
 
   return (
-    <div className="site-shell site-home">
+    <div className={`site-shell site-home${lang === "en" ? " site-home-lang-en" : ""}`}>
       <header className="site-topbar site-home-topbar">
         <a className="site-brand" href="/">
           <span className="site-brand-mark">W</span>
