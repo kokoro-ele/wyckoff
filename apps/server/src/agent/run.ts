@@ -145,6 +145,7 @@ export async function* runAgent(request: ChatRequest, requestSignal?: AbortSigna
         mode,
         webSearch: llm.webSearch,
         llm,
+        runId,
         usage,
         toolTrace,
         onText: (delta) => {
@@ -162,6 +163,7 @@ export async function* runAgent(request: ChatRequest, requestSignal?: AbortSigna
           mode,
           webSearch: false,
           llm,
+          runId,
           usage,
           toolTrace,
           onText: (delta) => {
@@ -177,6 +179,7 @@ export async function* runAgent(request: ChatRequest, requestSignal?: AbortSigna
           instructions,
           mode,
           llm,
+          runId,
           usage,
           toolTrace,
           onText: (delta) => {
@@ -311,6 +314,7 @@ interface LoopArgs {
   instructions: string;
   mode: AnalysisMode;
   llm: ResolvedLlmSettings;
+  runId?: string;
   usage: { inputTokens: number; outputTokens: number };
   toolTrace: NonNullable<ChatMessage["toolTrace"]>;
   onText: (delta: string) => void;
@@ -324,6 +328,7 @@ async function* runResponsesLoop(args: LoopArgs & { webSearch: boolean }): Async
   ];
 
   for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+    if (args.runId && await isAgentRunCancelled(args.runId)) throw new Error("客户端已停止本次分析");
     logJson(
       `model=${args.llm.model} responses iteration=${iteration + 1} web_search=${webSearch} items=${input.length}`,
       input,
@@ -424,6 +429,7 @@ async function* runCompletionsLoop(args: LoopArgs): AsyncGenerator<AgentEvent> {
   ];
 
   for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+    if (args.runId && await isAgentRunCancelled(args.runId)) throw new Error("客户端已停止本次分析");
     logJson(`model=${args.llm.model} completions iteration=${iteration + 1} messages=${messages.length}`, messages);
 
     const stream = await getOpenAiClient().chat.completions.create({
