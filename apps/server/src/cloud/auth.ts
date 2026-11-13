@@ -124,6 +124,11 @@ export function authOptions(): BetterAuthOptions {
         }
       : {},
     account: {
+      // Mobile in-app browsers can partition or drop the short-lived OAuth
+      // state cookie between the app and Google. Keep the state in Postgres
+      // and validate the unguessable state parameter there instead.
+      storeStateStrategy: "database",
+      skipStateCookieCheck: true,
       accountLinking: {
         enabled: true,
         trustedProviders: ["google"],

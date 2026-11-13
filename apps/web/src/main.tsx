@@ -48,6 +48,13 @@ try {
   /* storage can be unavailable in private webviews */
 }
 
+// Better Auth redirects failed OAuth flows to /error. This SPA would otherwise
+// render the marketing page there, which looks like a successful callback with
+// no login state. Send the user back to the auth dialog instead.
+if (window.location.pathname === "/error") {
+  window.location.replace("/app?auth=1");
+}
+
 const isWorkbench = window.location.pathname === "/app" || window.location.pathname.startsWith("/app/");
 const isAdmin = window.location.pathname === "/admin" || window.location.pathname.startsWith("/admin/");
 const legalKind = window.location.pathname === "/privacy" ? "privacy" : window.location.pathname === "/terms" ? "terms" : window.location.pathname === "/refund" ? "refund" : window.location.pathname === "/contact" ? "contact" : null;
