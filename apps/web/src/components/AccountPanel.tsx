@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { Copy, Crown, LogIn, LogOut, RefreshCw, X } from "lucide-react";
+import { Bell, Copy, Crown, LogIn, LogOut, RefreshCw, Trash2, X } from "lucide-react";
 import { authClient } from "../lib/auth.js";
-import { fetchByokSubscriptionStatus, fetchCreditStatus, type ByokStatus, type CreditStatus } from "../lib/api.js";
+import { deletePriceAlert, fetchByokSubscriptionStatus, fetchCreditStatus, fetchPriceAlerts, type ByokStatus, type CreditStatus, type PriceAlert } from "../lib/api.js";
 import { useAuth } from "../auth/AuthProvider.js";
 import { useI18n } from "../i18n.js";
 
@@ -16,6 +16,7 @@ export function AccountPanel({
   const { session, isVerified, openAuth } = useAuth();
   const [status, setStatus] = useState<CreditStatus | null>(null);
   const [byok, setByok] = useState<ByokStatus | null>(null);
+  const [alerts, setAlerts] = useState<PriceAlert[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -24,13 +25,15 @@ export function AccountPanel({
     if (!isVerified) return;
     setLoading(true);
     setError("");
-    const [credit, subscription] = await Promise.allSettled([
+    const [credit, subscription, priceAlerts] = await Promise.allSettled([
       fetchCreditStatus(),
       fetchByokSubscriptionStatus(),
+      fetchPriceAlerts(),
     ]);
     if (credit.status === "fulfilled") setStatus(credit.value);
     else setError(credit.reason instanceof Error ? credit.reason.message : t("account.error"));
     if (subscription.status === "fulfilled") setByok(subscription.value);
+    if (priceAlerts.status === "fulfilled") setAlerts(priceAlerts.value.alerts);
     setLoading(false);
   };
 
@@ -144,6 +147,37 @@ export function AccountPanel({
             <p className="rounded-xl border border-dashed border-accent/30 bg-accent-soft/50 px-3 py-2 text-[10px] text-accent">
               {t("account.dailyReward")}
             </p>
+
+            {alerts.length > 0 && (
+              <section className="rounded-2xl border border-line bg-panel-2/70 p-4">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs text-ink-dim">{t("alerts.accountTitle")}</span>
+                  <Bell size={13} className="text-accent" />
+                </div>
+                <div className="mt-2 space-y-1">
+                  {alerts.map((alert) => (
+                    <div key={alert.id} className="flex items-center gap-2 text-[10px]">
+                      <span className="min-w-0 flex-1 truncate">
+                        <span className="font-mono text-ink">{alert.symbol}</span>
+                        <span className="ml-1 text-ink-faint">{alert.label}</span>
+                        <span className="ml-1 text-ink-faint">{alert.direction === "above" ? "≥" : "≤"} {alert.target_price}</span>
+                      </span>
+                      <button
+                        type="button"
+                        className="text-ink-faint hover:text-up"
+                        aria-label={t("alerts.remove")}
+                        title={t("alerts.remove")}
+                        onClick={() => {
+                          void deletePriceAlert(alert.id).then(() => setAlerts((current) => current.filter((item) => item.id !== alert.id)));
+                        }}
+                      >
+                        <Trash2 size={12} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
 
             {status && (
               <section className="rounded-2xl border border-line bg-panel-2/70 p-4">
