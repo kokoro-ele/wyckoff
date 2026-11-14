@@ -28,6 +28,7 @@ import { useWorkbench, type ChatEntry, type ToolTraceItem } from "@/store.js";
 import { MarkdownContent } from "./MarkdownContent.js";
 import { ResearchPanel } from "./ResearchPanel.js";
 import { FeedbackDialog } from "./FeedbackDialog.js";
+import { FirstAnalysisNotice } from "./FirstAnalysisNotice.js";
 import { TradePlanAlerts } from "./TradePlanAlerts.js";
 import { useAuth } from "@/auth/AuthProvider.js";
 import { useI18n } from "@/i18n.js";
@@ -59,9 +60,11 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
   const [activities, setActivities] = useState<AgentActivity[]>([]);
   const [activityOpen, setActivityOpen] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
-  const [slowNotice, setSlowNotice] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [firstRunNoticeOpen, setFirstRunNoticeOpen] = useState(false);
+  const [pendingFirstRun, setPendingFirstRun] = useState("");
   const feedbackAsked = useRef(false);
+  const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sendingRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const runIdRef = useRef<string | null>(null);
@@ -72,7 +75,10 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
     [messages],
   );
 
-  useEffect(() => () => abortRef.current?.abort(), []);
+  useEffect(() => () => {
+    abortRef.current?.abort();
+    if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+  }, []);
 
   useEffect(() => {
     if (isVerified) void loadAgentMemory();
@@ -93,6 +99,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
   const offerFeedback = () => {
     if (feedbackAsked.current) return;
     feedbackAsked.current = true;
+    try { localStorage.removeItem("wyckoff:feedback-due"); } catch { /* storage may be disabled */ }
     void fetchFeedbackStatus()
       .then((status) => {
         if (status.canPrompt) setFeedbackOpen(true);
@@ -100,7 +107,26 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
       .catch(() => undefined);
   };
 
-  const execute = async (text: string) => {
+  const scheduleFeedback = () => {
+    const delay = 3 * 60_000;
+    try { localStorage.setItem("wyckoff:feedback-due", String(Date.now() + delay)); } catch { /* storage may be disabled */ }
+    if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+    feedbackTimer.current = setTimeout(offerFeedback, delay);
+  };
+
+  useEffect(() => {
+    if (!isVerified) return;
+    let due = 0;
+    try { due = Number(localStorage.getItem("wyckoff:feedback-due") ?? 0); } catch { /* storage may be disabled */ }
+    if (!Number.isFinite(due) || due <= 0) return;
+    const delay = Math.max(0, due - Date.now());
+    feedbackTimer.current = setTimeout(offerFeedback, delay);
+    return () => {
+      if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+    };
+  }, [isVerified]);
+
+  const execute = async (text: string, skipFirstRunNotice = false) => {
     const content = text.trim();
     if (!content || sendingRef.current) return;
     const state = useWorkbench.getState();
@@ -108,18 +134,19 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
       state.notify(t("error.SERVICE_UNAVAILABLE"), "error");
       return;
     }
+    try {
+      if (!skipFirstRunNotice && localStorage.getItem("wyckoff:first-analysis-notice") !== "1") {
+        setPendingFirstRun(content);
+        setFirstRunNoticeOpen(true);
+        return;
+      }
+    } catch { /* storage may be disabled; allow the analysis */ }
 
     const context = state.pendingContext ?? undefined;
     state.setPendingContext(null);
     setInput("");
     sendingRef.current = true;
     setSending(true);
-    try {
-      if (localStorage.getItem("wyckoff:agent-first-run") !== "1") {
-        localStorage.setItem("wyckoff:agent-first-run", "1");
-        setSlowNotice(true);
-      }
-    } catch { /* storage may be disabled */ }
     setProgress(t("chat.connecting"));
     setPlan(null);
     setActivities([]);
@@ -241,7 +268,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
           break;
         case "done":
           window.setTimeout(scrollToBottom, 120);
-          offerFeedback();
+          scheduleFeedback();
           updateAssistant((entry) => ({
             ...entry,
             id: event.messageId || entry.id,
@@ -310,7 +337,6 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
       if (abortRef.current === controller) {
         sendingRef.current = false;
         setSending(false);
-        setSlowNotice(false);
         abortRef.current = null;
       }
       if (!abortedByContext && current()) {
@@ -327,6 +353,14 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
     consumeAgentPrompt();
     void executeRef.current(pendingAgentPrompt);
   }, [pendingAgentPrompt, isVerified, llmReady, chartReady, consumeAgentPrompt]);
+
+  const confirmFirstRun = () => {
+    try { localStorage.setItem("wyckoff:first-analysis-notice", "1"); } catch { /* storage may be disabled */ }
+    const text = pendingFirstRun;
+    setPendingFirstRun("");
+    setFirstRunNoticeOpen(false);
+    if (text) void execute(text, true);
+  };
 
   const send = (text: string) => {
     if (!text.trim() || sendingRef.current) return;
@@ -447,7 +481,6 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
 
           <div className="chat-composer border-t border-line-soft p-3">
             {pendingContext && <ContextCapsule context={pendingContext} onClear={() => setPendingContext(null)} />}
-            {sending && slowNotice && <p className="chat-slow-notice">{t("chat.slowNotice")}</p>}
             <QuickActions
               disabled={sending || !llmReady}
               onRun={(prompt) => void send(prompt)}
@@ -488,6 +521,11 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
           </div>
         </>
       )}
+      <FirstAnalysisNotice
+        open={firstRunNoticeOpen}
+        onConfirm={confirmFirstRun}
+        onClose={() => { setFirstRunNoticeOpen(false); setPendingFirstRun(""); }}
+      />
       <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </aside>
   );

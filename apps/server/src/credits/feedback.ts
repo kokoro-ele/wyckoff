@@ -20,8 +20,9 @@ export async function feedbackStatus(pool: Pool, userId: string): Promise<Feedba
   ]);
   const analyses = usage.rows[0]?.count ?? 0;
   return {
-    // Only ask a new user after their first successful platform analysis.
-    canPrompt: !feedback.rowCount && analyses === 1,
+    // Ask once after the first completed analysis; if the user runs another
+    // analysis before the delayed prompt, still surface the feedback form.
+    canPrompt: !feedback.rowCount && analyses >= 1,
     hasFeedback: Boolean(feedback.rowCount),
     analyses,
   };

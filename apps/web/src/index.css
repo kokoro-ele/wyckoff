@@ -2060,3 +2060,7 @@
 
 .market-row.is-static { cursor: default; }
 .market-row.is-static:hover { border-color: transparent; background: transparent; }
+
+.first-analysis-card { position: relative; box-shadow: 6px 7px 0 var(--paper-shadow); }
+.first-analysis-icon { display: flex; width: 46px; height: 46px; align-items: center; justify-content: center; border: 1.5px solid var(--color-accent); border-radius: 14px 8px 15px 9px; background: var(--color-accent-soft); color: var(--color-accent); }
+.first-analysis-time { display: inline-flex; align-items: center; gap: 5px; margin-top: 12px; border: 1px dashed var(--color-line); border-radius: 6px 9px 5px 8px; background: var(--paper-yellow); padding: 5px 8px; color: var(--color-warn); font-family: var(--font-mono); font-size: 10px; }
