@@ -91,6 +91,19 @@ export function App() {
   }, [bootstrap, clearPersonalData, isPending, isVerified]);
 
   useEffect(() => {
+    if (isPending || !isVerified) return;
+    // The landing CTA carries ?start=1 for anonymous visitors. A user who is
+    // already signed in should land directly in the workbench, not see the
+    // first-run stock picker again.
+    setStartOpen(false);
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("start")) {
+      url.searchParams.delete("start");
+      window.history.replaceState(null, "", url);
+    }
+  }, [isPending, isVerified]);
+
+  useEffect(() => {
     if (!isVerified) return;
     let disposed = false;
     const claim = () => {
@@ -234,7 +247,7 @@ export function App() {
         </div>
       </div>
 
-      <StartAnalysisSheet open={startOpen} onClose={closeStart} onPick={(nextSymbol, name, nameEn) => void beginStartAnalysis(nextSymbol, name, nameEn)} />
+      <StartAnalysisSheet open={startOpen && !isPending && !isVerified} onClose={closeStart} onPick={(nextSymbol, name, nameEn) => void beginStartAnalysis(nextSymbol, name, nameEn)} />
       <DailyRewardDialog reward={dailyReward} onClose={() => setDailyReward(null)} />
       <SearchModal />
       <Toast />
