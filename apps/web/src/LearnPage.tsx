@@ -4,6 +4,7 @@ import { useI18n } from "./i18n.js";
 import { SEO_ORIGIN, useSeo } from "./lib/seo.js";
 import { useTheme } from "./theme.js";
 import { WYCKOFF_EVENTS, WYCKOFF_EVENT_CODES, type WyckoffEventCode, type WyckoffSide } from "@wyckoff/shared";
+import { WyckoffSchematic } from "./learn/WyckoffSchematic.js";
 
 const LINKS = [
   { labelZh: "Wyckoff Analytics · 方法介绍", labelEn: "Wyckoff Analytics · Method", href: "https://www.wyckoffanalytics.com/wyckoff-method/" },
@@ -139,8 +140,35 @@ export function LearnPage({ pathLang }: { pathLang: "zh" | "en" }) {
           </div>
         </section>
 
+        <section id="schematics" className="learn-section">
+          <div className="learn-section-head"><span>03</span><h2>{zh ? "吸筹与派发示意图" : "Accumulation & distribution schematics"}</h2></div>
+          <p className="learn-events-intro">
+            {zh
+              ? "示意图只表达结构关系，不是真实价格。虚线框是交易区间，上沿是 Creek / 供给，下沿是 Ice / 支撑。"
+              : "These are schematic structures, not real prices. The dashed box is the trading range; the upper rail is the Creek or supply, the lower rail is the Ice or support."}
+          </p>
+          <div className="learn-diagrams">
+            <figure>
+              <WyckoffSchematic kind="accumulation" />
+              <figcaption>
+                {zh
+                  ? "吸筹：A 止跌 → B 建因 → C Spring → D SOS/LPS → E 上涨"
+                  : "Accumulation: A stops the decline → B builds cause → C Spring → D SOS/LPS → E markup"}
+              </figcaption>
+            </figure>
+            <figure>
+              <WyckoffSchematic kind="distribution" />
+              <figcaption>
+                {zh
+                  ? "派发：A 见顶 → B / UT → C UTAD → D SOW/LPSY → E 下跌"
+                  : "Distribution: A tops the advance → B / UT → C UTAD → D SOW/LPSY → E markdown"}
+              </figcaption>
+            </figure>
+          </div>
+        </section>
+
         <section id="events" className="learn-section">
-          <div className="learn-section-head"><span>03</span><h2>{zh ? "事件目录" : "Event catalog"}</h2></div>
+          <div className="learn-section-head"><span>04</span><h2>{zh ? "事件目录" : "Event catalog"}</h2></div>
           <p className="learn-events-intro">
             {zh
               ? "事件不是孤立信号。先确认交易区间和阶段，再用量能、价差与收盘位置确认事件是否成立。"

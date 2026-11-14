@@ -1997,3 +1997,10 @@
   .learn-event-table td:first-child { font-size: 12px; }
   .learn-event-table td:first-child::before { content: ""; }
 }
+
+.learn-diagrams { display: flex; flex-direction: column; gap: 16px; margin-top: 12px; }
+.learn-diagrams figure { margin: 0; }
+.learn-diagrams figcaption { padding: 5px 2px 0; color: var(--color-ink-faint); font-family: var(--font-mono); font-size: 9px; line-height: 1.5; }
+.learn-diagram { overflow-x: auto; border: 1.5px solid var(--color-line); border-radius: 8px 13px 7px 11px; background: var(--color-panel); box-shadow: 3px 4px 0 var(--paper-shadow); padding: 6px; }
+.learn-diagram svg { display: block; width: 100%; height: auto; min-width: 680px; }
+@media (max-width: 640px) { .learn-diagram svg { min-width: 620px; } }
