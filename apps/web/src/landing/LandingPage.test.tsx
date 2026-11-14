@@ -4,7 +4,7 @@ vi.stubGlobal("localStorage", { getItem: () => null, setItem: () => {} });
 import { I18nProvider } from "../i18n.js";
 import { LandingPage } from "./LandingPage.js";
 
-it("renders a compact intro, the NVDA chart and the glossary", () => {
+it("renders a compact intro, the NVDA chart and the method link", () => {
   const html = renderToStaticMarkup(
     <I18nProvider>
       <LandingPage />
@@ -14,12 +14,9 @@ it("renders a compact intro, the NVDA chart and the glossary", () => {
   expect(html).toContain("现在开始");
   expect(html).toContain("学习 Wyckoff");
   expect(html).toContain("NVDA.US");
-  expect(html).toContain("Spring");
-  expect(html).toContain("SOS");
-  expect(html).toContain("LPS");
-  expect(html).toContain("UT");
   expect(html).toContain('href="/app?start=1"');
   expect(html).toContain('href="/learn/zh"');
+  expect(html).toContain("https://www.wyckoffanalytics.com/wyckoff-method/");
   expect(html).not.toContain("AAPL.US");
   expect(html).not.toContain("打开工作台");
   expect(html).not.toContain("一张书桌");

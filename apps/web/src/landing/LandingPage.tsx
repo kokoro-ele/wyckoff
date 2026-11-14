@@ -5,7 +5,6 @@ import { landingCopy } from "./copy.js";
 import { landingCase } from "./cases.js";
 import { CaseChart } from "./CaseChart.js";
 import { SEO_ORIGIN, useSeo } from "@/lib/seo.js";
-import { TermDiagram } from "./TermDiagram.js";
 
 export function LandingPage() {
   const { lang, setLang } = useI18n();
@@ -109,32 +108,21 @@ export function LandingPage() {
           </figure>
         </section>
 
-        <section id="glossary" className="site-glossary">
-          <div className="site-glossary-head">
-            <div>
-              <div className="site-kicker">{copy.glossary.kicker}</div>
-              <h2>{copy.glossary.title}</h2>
-            </div>
-            <div className="site-glossary-links">
-              <a className="site-glossary-more" href={`/learn/${lang}`}>
-                {copy.glossary.more}
-                <ArrowRight size={12} />
-              </a>
-            </div>
+        <section id="method" className="site-method">
+          <div className="site-method-copy">
+            <div className="site-kicker">{copy.method.kicker}</div>
+            <h2>{copy.method.title}</h2>
+            <p>{copy.method.body}</p>
           </div>
-
-          <div className="site-term-grid">
-            {copy.glossary.terms.map((term) => (
-              <article key={term.code} className="site-term hand-card">
-                <div className="site-term-head">
-                  <span className="site-term-code">{term.code}</span>
-                  <h3>{term.name}</h3>
-                </div>
-                <TermDiagram code={term.code} />
-                <p>{term.body}</p>
-              </article>
-            ))}
-          </div>
+          <a
+            className="site-method-link hand-btn"
+            href="https://www.wyckoffanalytics.com/wyckoff-method/"
+            target="_blank"
+            rel="noreferrer"
+          >
+            {copy.method.link}
+            <ArrowRight size={13} />
+          </a>
         </section>
       </main>
 

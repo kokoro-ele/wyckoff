@@ -3,21 +3,10 @@ import { ArrowLeft, ArrowRight, BookOpen, ExternalLink, Languages, Moon, Sun } f
 import { useI18n } from "./i18n.js";
 import { SEO_ORIGIN, useSeo } from "./lib/seo.js";
 import { useTheme } from "./theme.js";
-import { TermDiagram } from "./landing/TermDiagram.js";
-import type { TermCode } from "./landing/copy.js";
-
-const TERMS: { code: TermCode; zh: string; en: string; bodyZh: string; bodyEn: string }[] = [
-  { code: "Spring", zh: "弹簧", en: "Spring", bodyZh: "跌破区间下沿后快速收回，测试供给是否枯竭。", bodyEn: "Sweeps below support, then closes back inside: a test of supply." },
-  { code: "Shakeout", zh: "震仓", en: "Shakeout", bodyZh: "宽价差放量下破，收盘拉回区间，清洗浮筹。", bodyEn: "Wide spread and volume below support, then a recovery." },
-  { code: "SOS", zh: "强势信号", en: "Sign of Strength", bodyZh: "放量宽价差越过区间上沿，需求接管。", bodyEn: "A wide-spread, high-volume break above resistance." },
-  { code: "LPS", zh: "最后支撑", en: "Last Point of Support", bodyZh: "突破后的更高低点，缩量回踩不破。", bodyEn: "A higher low after the break, on lighter volume." },
-  { code: "UT", zh: "上冲回落", en: "Upthrust", bodyZh: "假突破区间上沿，收盘跌回区间内。", bodyEn: "Sweeps above resistance, then closes back inside." },
-  { code: "SOW", zh: "弱势信号", en: "Sign of Weakness", bodyZh: "放量跌破区间下沿，供给接管。", bodyEn: "A high-volume break below support." },
-];
 
 const LINKS = [
   { labelZh: "Wyckoff Analytics · 方法介绍", labelEn: "Wyckoff Analytics · Method", href: "https://www.wyckoffanalytics.com/wyckoff-method/" },
-  { labelZh: "Wikipedia · Wyckoff method", labelEn: "Wikipedia · Wyckoff method", href: "https://en.wikipedia.org/wiki/Wyckoff_method" },
+  { labelZh: "Google · Wyckoff events and phases", labelEn: "Google · Wyckoff events and phases", href: "https://www.google.com/search?q=wyckoff+events+and+phases" },
   { labelZh: "完整事件目录（英文）", labelEn: "Full event catalog (English)", href: "/wyckoff.html" },
 ];
 
@@ -34,10 +23,10 @@ export function LearnPage({ pathLang }: { pathLang: "zh" | "en" }) {
   }, [pathLang, setLang]);
 
   useSeo({
-    title: zh ? "Wyckoff 方法学习 · 名词、阶段与事件图例 | EasyWyckoff" : "Learn the Wyckoff Method · Terms, phases and diagrams | EasyWyckoff",
+    title: zh ? "Wyckoff 方法学习 · 三大法则与市场周期 | EasyWyckoff" : "Learn the Wyckoff Method · Three laws and market cycle | EasyWyckoff",
     description: zh
-      ? "用中英文理解 Wyckoff 的三大法则、市场周期、Spring、SOS、LPS、UT、SOW 等事件，并查看对应示意图。"
-      : "Learn Wyckoff's three laws, market cycle, Spring, SOS, LPS, UT and SOW with bilingual explanations and diagrams.",
+      ? "用中英文理解 Wyckoff 的三大法则、市场周期和 Composite Man，并通过外部资料继续研究 events 与 phases。"
+      : "Understand Wyckoff's three laws, market cycle and Composite Man, then continue with external references for events and phases.",
     path: `/learn/${pageLang}`,
     lang: zh ? "zh" : "en",
     alternates: [
@@ -50,7 +39,7 @@ export function LearnPage({ pathLang }: { pathLang: "zh" | "en" }) {
         "@context": "https://schema.org",
         "@type": "LearningResource",
         name: zh ? "Wyckoff 方法学习页" : "Learn the Wyckoff Method",
-        description: zh ? "Wyckoff 名词、阶段与事件示意图。" : "Bilingual Wyckoff terms, phases and diagrams.",
+        description: zh ? "Wyckoff 三大法则、市场周期与 Composite Man。" : "Wyckoff laws, market cycle and the Composite Man.",
         inLanguage: zh ? "zh-CN" : "en",
         learningResourceType: "Guide",
         isAccessibleForFree: true,
@@ -83,8 +72,8 @@ export function LearnPage({ pathLang }: { pathLang: "zh" | "en" }) {
         <h1>{zh ? "Wyckoff 方法：先看结构，再谈方向" : "The Wyckoff Method: structure before direction"}</h1>
         <p className="learn-intro">
           {zh
-            ? "Wyckoff 不预测消息，它读价格和成交量留下的痕迹：谁在吸筹、谁在派发、区间是否扎实。下面是最常用的词汇和示意图。"
-            : "Wyckoff does not predict headlines. It reads the footprints left by price and volume: who is accumulating, who is distributing, and whether the range is sound. Start with the vocabulary and diagrams."}
+            ? "Wyckoff 不预测消息，它读价格和成交量留下的痕迹：谁在吸筹、谁在派发、区间是否扎实。先理解三大法则和市场周期，再通过外部资料深入事件与阶段。"
+            : "Wyckoff does not predict headlines. It reads the footprints left by price and volume: who is accumulating, who is distributing, and whether the range is sound. Start with the three laws and the market cycle, then use the external references for events and phases."}
         </p>
 
         <div className="learn-links">
@@ -122,22 +111,9 @@ export function LearnPage({ pathLang }: { pathLang: "zh" | "en" }) {
           </div>
         </section>
 
-        <section className="learn-section">
-          <div className="learn-section-head"><span>03</span><h2>{zh ? "六个核心动作" : "Six core actions"}</h2></div>
-          <div className="learn-term-grid">
-            {TERMS.map((term) => (
-              <article key={term.code} className="hand-card learn-term">
-                <div className="learn-term-head"><span>{term.code}</span><h3>{zh ? term.zh : term.en}</h3></div>
-                <TermDiagram code={term.code} />
-                <p>{zh ? term.bodyZh : term.bodyEn}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
         <section className="learn-section learn-more">
           <h2>{zh ? "继续阅读" : "Keep reading"}</h2>
-          <p>{zh ? "官网和 Wikipedia 适合补历史背景；工作台的完整事件目录适合查代号和阶段。" : "Use the official site and Wikipedia for history; the full event catalog is best for code and phase lookup."}</p>
+          <p>{zh ? "Wyckoff Analytics 和 Google 搜索适合继续研究事件与阶段；工作台的完整事件目录适合查代号。" : "Use Wyckoff Analytics and the Google search for events and phases; the full event catalog is best for code lookup."}</p>
           <div className="learn-links">
             {LINKS.map((link) => (
               <a key={link.href} className="hand-btn px-3 py-2 text-xs" href={link.href} target={link.href.startsWith("http") ? "_blank" : undefined} rel="noreferrer">

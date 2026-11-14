@@ -1,13 +1,5 @@
 import type { Lang } from "../i18n.js";
 
-export type TermCode = "Spring" | "Shakeout" | "SOS" | "LPS" | "UT" | "SOW";
-
-export interface TermCopy {
-  code: TermCode;
-  name: string;
-  body: string;
-}
-
 export interface LandingCopy {
   brand: string;
   language: string;
@@ -26,11 +18,11 @@ export interface LandingCopy {
     loading: string;
     unavailable: string;
   };
-  glossary: {
+  method: {
     kicker: string;
     title: string;
-    more: string;
-    terms: TermCopy[];
+    body: string;
+    link: string;
   };
   footer: string;
 }
@@ -53,18 +45,11 @@ const zh: LandingCopy = {
     loading: "正在读取图表…",
     unavailable: "图表暂时不可用",
   },
-  glossary: {
-    kicker: "THE LANGUAGE",
-    title: "六个名词，读懂图上的语言",
-    more: "全部名词与图例 →",
-    terms: [
-      { code: "Spring", name: "弹簧", body: "跌破区间下沿后快速收回，测试供给。" },
-      { code: "Shakeout", name: "震仓", body: "宽价差放量下破，收盘拉回区间内。" },
-      { code: "SOS", name: "强势信号", body: "放量宽价差越过区间上沿。" },
-      { code: "LPS", name: "最后支撑", body: "突破后回踩更高低点，缩量止跌。" },
-      { code: "UT", name: "上冲回落", body: "假突破区间上沿，收盘跌回区间内。" },
-      { code: "SOW", name: "弱势信号", body: "放量跌破区间下沿，结构转弱。" },
-    ],
+  method: {
+    kicker: "THE WYCKOFF METHOD",
+    title: "先看复合人，再读事件与阶段",
+    body: "Wyckoff 把市场想象成一个 Composite Man：他用区间、量能和收盘位置制造假象。先识别吸筹或派发区间，再用 Spring、SOS、UT、SOW 等事件和 A–E 阶段确认结构。",
+    link: "打开 Wyckoff Analytics 方法介绍",
   },
   footer: "EasyWyckoff · 研究与教育用途，不构成投资建议。",
 };
@@ -87,18 +72,11 @@ const en: LandingCopy = {
     loading: "Reading the chart…",
     unavailable: "Chart is temporarily unavailable",
   },
-  glossary: {
-    kicker: "THE LANGUAGE",
-    title: "Six terms, one visual language",
-    more: "All terms & diagrams →",
-    terms: [
-      { code: "Spring", name: "Spring", body: "Sweeps below support, then closes back inside." },
-      { code: "Shakeout", name: "Shakeout", body: "Wide spread and volume below support, then a recovery." },
-      { code: "SOS", name: "Sign of Strength", body: "Wide-spread, high-volume break above resistance." },
-      { code: "LPS", name: "Last support", body: "Higher low after the break, on lighter volume." },
-      { code: "UT", name: "Upthrust", body: "Sweeps above resistance, then closes back inside." },
-      { code: "SOW", name: "Sign of Weakness", body: "High-volume break below support." },
-    ],
+  method: {
+    kicker: "THE WYCKOFF METHOD",
+    title: "Read the Composite Man, events and phases",
+    body: "Wyckoff treats the market as a Composite Man: ranges, volume and closes are used to create false impressions. First identify accumulation or distribution, then confirm the structure with events such as Spring, SOS, UT and SOW, and phases A–E.",
+    link: "Open the Wyckoff Analytics method guide",
   },
   footer: "EasyWyckoff · Research and education only; not investment advice.",
 };
