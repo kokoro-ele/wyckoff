@@ -5,6 +5,7 @@ import {
   ChevronDown,
   ChevronRight,
   CircleCheck,
+  Clock3,
   CircleX,
   Loader2,
   LockKeyhole,
@@ -28,7 +29,6 @@ import { useWorkbench, type ChatEntry, type ToolTraceItem } from "@/store.js";
 import { MarkdownContent } from "./MarkdownContent.js";
 import { ResearchPanel } from "./ResearchPanel.js";
 import { FeedbackDialog } from "./FeedbackDialog.js";
-import { FirstAnalysisNotice } from "./FirstAnalysisNotice.js";
 import { TradePlanAlerts } from "./TradePlanAlerts.js";
 import { useAuth } from "@/auth/AuthProvider.js";
 import { useI18n } from "@/i18n.js";
@@ -61,8 +61,6 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
   const [activityOpen, setActivityOpen] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
-  const [firstRunNoticeOpen, setFirstRunNoticeOpen] = useState(false);
-  const [pendingFirstRun, setPendingFirstRun] = useState("");
   const feedbackAsked = useRef(false);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sendingRef = useRef(false);
@@ -126,7 +124,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
     };
   }, [isVerified]);
 
-  const execute = async (text: string, skipFirstRunNotice = false) => {
+  const execute = async (text: string) => {
     const content = text.trim();
     if (!content || sendingRef.current) return;
     const state = useWorkbench.getState();
@@ -134,13 +132,6 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
       state.notify(t("error.SERVICE_UNAVAILABLE"), "error");
       return;
     }
-    try {
-      if (!skipFirstRunNotice && localStorage.getItem("wyckoff:first-analysis-notice") !== "1") {
-        setPendingFirstRun(content);
-        setFirstRunNoticeOpen(true);
-        return;
-      }
-    } catch { /* storage may be disabled; allow the analysis */ }
 
     const context = state.pendingContext ?? undefined;
     state.setPendingContext(null);
@@ -354,14 +345,6 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
     void executeRef.current(pendingAgentPrompt);
   }, [pendingAgentPrompt, isVerified, llmReady, chartReady, consumeAgentPrompt]);
 
-  const confirmFirstRun = () => {
-    try { localStorage.setItem("wyckoff:first-analysis-notice", "1"); } catch { /* storage may be disabled */ }
-    const text = pendingFirstRun;
-    setPendingFirstRun("");
-    setFirstRunNoticeOpen(false);
-    if (text) void execute(text, true);
-  };
-
   const send = (text: string) => {
     if (!text.trim() || sendingRef.current) return;
     if (!isVerified) {
@@ -481,6 +464,10 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
 
           <div className="chat-composer border-t border-line-soft p-3">
             {pendingContext && <ContextCapsule context={pendingContext} onClear={() => setPendingContext(null)} />}
+            <div className="agent-wait-note" role="note">
+              <Clock3 size={12} />
+              <span>{t("chat.agentWaitNote")}</span>
+            </div>
             <QuickActions
               disabled={sending || !llmReady}
               onRun={(prompt) => void send(prompt)}
@@ -521,11 +508,6 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
           </div>
         </>
       )}
-      <FirstAnalysisNotice
-        open={firstRunNoticeOpen}
-        onConfirm={confirmFirstRun}
-        onClose={() => { setFirstRunNoticeOpen(false); setPendingFirstRun(""); }}
-      />
       <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </aside>
   );
