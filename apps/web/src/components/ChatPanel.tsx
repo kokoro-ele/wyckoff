@@ -57,6 +57,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
   const [activities, setActivities] = useState<AgentActivity[]>([]);
   const [activityOpen, setActivityOpen] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
+  const [slowNotice, setSlowNotice] = useState(false);
   const sendingRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const runIdRef = useRef<string | null>(null);
@@ -92,6 +93,12 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
     setInput("");
     sendingRef.current = true;
     setSending(true);
+    try {
+      if (localStorage.getItem("wyckoff:agent-first-run") !== "1") {
+        localStorage.setItem("wyckoff:agent-first-run", "1");
+        setSlowNotice(true);
+      }
+    } catch { /* storage may be disabled */ }
     setProgress(t("chat.connecting"));
     setPlan(null);
     setActivities([]);
@@ -280,6 +287,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
       if (abortRef.current === controller) {
         sendingRef.current = false;
         setSending(false);
+        setSlowNotice(false);
         abortRef.current = null;
       }
       if (!abortedByContext && current()) {
@@ -413,6 +421,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
 
           <div className="chat-composer border-t border-line-soft p-3">
             {pendingContext && <ContextCapsule context={pendingContext} onClear={() => setPendingContext(null)} />}
+            {sending && slowNotice && <p className="chat-slow-notice">{t("chat.slowNotice")}</p>}
             <QuickActions
               disabled={sending || !llmReady}
               onRun={(prompt) => void send(prompt)}

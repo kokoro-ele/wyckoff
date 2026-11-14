@@ -1962,3 +1962,5 @@
 .daily-reward-amount span { color: var(--color-ink-dim); font-size: 11px; }
 
 .auth-card .auth-switch-top { margin-top: 10px; }
+
+.chat-slow-notice { margin-bottom: 6px; border: 1px dashed color-mix(in srgb, var(--color-warn) 45%, var(--color-line)); border-radius: 6px 9px 5px 8px; background: color-mix(in srgb, var(--color-warn) 8%, var(--color-panel)); padding: 5px 7px; color: var(--color-warn); font-size: 10px; line-height: 1.45; }

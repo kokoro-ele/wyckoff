@@ -125,7 +125,7 @@ export function authOptions(): BetterAuthOptions {
     trustedOrigins: [process.env.BETTER_AUTH_URL!],
     emailAndPassword: {
       enabled: authAvailability().email,
-      minPasswordLength: 12,
+      minPasswordLength: 8,
       requireEmailVerification: true,
       revokeSessionsOnPasswordReset: true,
     },

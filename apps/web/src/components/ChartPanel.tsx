@@ -130,7 +130,6 @@ function ChartContextPanel() {
           if (!current()) return;
           setError(null);
           const hasBars = bars.length > 0;
-          if (params.type === "init" || params.type === "update") setChartReady(hasBars);
           if ((params.type === "init" || params.type === "update") && bars.length > 0) {
             const latest = bars[bars.length - 1];
             const previous = bars[bars.length - 2];
@@ -150,7 +149,14 @@ function ChartContextPanel() {
           }
 
           // 数据到位后按时间跨度调整可视密度
-          requestAnimationFrame(() => { if (current()) fitTimeSpan(chart, state.timeSpan); });
+          requestAnimationFrame(() => {
+            if (!current()) return;
+            fitTimeSpan(chart, state.timeSpan);
+            publishViewport();
+            // Only consider the chart ready after its visible range has been
+            // published, so the first Agent request uses the user's actual view.
+            if (params.type === "init" || params.type === "update") setChartReady(hasBars);
+          });
         } catch (err) {
           if (!current()) return;
           const message =
@@ -183,7 +189,7 @@ function ChartContextPanel() {
     };
     chart.subscribeAction("onCandleBarClick", onBarClick);
 
-    const onVisibleRange = () => {
+    const publishViewport = () => {
       if (!readyRef.current) return;
       const data = chart.getDataList();
       const range = chart.getVisibleRange();
@@ -197,14 +203,14 @@ function ChartContextPanel() {
         setRangeChange(start.close > 0 ? ((end.close - start.close) / start.close) * 100 : null);
       }
     };
-    chart.subscribeAction("onVisibleRangeChange", onVisibleRange);
+    chart.subscribeAction("onVisibleRangeChange", publishViewport);
 
     const ro = new ResizeObserver(() => chart.resize());
     ro.observe(el);
 
     return () => {
       chart.unsubscribeAction("onCandleBarClick", onBarClick);
-      chart.unsubscribeAction("onVisibleRangeChange", onVisibleRange);
+      chart.unsubscribeAction("onVisibleRangeChange", publishViewport);
       ro.disconnect();
       dispose(el);
       chartRef.current = null;
@@ -213,10 +219,6 @@ function ChartContextPanel() {
   }, []);
 
   useEffect(() => { chartRef.current?.setStyles(getChartStyles(theme)); }, [theme]);
-
-  useEffect(() => {
-    setChartReady(status === "ready");
-  }, [status, setChartReady]);
 
   // Clear every overlay before painting a different analysis context, including unfinished drawings.
   useLayoutEffect(() => {

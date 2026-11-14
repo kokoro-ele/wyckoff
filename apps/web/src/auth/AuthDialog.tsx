@@ -207,11 +207,11 @@ export function AuthDialog({
       (verifying
         ? otp.length === 6
         : mode === "reset"
-          ? otp.length === 6 && password.length >= 12
+          ? otp.length === 6 && password.length >= 8
           : mode === "forgot"
             ? email
             : mode === "register"
-              ? email && password.length >= 12
+              ? email && password.length >= 8
               : email && password.length > 0),
   );
 
@@ -342,7 +342,7 @@ export function AuthDialog({
                       className="hand-input"
                       required
                       type="password"
-                      minLength={mode === "login" ? undefined : 12}
+                      minLength={mode === "login" ? undefined : 8}
                       maxLength={128}
                       autoComplete={mode === "login" ? "current-password" : "new-password"}
                       value={password}
