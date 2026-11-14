@@ -1985,4 +1985,15 @@
 .learn-event-table td:first-child { white-space: nowrap; }
 .learn-event-table code { color: var(--color-accent); font-family: var(--font-mono); font-size: 10px; }
 .learn-event-phases { white-space: nowrap; font-family: var(--font-mono); font-size: 10px; }
-@media (max-width: 640px) { .learn-events-intro { font-size: 12px; } .learn-event-table { min-width: 560px; } }
+@media (max-width: 640px) {
+  .learn-events-intro { font-size: 12px; }
+  .learn-event-table-wrap { overflow: visible; border: 0; background: transparent; }
+  .learn-event-table { min-width: 0; }
+  .learn-event-table thead { display: none; }
+  .learn-event-table tbody, .learn-event-table tr, .learn-event-table td { display: block; width: 100%; }
+  .learn-event-table tr { margin-bottom: 8px; border: 1.5px solid var(--color-line); border-radius: 7px 10px 6px 9px; background: var(--color-panel); padding: 8px 10px; }
+  .learn-event-table td { border: 0; padding: 2px 0; }
+  .learn-event-table td[data-label]::before { content: attr(data-label) ": "; color: var(--color-ink-faint); font-size: 9px; font-weight: 700; letter-spacing: .05em; }
+  .learn-event-table td:first-child { font-size: 12px; }
+  .learn-event-table td:first-child::before { content: ""; }
+}

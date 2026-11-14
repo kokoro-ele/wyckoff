@@ -171,10 +171,10 @@ export function LearnPage({ pathLang }: { pathLang: "zh" | "en" }) {
                           const meta = WYCKOFF_EVENTS[code];
                           return (
                             <tr key={code}>
-                              <td><code>{meta.code}</code></td>
-                              <td>{zh ? meta.nameZh : meta.nameEn}</td>
-                              <td className="learn-event-phases">{meta.phases.join(", ")}</td>
-                              <td>{zh ? meta.description : EVENT_EN[code]}</td>
+                              <td data-label={zh ? "代号" : "Code"}><code>{meta.code}</code></td>
+                              <td data-label={zh ? "名称" : "Name"}>{zh ? meta.nameZh : meta.nameEn}</td>
+                              <td data-label={zh ? "阶段" : "Phase"} className="learn-event-phases">{meta.phases.join(", ")}</td>
+                              <td data-label={zh ? "含义" : "Meaning"}>{zh ? meta.description : EVENT_EN[code]}</td>
                             </tr>
                           );
                         })}
