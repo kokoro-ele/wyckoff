@@ -152,7 +152,7 @@ export async function fetchTencentMarketQuotes(
         price,
         changePct: Number.isFinite(Number(fields[32])) ? Number(fields[32]) : null,
         volume: Number(fields[6]) || 0,
-        turnoverRate: Number.isFinite(Number(fields[38])) ? Number(fields[38]) : null,
+        turnoverRate: fields[38]?.trim() ? (Number.isFinite(Number(fields[38])) ? Number(fields[38]) : null) : null,
         amount: Number(fields[37]) || 0,
         high: Number(fields[33]) || price,
         low: Number(fields[34]) || price,

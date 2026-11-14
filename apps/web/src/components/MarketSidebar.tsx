@@ -39,7 +39,7 @@ function MarketRow({ row, onPick }: { row: MarketOverviewRow; onPick: (row: Mark
       <div className="market-row-meta">
         <span className="market-row-price">{row.price.toLocaleString(lang === "zh" ? "zh-CN" : "en-US", { maximumFractionDigits: 2 })}</span>
         <span><BarChart3 size={10} /> {compactVolume(row.volume, lang)}</span>
-        {row.turnoverRate !== null && <span>{t("market.turnover", { n: row.turnoverRate.toFixed(2) })}</span>}
+        {row.turnoverRate !== null && row.turnoverRate > 0 && <span>{t("market.turnover", { n: row.turnoverRate.toFixed(2) })}</span>}
       </div>
     </button>
   );
@@ -96,7 +96,7 @@ export function MarketSidebar({ onSelect }: { onSelect?: () => void }) {
   const indices = (data?.indices ?? []).filter((row) => row.region === region);
   const volumeLeaders = [...rows].sort((a, b) => b.volume - a.volume).slice(0, 5);
   const turnoverLeaders = [...rows]
-    .filter((row) => row.turnoverRate !== null)
+    .filter((row) => row.turnoverRate !== null && row.turnoverRate > 0)
     .sort((a, b) => (b.turnoverRate ?? 0) - (a.turnoverRate ?? 0))
     .slice(0, 5);
   const sectors = rows.reduce<Map<string, MarketOverviewRow[]>>((map, row) => {
