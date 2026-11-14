@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Chart, DataLoaderGetBarsParams, KLineData, Overlay } from "klinecharts";
 import { dispose, init } from "klinecharts";
-import { Activity, Star } from "lucide-react";
+import { Activity, Camera, Star } from "lucide-react";
+import html2canvas from "html2canvas";
 import type { Kline, StoredAnnotation } from "@wyckoff/shared";
 import { ApiError, fetchKlines } from "@/lib/api.js";
 import { overlayToAnnotation, renderAnnotations, USER_GROUP_ID } from "@/chart/annotations.js";
@@ -9,7 +10,7 @@ import { registerWyckoffOverlays, setOverlayLanguage } from "@/chart/overlays.js
 import { barsForTimeSpan, timeSpanDays, toChartPeriod } from "@/chart/period.js";
 import { getChartStyles } from "@/chart/theme.js";
 import { INDICATORS, useWorkbench, type IndicatorId } from "@/store.js";
-import { cn, localizedInstrumentName } from "@/lib/utils.js";
+import { cn, formatDate, localizedInstrumentName } from "@/lib/utils.js";
 import { ChartToolbar } from "./ChartToolbar.js";
 import { AnnotationEvidence, type AnnotationStats } from "./AnnotationEvidence.js";
 
@@ -57,6 +58,7 @@ function ChartContextPanel() {
   const readyRef = useRef(false);
   const ready = status === "ready";
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
   const chartRef = useRef<Chart | null>(null);
   const paneIds = useRef<Map<IndicatorId, string>>(new Map());
   const loadingKey = useRef("");
@@ -64,6 +66,7 @@ function ChartContextPanel() {
   const [selecting, setSelecting] = useState<SelectionRect | null>(null);
   const [marketSnapshot, setMarketSnapshot] = useState<MarketSnapshot | null>(null);
   const [rangeChange, setRangeChange] = useState<number | null>(null);
+  const [screenshotBusy, setScreenshotBusy] = useState(false);
   const [evidence, setEvidence] = useState<{ annotation: StoredAnnotation; bar?: KLineData; stats?: AnnotationStats } | null>(null);
 
   const symbol = useWorkbench((s) => s.symbol);
@@ -400,8 +403,34 @@ function ChartContextPanel() {
     useWorkbench.getState().toggleSelectionMode();
   };
 
+  const captureChart = async () => {
+    if (!panelRef.current || screenshotBusy) return;
+    setScreenshotBusy(true);
+    try {
+      const canvas = await html2canvas(panelRef.current, {
+        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--color-panel").trim() || "#fffdf7",
+        scale: Math.min(2, window.devicePixelRatio || 1),
+        useCORS: true,
+        logging: false,
+      });
+      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+      if (!blob) throw new Error("empty image");
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${symbol.replaceAll(".", "-")}-${formatDate(Date.now())}.png`;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+      notify(t("chart.screenshotSaved"), "info");
+    } catch {
+      notify(t("chart.screenshotError"), "error");
+    } finally {
+      setScreenshotBusy(false);
+    }
+  };
+
   return (
-    <main data-tour="chart" className="glass-panel chart-panel flex min-w-0 flex-1 flex-col overflow-hidden rounded-[20px]">
+    <main ref={panelRef} data-tour="chart" className="glass-panel chart-panel flex min-w-0 flex-1 flex-col overflow-hidden rounded-[20px]">
       <div className="panel-header flex min-h-[67px] flex-wrap items-center justify-between gap-2 border-b border-line-soft px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-3">
           <div className="market-mark" aria-hidden="true">
@@ -455,6 +484,17 @@ function ChartContextPanel() {
               {t("chart.selecting")}
             </span>
           )}
+          <button
+            type="button"
+            className="glass-icon-btn inline-flex items-center gap-1.5 rounded-[11px] border border-line bg-panel-2 px-2.5 py-1.5 text-[11px] text-ink-dim hover:border-accent/30 hover:text-accent disabled:opacity-40"
+            onClick={() => void captureChart()}
+            disabled={!ready || screenshotBusy}
+            title={t("chart.screenshot")}
+            aria-label={t("chart.screenshot")}
+          >
+            <Camera size={13} />
+            <span>{screenshotBusy ? t("action.loading") : t("chart.screenshot")}</span>
+          </button>
           <WatchStarButton />
         </div>
       </div>

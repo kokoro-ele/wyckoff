@@ -11,6 +11,7 @@ import {
   Eraser,
   Eye,
   EyeOff,
+  LockKeyhole,
   MousePointer2,
   Trash2,
 } from "lucide-react";
@@ -52,7 +53,7 @@ export function ChartToolbar({ dataReady = true }: { dataReady?: boolean }) {
               <Chip
                 key={p}
                 active={period === p}
-                disabled={locked}
+                locked={locked}
                 title={locked ? t("toolbar.freePeriod") : t(`period.${p}`)}
                 onClick={() => {
                   if (locked) {
@@ -62,6 +63,7 @@ export function ChartToolbar({ dataReady = true }: { dataReady?: boolean }) {
                   setPeriod(p);
                 }}
               >
+                {locked && <LockKeyhole size={10} />}
                 {t(`period.${p}`)}
               </Chip>
             );
@@ -179,12 +181,14 @@ function Chip({
   children,
   active,
   disabled,
+  locked,
   title,
   onClick,
 }: {
   children: ReactNode;
   active?: boolean;
   disabled?: boolean;
+  locked?: boolean;
   title?: string;
   onClick?: () => void;
 }) {
@@ -197,6 +201,7 @@ function Chip({
       className={cn(
         "glass-chip inline-flex items-center gap-1 rounded-[8px] px-2.5 py-0.5 text-[10px]",
         disabled && "cursor-not-allowed opacity-35",
+        locked && "opacity-55",
         active && "glass-chip-active",
       )}
     >

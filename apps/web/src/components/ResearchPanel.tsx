@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Crosshair, Landmark, LockKeyhole, RefreshCw, Sparkles } from "lucide-react";
+import { Check, Crosshair, Landmark, LockKeyhole, RefreshCw, Save, Sparkles } from "lucide-react";
 import type { AdjustType, AgentTradePlan, Period, ResearchLevel, ResearchResponse } from "@wyckoff/shared";
 import * as api from "@/lib/api.js";
 import { useWorkbench } from "@/store.js";
@@ -73,8 +73,11 @@ export function ResearchPanel({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [reload, setReload] = useState(0);
+  const [strategySaved, setStrategySaved] = useState(false);
+  const [savingStrategy, setSavingStrategy] = useState(false);
 
   useEffect(() => {
+    setStrategySaved(false);
     if (!hasAnalysis) {
       setPlan(null);
       return;
@@ -279,6 +282,24 @@ export function ResearchPanel({
             </div>
 
             <p className="mt-2 text-[11px] leading-relaxed text-ink-dim">{plan.note}</p>
+            <button
+              type="button"
+              className="hand-btn mt-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px]"
+              disabled={savingStrategy || strategySaved}
+              onClick={() => {
+                setSavingStrategy(true);
+                void api.saveStrategy({ symbol, period, adjust })
+                  .then(() => {
+                    setStrategySaved(true);
+                    useWorkbench.getState().notify(t("research.strategySaved"), "info");
+                  })
+                  .catch(() => useWorkbench.getState().notify(t("research.strategySaveFailed"), "error"))
+                  .finally(() => setSavingStrategy(false));
+              }}
+            >
+              {strategySaved ? <Check size={12} /> : <Save size={12} />}
+              {strategySaved ? t("research.strategySavedShort") : t("research.saveStrategy")}
+            </button>
             <TradePlanAlerts symbol={symbol} period={period} adjust={adjust} />
             <p className="mt-2 text-[9px] leading-relaxed text-ink-faint">{t("research.ruleNote")}<br />{t("research.disclaimer")}</p>
           </section>

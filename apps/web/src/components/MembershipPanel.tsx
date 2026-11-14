@@ -189,7 +189,7 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
           </div>
         )}
         {catalog?.providers.stripe.mode === "test" && (
-          <p className="mt-2 text-[10px] leading-relaxed text-warn">当前是 Stripe 测试模式：请使用测试卡，不会真实扣款。上线前需要切换到 live keys。</p>
+          <p className="mt-2 text-[10px] leading-relaxed text-warn">{t("membership.stripeTest")}</p>
         )}
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -198,17 +198,19 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-semibold">BYOK</span>
               <span className={`rounded-full border px-2 py-0.5 text-[10px] ${byok.byok ? "border-down/40 text-down" : "border-line text-ink-faint"}`}>
-                {byok.byok ? (byok.entitlement?.source === "lifetime" ? "Lifetime" : "Active") : "Not active"}
+                {byok.byok ? (byok.entitlement?.source === "lifetime" ? t("membership.byokLifetime") : t("membership.byokActive")) : t("membership.byokNotActive")}
               </span>
             </div>
             <p className="mt-2 text-[11px] text-ink-dim">
               {byok.byok
-                ? `${byok.entitlement?.source === "lifetime" ? "永久" : "订阅有效至"} ${byok.entitlement?.currentPeriodEnd ? new Date(byok.entitlement.currentPeriodEnd).toLocaleDateString(lang === "zh" ? "zh-CN" : "en-US") : ""}`
-                : "使用自己的模型需要开通 BYOK。"}
+                ? byok.entitlement?.source === "lifetime"
+                  ? t("membership.byokLifetime")
+                  : t("membership.byokActiveUntil", { date: byok.entitlement?.currentPeriodEnd ? new Date(byok.entitlement.currentPeriodEnd).toLocaleDateString(lang === "zh" ? "zh-CN" : "en-US") : "—" })
+                : t("membership.byokRequired")}
             </p>
             {byok.byok && byok.entitlement?.source === "subscription" && (
               <button type="button" className="hand-link mt-1 text-[10px]" disabled={busy} onClick={() => void manage()}>
-                管理订阅 / 取消
+                {t("membership.manageSubscription")}
               </button>
             )}
           </section>
@@ -284,9 +286,9 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
               ))}
             </div>
             <section className="mt-5 border-t border-dashed border-line-soft pt-3">
-              <h3 className="text-sm font-semibold">购买记录</h3>
+              <h3 className="text-sm font-semibold">{t("membership.purchases")}</h3>
               {purchases.length === 0 ? (
-                <p className="mt-2 text-[11px] text-ink-faint">暂无购买记录。</p>
+                <p className="mt-2 text-[11px] text-ink-faint">{t("membership.noPurchases")}</p>
               ) : (
                 <div className="mt-2 space-y-1">
                   {purchases.slice(0, 12).map((purchase) => (
@@ -294,14 +296,14 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
                       <div className="min-w-0">
                         <div className="truncate text-ink">
                           {purchase.kind === "credits"
-                            ? purchase.credits ? `${purchase.credits} credits` : purchase.product
-                            : purchase.product === "byok_lifetime" ? "BYOK Lifetime" : "BYOK Monthly"}
+                            ? purchase.credits ? t("membership.credits", { n: purchase.credits }) : purchase.product
+                            : purchase.product === "byok_lifetime" ? t("membership.byokLifetimeProduct") : t("membership.byokMonthlyProduct")}
                         </div>
                         <div className="text-[9px] text-ink-faint">{new Date(purchase.created_at).toLocaleString(lang === "zh" ? "zh-CN" : "en-US")}</div>
                       </div>
                       <div className="shrink-0 text-right">
                         <div className="font-mono text-ink">{new Intl.NumberFormat(lang === "zh" ? "zh-CN" : "en-US", { style: "currency", currency: purchase.currency }).format(purchase.amount / 100)}</div>
-                        <div className="text-[9px] text-ink-faint">{purchase.status}</div>
+                        <div className="text-[9px] text-ink-faint">{t(`membership.status.${purchase.status}`) === `membership.status.${purchase.status}` ? purchase.status : t(`membership.status.${purchase.status}`)}</div>
                       </div>
                     </div>
                   ))}

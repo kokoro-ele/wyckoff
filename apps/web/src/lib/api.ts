@@ -328,6 +328,33 @@ export function fetchTradePlan(params: {
   return request(`/trade-plan?${query}`);
 }
 
+export interface SavedStrategy {
+  id: string;
+  symbol: string;
+  period: string;
+  adjust: string;
+  plan: AgentTradePlan;
+  savedAt: string;
+}
+
+export function saveStrategy(params: {
+  symbol: string;
+  period: Period;
+  adjust: AdjustType;
+}): Promise<{ strategy: SavedStrategy }> {
+  const query = new URLSearchParams({ symbol: params.symbol, period: params.period, adjust: params.adjust });
+  return request(`/trade-plan/save?${query}`, { method: "POST", body: JSON.stringify({}) });
+}
+
+export function fetchSavedStrategies(params: {
+  symbol: string;
+  period: Period;
+  adjust: AdjustType;
+}): Promise<{ strategies: SavedStrategy[] }> {
+  const query = new URLSearchParams({ symbol: params.symbol, period: params.period, adjust: params.adjust });
+  return request(`/trade-plan/saved?${query}`);
+}
+
 export interface LlmSettings {
   configured: boolean;
   source: "user" | "operator" | "none";
