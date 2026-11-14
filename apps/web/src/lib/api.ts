@@ -92,6 +92,17 @@ export function fetchCapabilities(): Promise<{ freeTier: boolean; note: string }
   return request("/capabilities");
 }
 
+export interface NewsItem {
+  title: string;
+  url: string;
+  source: string;
+  publishedAt: string | null;
+}
+
+export function fetchNewsHeadlines(lang: "zh" | "en"): Promise<{ items: NewsItem[]; updatedAt: string }> {
+  return request(`/news/headlines?lang=${lang}`);
+}
+
 export function fetchMarketOverview(): Promise<MarketOverviewResponse> {
   return request("/market/overview");
 }

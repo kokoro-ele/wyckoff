@@ -3,6 +3,7 @@ import { LineChart, PanelLeft, PanelRight, Search, Settings2, Star, UserRound, X
 import { useWorkbench } from "./store.js";
 import { WatchlistSidebar } from "./components/WatchlistSidebar.js";
 import { MarketSidebar } from "./components/MarketSidebar.js";
+import { NewsTicker } from "./components/NewsTicker.js";
 import { ChartPanel } from "./components/ChartPanel.js";
 import { ChatPanel } from "./components/ChatPanel.js";
 import { SearchModal } from "./components/SearchModal.js";
@@ -199,7 +200,7 @@ export function App() {
           <span>{t("action.search")}</span>
           <kbd className="hidden text-ink-faint md:inline">⌘ K</kbd>
         </button>
-        <div className="min-w-0 flex-1" />
+        <NewsTicker />
         <button
           type="button"
           className="canvas-action"
