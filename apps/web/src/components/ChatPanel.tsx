@@ -78,9 +78,16 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
     if (isVerified) void loadAgentMemory();
   }, [isVerified, loadAgentMemory, symbol, period]);
 
+  const scrollToBottom = () => {
+    const element = listRef.current;
+    if (!element) return;
+    element.scrollTop = element.scrollHeight;
+  };
+
   useEffect(() => {
     if (dockTab !== "agent") return;
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
+    const frame = requestAnimationFrame(scrollToBottom);
+    return () => cancelAnimationFrame(frame);
   }, [visible, sending, dockTab]);
 
   const offerFeedback = () => {
@@ -233,6 +240,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
           wb.requestFocus(event.startTime, event.endTime);
           break;
         case "done":
+          window.setTimeout(scrollToBottom, 120);
           offerFeedback();
           updateAssistant((entry) => ({
             ...entry,
@@ -424,7 +432,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
               <MessageBubble key={message.id} message={message} showTrace={SHOW_TRACE} />
             ))}
             {!sending && visible.some((message) => message.role === "assistant" && !message.streaming) && (
-              <TradePlanAlerts symbol={symbol} period={period} adjust={adjust} />
+              <TradePlanAlerts symbol={symbol} period={period} adjust={adjust} onReady={scrollToBottom} />
             )}
             {sending && (
               <ThinkingBubble

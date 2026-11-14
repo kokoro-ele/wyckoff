@@ -10,10 +10,12 @@ export function TradePlanAlerts({
   symbol,
   period,
   adjust,
+  onReady,
 }: {
   symbol: string;
   period: Period;
   adjust: AdjustType;
+  onReady?: () => void;
 }) {
   const { t, lang } = useI18n();
   const notify = useWorkbench((s) => s.notify);
@@ -25,7 +27,11 @@ export function TradePlanAlerts({
     let cancelled = false;
     setCreated([]);
     void api.fetchTradePlan({ symbol, period, adjust })
-      .then(({ plan: value }) => { if (!cancelled) setPlan(value); })
+      .then(({ plan: value }) => {
+        if (cancelled) return;
+        setPlan(value);
+        if (value) requestAnimationFrame(() => onReady?.());
+      })
       .catch(() => { if (!cancelled) setPlan(null); });
     return () => { cancelled = true; };
   }, [symbol, period, adjust]);

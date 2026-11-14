@@ -22,12 +22,12 @@ function compactVolume(value: number, lang: "zh" | "en"): string {
   return Math.round(value).toLocaleString();
 }
 
-function MarketRow({ row, onPick }: { row: MarketOverviewRow; onPick: (row: MarketOverviewRow) => void }) {
+function MarketRow({ row, onPick, clickable = true }: { row: MarketOverviewRow; onPick: (row: MarketOverviewRow) => void; clickable?: boolean }) {
   const { t, lang } = useI18n();
   const name = localizedInstrumentName(row.name, lang, row.symbol, row.nameEn);
   const up = (row.changePct ?? 0) >= 0;
-  return (
-    <button type="button" className="market-row" onClick={() => onPick(row)}>
+  const content = (
+    <>
       <div className="market-row-head">
         <span className="market-row-symbol">{row.symbol.split(".")[0]}</span>
         <span className={cn("market-row-change", up ? "text-up" : "text-down")}>
@@ -41,7 +41,12 @@ function MarketRow({ row, onPick }: { row: MarketOverviewRow; onPick: (row: Mark
         <span><BarChart3 size={10} /> {compactVolume(row.volume, lang)}</span>
         {row.turnoverRate !== null && row.turnoverRate > 0 && <span>{t("market.turnover", { n: row.turnoverRate.toFixed(2) })}</span>}
       </div>
-    </button>
+    </>
+  );
+  return clickable ? (
+    <button type="button" className="market-row" onClick={() => onPick(row)}>{content}</button>
+  ) : (
+    <div className="market-row is-static">{content}</div>
   );
 }
 
@@ -52,6 +57,7 @@ function MarketGroup({
   open,
   onToggle,
   onPick,
+  clickable = true,
 }: {
   id: string;
   title: string;
@@ -59,6 +65,7 @@ function MarketGroup({
   open: boolean;
   onToggle: (id: string) => void;
   onPick: (row: MarketOverviewRow) => void;
+  clickable?: boolean;
 }) {
   if (rows.length === 0) return null;
   return (
@@ -68,7 +75,7 @@ function MarketGroup({
         <span className="market-group-count">{rows.length}</span>
         {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
       </button>
-      {open && rows.map((row) => <MarketRow key={row.symbol} row={row} onPick={onPick} />)}
+      {open && rows.map((row) => <MarketRow key={row.symbol} row={row} onPick={onPick} clickable={clickable} />)}
     </section>
   );
 }
@@ -136,7 +143,7 @@ export function MarketSidebar({ onSelect }: { onSelect?: () => void }) {
         {error && <p className="px-2 py-3 text-[11px] text-warn">{error}</p>}
         {loading && !data && <p className="px-2 py-6 text-center text-[11px] text-ink-faint">{t("market.loading")}</p>}
         {!loading && rows.length === 0 && indices.length === 0 && !error && <p className="px-2 py-6 text-center text-[11px] text-ink-faint">{t("market.empty")}</p>}
-        <MarketGroup id="indices" title={t("market.indices")} rows={indices} open={open("indices")} onToggle={toggle} onPick={pick} />
+        <MarketGroup id="indices" title={t("market.indices")} rows={indices} open={open("indices")} onToggle={toggle} onPick={pick} clickable={false} />
         <MarketGroup id="volume" title={t("market.volumeLeaders")} rows={volumeLeaders} open={open("volume")} onToggle={toggle} onPick={pick} />
         <MarketGroup id="turnover" title={t("market.turnoverLeaders")} rows={turnoverLeaders} open={open("turnover")} onToggle={toggle} onPick={pick} />
         {Array.from(sectors.entries()).map(([sector, sectorRows]) => (
