@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { MessageSquareHeart, Star, X } from "lucide-react";
 import * as api from "@/lib/api.js";
 import { useI18n } from "@/i18n.js";
@@ -32,7 +33,7 @@ export function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () =
     }
   };
 
-  return (
+  return createPortal(
     <div className="mobile-modal-backdrop fixed inset-0 z-[70] flex items-center justify-center bg-ink/35 px-4 backdrop-blur-[3px]" onMouseDown={(event) => {
       if (event.target === event.currentTarget && !busy) onClose();
     }}>
@@ -87,6 +88,7 @@ export function FeedbackDialog({ open, onClose }: { open: boolean; onClose: () =
           </button>
         )}
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }

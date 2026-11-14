@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import { Clock3, Sparkles } from "lucide-react";
 import { useI18n } from "@/i18n.js";
 
@@ -12,7 +13,7 @@ export function FirstAnalysisNotice({
 }) {
   const { t } = useI18n();
   if (!open) return null;
-  return (
+  return createPortal(
     <div className="mobile-modal-backdrop first-analysis-backdrop fixed inset-0 z-[78] flex items-center justify-center bg-ink/35 px-4 backdrop-blur-[3px]" onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose();
     }}>
@@ -30,6 +31,7 @@ export function FirstAnalysisNotice({
           {t("chat.firstRun.cancel")}
         </button>
       </section>
-    </div>
+    </div>,
+    document.body,
   );
 }
