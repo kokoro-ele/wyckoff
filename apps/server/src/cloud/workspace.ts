@@ -144,12 +144,31 @@ export async function withWorkspace<T>(
     database = new Database(serialized ?? ":memory:");
     const schemaChanged = initializeDatabase(database);
 
+    // K-line history moved to the shared process cache. Remove legacy copies
+    // from every user's encrypted snapshot once on first access; this is the
+    // difference between a multi-megabyte workspace read on every API call and
+    // a small user-data snapshot.
+    let legacyCacheRemoved = false;
+    const cacheVersion = database
+      .prepare("SELECT value FROM app_state WHERE key = 'market-cache-version'")
+      .get() as { value: string } | undefined;
+    if (cacheVersion?.value !== "shared-v2") {
+      try {
+        database.exec(
+          "DELETE FROM klines; DELETE FROM kline_meta; VACUUM; INSERT INTO app_state(key, value) VALUES('market-cache-version', 'shared-v2') ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        );
+        legacyCacheRemoved = true;
+      } catch (error) {
+        console.warn("[workspace] legacy market-cache cleanup failed:", (error as Error).message);
+      }
+    }
+
     const context: WorkspaceContext = {
       userId,
       database,
       transaction: write ? client : undefined,
       finalizeUsage: [],
-      dirty: schemaChanged,
+      dirty: schemaChanged || legacyCacheRemoved,
       deferred: [],
       state: new Map(),
       deadline: Date.now() + 240_000,

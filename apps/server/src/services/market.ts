@@ -8,7 +8,7 @@ import {
 } from "@wyckoff/shared";
 import { computeFeatures, computeRelativeStrength, type MarketFeatures } from "@wyckoff/wyckoff";
 import { isFreeTier } from "../config.js";
-import { db } from "../db/index.js";
+import { publicCacheDatabase } from "../cloud/public.js";
 import { fetchKlines, TickflowError } from "../tickflow/client.js";
 
 /** 免费档日线在收盘后才更新，缓存 6 小时足够新鲜又能避免反复回源。 */
@@ -22,37 +22,59 @@ const MAX_COUNT = 10_000;
  */
 const INITIAL_COUNT = 900;
 
-const selectMeta = db.prepare<[string, string, string], { first_time: number; last_time: number; fetched_at: number }>(
-  "SELECT first_time, last_time, fetched_at FROM kline_meta WHERE symbol = ? AND period = ? AND adjust = ?",
-);
+/**
+ * Market data is shared by every user on this instance. Keeping K-line history
+ * out of each encrypted user workspace avoids shipping multi-megabyte snapshots
+ * from Postgres on every authenticated request.
+ */
+type SqlStatement = {
+  get(...args: unknown[]): unknown;
+  run(...args: unknown[]): unknown;
+};
+let marketStatements: {
+  selectMeta: SqlStatement;
+  insertKline: SqlStatement;
+  upsertMeta: SqlStatement;
+} | undefined;
 
-const insertKline = db.prepare(`
-  INSERT INTO klines (symbol, period, adjust, timestamp, open, high, low, close, volume, amount)
-  VALUES (@symbol, @period, @adjust, @timestamp, @open, @high, @low, @close, @volume, @amount)
-  ON CONFLICT(symbol, period, adjust, timestamp) DO UPDATE SET
-    open = excluded.open, high = excluded.high, low = excluded.low,
-    close = excluded.close, volume = excluded.volume, amount = excluded.amount
-`);
+function statements() {
+  if (marketStatements) return marketStatements;
+  const database = publicCacheDatabase();
+  marketStatements = {
+    selectMeta: database.prepare(
+      "SELECT first_time, last_time, fetched_at FROM kline_meta WHERE symbol = ? AND period = ? AND adjust = ?",
+    ) as unknown as SqlStatement,
+    insertKline: database.prepare(`
+      INSERT INTO klines (symbol, period, adjust, timestamp, open, high, low, close, volume, amount)
+      VALUES (@symbol, @period, @adjust, @timestamp, @open, @high, @low, @close, @volume, @amount)
+      ON CONFLICT(symbol, period, adjust, timestamp) DO UPDATE SET
+        open = excluded.open, high = excluded.high, low = excluded.low,
+        close = excluded.close, volume = excluded.volume, amount = excluded.amount
+    `),
+    upsertMeta: database.prepare(`
+      INSERT INTO kline_meta (symbol, period, adjust, first_time, last_time, fetched_at)
+      VALUES (?, ?, ?, ?, ?, ?)
+      ON CONFLICT(symbol, period, adjust) DO UPDATE SET
+        -- 本地会留下窗口左移后掉出去的旧 bar，first_time 必须取更早的那头，
+        -- 不能被「最近 10000 根」的左端覆盖。last_time 同理取更晚。
+        first_time = MIN(first_time, excluded.first_time),
+        last_time  = MAX(last_time, excluded.last_time),
+        fetched_at = excluded.fetched_at
+    `) as unknown as SqlStatement,
+  };
+  return marketStatements;
+}
 
-const upsertMeta = db.prepare(`
-  INSERT INTO kline_meta (symbol, period, adjust, first_time, last_time, fetched_at)
-  VALUES (?, ?, ?, ?, ?, ?)
-  ON CONFLICT(symbol, period, adjust) DO UPDATE SET
-    -- 本地会留下窗口左移后掉出去的旧 bar，first_time 必须取更早的那头，
-    -- 不能被「最近 10000 根」的左端覆盖。last_time 同理取更晚。
-    first_time = MIN(first_time, excluded.first_time),
-    last_time  = MAX(last_time, excluded.last_time),
-    fetched_at = excluded.fetched_at
-`);
-
-const storeKlines = db.transaction(
-  (symbol: string, period: string, adjust: string, klines: Kline[]) => {
+function storeKlines(symbol: string, period: string, adjust: string, klines: Kline[]): void {
+  const database = publicCacheDatabase();
+  const { insertKline, upsertMeta } = statements();
+  database.transaction(() => {
     for (const bar of klines) insertKline.run({ symbol, period, adjust, ...bar });
     if (klines.length > 0) {
       upsertMeta.run(symbol, period, adjust, klines[0].timestamp, klines[klines.length - 1].timestamp, Date.now());
     }
-  },
-);
+  })();
+}
 
 export interface GetKlinesParams {
   symbol: string;
@@ -98,7 +120,9 @@ async function ensureCached(
   wantedCount = 0,
   forceFull = false,
 ): Promise<void> {
-  const meta = selectMeta.get(symbol, period, adjust);
+  const meta = statements().selectMeta.get(symbol, period, adjust) as
+    | { first_time: number; last_time: number; fetched_at: number }
+    | undefined;
   if (meta && Date.now() - meta.fetched_at < CACHE_TTL_MS && !forceFull) return;
 
   try {
@@ -147,11 +171,11 @@ export async function getKlines(params: GetKlinesParams): Promise<Kline[]> {
   const limit = count ? " ORDER BY timestamp DESC LIMIT ?" : " ORDER BY timestamp ASC";
   if (count) args.push(count);
 
-  const rows = db
-    .prepare<(string | number)[], Kline>(
+  const rows = publicCacheDatabase()
+    .prepare(
       `SELECT timestamp, open, high, low, close, volume, amount FROM klines WHERE ${where.join(" AND ")}${limit}`,
     )
-    .all(...args);
+    .all(...args) as Kline[];
 
   return count ? rows.reverse() : rows;
 }

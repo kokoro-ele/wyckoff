@@ -8,11 +8,13 @@ import { workspaceContext, type WorkspaceContext } from "./context.js";
 let publicDatabase: Database.Database | undefined;
 
 /**
- * Anonymous market data uses a process-local SQLite cache. It contains only
+ * Market data uses a process-local shared SQLite cache. It contains only
  * instruments and klines, never user watchlists, sessions, annotations or
- * credits. On Vercel it lives under /tmp and is disposable per instance.
+ * credits. Authenticated and anonymous requests share it so K-line history is
+ * not copied into every private workspace. On Vercel it lives under /tmp and is
+ * disposable per instance.
  */
-function database(): Database.Database {
+export function publicCacheDatabase(): Database.Database {
   if (!publicDatabase) {
     const directory = path.join(config.dataDir, "public");
     mkdirSync(directory, { recursive: true });
@@ -25,7 +27,7 @@ function database(): Database.Database {
 export async function withPublicWorkspace<T>(work: () => Promise<T>): Promise<T> {
   const context: WorkspaceContext = {
     userId: "__public__",
-    database: database(),
+    database: publicCacheDatabase(),
     dirty: false,
     deferred: [],
     state: new Map(),
