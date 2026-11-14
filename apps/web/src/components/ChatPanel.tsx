@@ -22,11 +22,12 @@ import type {
   ChatContext,
   ResearchIntent,
 } from "@wyckoff/shared";
-import { ApiError, interruptChat, streamChat } from "@/lib/api.js";
+import { ApiError, fetchFeedbackStatus, interruptChat, streamChat } from "@/lib/api.js";
 import { cn, formatDate, formatDuration, formatPrice } from "@/lib/utils.js";
 import { useWorkbench, type ChatEntry, type ToolTraceItem } from "@/store.js";
 import { MarkdownContent } from "./MarkdownContent.js";
 import { ResearchPanel } from "./ResearchPanel.js";
+import { FeedbackDialog } from "./FeedbackDialog.js";
 import { useAuth } from "@/auth/AuthProvider.js";
 import { useI18n } from "@/i18n.js";
 
@@ -58,6 +59,8 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
   const [activityOpen, setActivityOpen] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [slowNotice, setSlowNotice] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const feedbackAsked = useRef(false);
   const sendingRef = useRef(false);
   const abortRef = useRef<AbortController | null>(null);
   const runIdRef = useRef<string | null>(null);
@@ -78,6 +81,16 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
     if (dockTab !== "agent") return;
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: "smooth" });
   }, [visible, sending, dockTab]);
+
+  const offerFeedback = () => {
+    if (feedbackAsked.current) return;
+    feedbackAsked.current = true;
+    void fetchFeedbackStatus()
+      .then((status) => {
+        if (status.canPrompt) setFeedbackOpen(true);
+      })
+      .catch(() => undefined);
+  };
 
   const execute = async (text: string) => {
     const content = text.trim();
@@ -219,6 +232,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
           wb.requestFocus(event.startTime, event.endTime);
           break;
         case "done":
+          offerFeedback();
           updateAssistant((entry) => ({
             ...entry,
             id: event.messageId || entry.id,
@@ -462,6 +476,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
           </div>
         </>
       )}
+      <FeedbackDialog open={feedbackOpen} onClose={() => setFeedbackOpen(false)} />
     </aside>
   );
 }

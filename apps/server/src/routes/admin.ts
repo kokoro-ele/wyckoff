@@ -130,6 +130,17 @@ adminRoutes.get("/analytics", async (c) => {
     },
   });
 });
+adminRoutes.get("/feedback", async (c) => {
+  const denied = await guard(c);
+  if (denied) return denied;
+  const { rows } = await getPool().query(
+    `SELECT f.user_id, f.rating, f.comment, f.credits_granted, f.created_at, u.email
+     FROM feedback_responses f JOIN "user" u ON u.id=f.user_id
+     ORDER BY f.created_at DESC LIMIT 100`,
+  );
+  return c.json({ feedback: rows });
+});
+
 adminRoutes.get("/users", async (c) => {
   const denied = await guard(c);
   if (denied) return denied;

@@ -14,6 +14,7 @@ import { subscriptionCatalog } from "../billing/subscriptionCatalog.js";
 import { getEntitlement, hasEntitlement } from "../billing/entitlements.js";
 import { creditPacks } from "./catalog.js";
 import { claimDailyLogin, creditStatus } from "./store.js";
+import { feedbackStatus, submitFeedback } from "./feedback.js";
 
 export function createCreditsRouter(pool: Pool, userId: string) {
   const app = new Hono();
@@ -24,6 +25,16 @@ export function createCreditsRouter(pool: Pool, userId: string) {
 
   app.get("/status", async (c) => c.json(await creditStatus(pool, userId)));
   app.post("/daily-login", async (c) => c.json(await claimDailyLogin(pool, userId)));
+  app.get("/feedback/status", async (c) => c.json(await feedbackStatus(pool, userId)));
+  app.post("/feedback", bodyLimit({ maxSize: 8 * 1024 }), async (c) => {
+    const body = (await c.req.json().catch(() => null)) as { rating?: unknown; comment?: unknown } | null;
+    const rating = Number(body?.rating);
+    const comment = typeof body?.comment === "string" ? body.comment.trim() : "";
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+      return c.json({ code: "BAD_REQUEST", message: "请选择 1–5 分评分" }, 400);
+    }
+    return c.json(await submitFeedback(pool, userId, rating, comment));
+  });
   app.get("/catalog", (c) => c.json({ packs: creditPacks(), providers: availability() }));
   app.get("/subscriptions/catalog", (c) => c.json({ products: subscriptionCatalog() }));
   app.get("/subscriptions/status", async (c) => {

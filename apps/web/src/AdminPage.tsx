@@ -32,6 +32,7 @@ export function AdminPage() {
   const [overview, setOverview] = useState<api.AdminOverview | null>(null);
   const [analytics, setAnalytics] = useState<api.AdminAnalytics | null>(null);
   const [users, setUsers] = useState<api.AdminUser[]>([]);
+  const [feedback, setFeedback] = useState<Awaited<ReturnType<typeof api.fetchAdminFeedback>>["feedback"]>([]);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
@@ -40,14 +41,16 @@ export function AdminPage() {
   const load = async (q = query) => {
     setError("");
     try {
-      const [o, u, a] = await Promise.all([
+      const [o, u, a, f] = await Promise.all([
         api.fetchAdminOverview(),
         api.fetchAdminUsers(q),
         api.fetchAdminAnalytics(),
+        api.fetchAdminFeedback(),
       ]);
       setOverview(o);
       setUsers(u.users);
       setAnalytics(a);
+      setFeedback(f.feedback);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Admin unavailable");
     }
@@ -264,6 +267,24 @@ export function AdminPage() {
               </tbody>
             </table>
           </div>
+        </section>
+
+        <section className="admin-section hand-card">
+          <h2>{zh ? "首次分析反馈" : "First-analysis feedback"}</h2>
+          {feedback.length === 0 ? (
+            <p className="text-[11px] text-ink-faint">{zh ? "暂无反馈" : "No feedback yet"}</p>
+          ) : (
+            feedback.map((item) => (
+              <div key={`${item.user_id}-${item.created_at}`} className="admin-list-row">
+                <span className="min-w-0">
+                  <strong>{item.email}</strong>
+                  <span className="ml-2 text-warn">{"★".repeat(item.rating)}{"☆".repeat(5 - item.rating)}</span>
+                  {item.comment && <span className="mt-0.5 block text-ink-dim">{item.comment}</span>}
+                </span>
+                <span className="shrink-0 text-[10px] text-ink-faint">{fmtDate(item.created_at, lang)}</span>
+              </div>
+            ))
+          )}
         </section>
 
         <div className="admin-columns">

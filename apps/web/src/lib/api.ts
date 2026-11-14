@@ -128,6 +128,28 @@ export function claimDailyLogin(): Promise<DailyLoginReward> {
   return request("/credits/daily-login", { method: "POST", body: JSON.stringify({}) });
 }
 
+export interface FeedbackStatus {
+  canPrompt: boolean;
+  hasFeedback: boolean;
+  analyses: number;
+}
+
+export function fetchFeedbackStatus(): Promise<FeedbackStatus> {
+  return request("/credits/feedback/status");
+}
+
+export function submitFeedback(rating: number, comment: string): Promise<{
+  granted: boolean;
+  already: boolean;
+  credits: number;
+  balance: number;
+}> {
+  return request("/credits/feedback", {
+    method: "POST",
+    body: JSON.stringify({ rating, comment }),
+  });
+}
+
 // ————————————————— 检索与收藏 —————————————————
 
 export function searchInstruments(
@@ -450,6 +472,12 @@ export function resetAdminCredits(balance = 3): Promise<{ ok: boolean; updated: 
 
 export function deleteAdminUser(userId: string): Promise<{ ok: boolean; deleted: string }> {
   return request(`/admin/users/${encodeURIComponent(userId)}`, { method: "DELETE" });
+}
+
+export function fetchAdminFeedback(): Promise<{
+  feedback: { user_id: string; rating: number; comment: string; credits_granted: number; created_at: string; email: string }[];
+}> {
+  return request("/admin/feedback");
 }
 
 export interface AdminAnalytics {

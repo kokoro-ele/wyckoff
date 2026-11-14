@@ -68,6 +68,14 @@ CREATE TABLE IF NOT EXISTS credit_ledger(
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS feedback_responses(
+  user_id TEXT PRIMARY KEY REFERENCES "user"(id) ON DELETE CASCADE,
+  rating SMALLINT NOT NULL CHECK(rating BETWEEN 1 AND 5),
+  comment TEXT NOT NULL DEFAULT '',
+  credits_granted INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS credit_usage(
   -- token metering; credits is the final charged amount for this request
 
@@ -147,12 +155,13 @@ ALTER TABLE api_rate_limits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE credit_meta ENABLE ROW LEVEL SECURITY;
 ALTER TABLE credit_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE credit_ledger ENABLE ROW LEVEL SECURITY;
+ALTER TABLE feedback_responses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE credit_usage ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON user_identity,auth_referral_intents,api_rate_limits,credit_meta,credit_accounts,credit_ledger,credit_usage FROM PUBLIC;
+REVOKE ALL ON user_identity,auth_referral_intents,api_rate_limits,credit_meta,credit_accounts,credit_ledger,credit_usage,feedback_responses FROM PUBLIC;
 DO $$ DECLARE r TEXT; BEGIN
   FOREACH r IN ARRAY ARRAY['anon','authenticated'] LOOP
     IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname=r) THEN
-      EXECUTE format('REVOKE ALL ON auth_referral_intents,api_rate_limits,credit_meta,credit_accounts,credit_ledger,credit_usage FROM %I',r);
+      EXECUTE format('REVOKE ALL ON auth_referral_intents,api_rate_limits,credit_meta,credit_accounts,credit_ledger,credit_usage,feedback_responses FROM %I',r);
     END IF;
   END LOOP;
 END $$;
