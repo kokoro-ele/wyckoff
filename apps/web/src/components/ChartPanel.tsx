@@ -409,30 +409,31 @@ function ChartContextPanel() {
     try {
       // Capture only the chart surface. Header, toolbar and side panels must
       // never appear in the exported image.
-      let canvas: HTMLCanvasElement | null = null;
-      try {
-        canvas = await html2canvas(element, {
-          backgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--color-panel").trim() || "#fffdf7",
-          scale: Math.min(2, window.devicePixelRatio || 1),
-          useCORS: true,
-          allowTaint: true,
-          logging: false,
-        });
-      } catch {
-        canvas = null;
+      // Native canvas composition is the primary path: it captures exactly
+      // the chart layers (candles, indicators, axes) and avoids html2canvas
+      // failures on mobile Safari. html2canvas is only a fallback.
+      let canvas = compositeChartCanvases(element);
+      if (!canvas) {
+        try {
+          canvas = await html2canvas(element, {
+            backgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--color-panel").trim() || "#fffdf7",
+            scale: Math.min(2, window.devicePixelRatio || 1),
+            useCORS: true,
+            allowTaint: true,
+            logging: false,
+          });
+        } catch {
+          canvas = null;
+        }
       }
-      if (!canvas) canvas = compositeChartCanvases(element);
       if (!canvas) throw new Error("empty chart canvas");
-      const blob = await new Promise<Blob | null>((resolve) => canvas!.toBlob(resolve, "image/png"));
-      if (!blob) throw new Error("empty image");
-      const url = URL.createObjectURL(blob);
+      const dataUrl = canvas.toDataURL("image/png");
       const link = document.createElement("a");
-      link.href = url;
+      link.href = dataUrl;
       link.download = `${symbol.replaceAll(".", "-")}-${formatDate(Date.now())}.png`;
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       notify(t("chart.screenshotSaved"), "info");
     } catch (error) {
       notify(`${t("chart.screenshotError")} ${error instanceof Error ? error.message : ""}`.trim(), "error");
@@ -627,24 +628,34 @@ function WatchStarButton() {
 }
 
 function compositeChartCanvases(element: HTMLElement): HTMLCanvasElement | null {
-  const sources = Array.from(element.querySelectorAll<HTMLCanvasElement>("canvas"));
+  const allSources = Array.from(element.querySelectorAll<HTMLCanvasElement>("canvas"));
+  const sources = allSources.length
+    ? allSources
+    : Array.from(document.querySelectorAll<HTMLCanvasElement>(".chart-surface canvas"));
   if (sources.length === 0) return null;
-  const rect = element.getBoundingClientRect();
-  if (rect.width < 1 || rect.height < 1) return null;
+  const elementRect = element.getBoundingClientRect();
+  const sourceRects = sources.map((source) => source.getBoundingClientRect());
+  const left = elementRect.width >= 1 ? elementRect.left : Math.min(...sourceRects.map((rect) => rect.left));
+  const top = elementRect.height >= 1 ? elementRect.top : Math.min(...sourceRects.map((rect) => rect.top));
+  const right = elementRect.width >= 1 ? elementRect.right : Math.max(...sourceRects.map((rect) => rect.right));
+  const bottom = elementRect.height >= 1 ? elementRect.bottom : Math.max(...sourceRects.map((rect) => rect.bottom));
+  const width = right - left;
+  const height = bottom - top;
+  if (width < 1 || height < 1) return null;
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   const output = document.createElement("canvas");
-  output.width = Math.round(rect.width * dpr);
-  output.height = Math.round(rect.height * dpr);
+  output.width = Math.round(width * dpr);
+  output.height = Math.round(height * dpr);
   const context = output.getContext("2d");
   if (!context) return null;
   context.scale(dpr, dpr);
   context.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--color-panel").trim() || "#fffdf7";
-  context.fillRect(0, 0, rect.width, rect.height);
-  for (const source of sources) {
-    const sourceRect = source.getBoundingClientRect();
+  context.fillRect(0, 0, width, height);
+  for (const [index, source] of sources.entries()) {
+    const sourceRect = sourceRects[index];
     if (sourceRect.width < 1 || sourceRect.height < 1 || source.width < 1 || source.height < 1) continue;
     try {
-      context.drawImage(source, sourceRect.left - rect.left, sourceRect.top - rect.top, sourceRect.width, sourceRect.height);
+      context.drawImage(source, sourceRect.left - left, sourceRect.top - top, sourceRect.width, sourceRect.height);
     } catch {
       /* skip a tainted/empty layer; other layers still render */
     }
