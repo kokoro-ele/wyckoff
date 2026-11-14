@@ -28,7 +28,9 @@ export function StartAnalysisSheet({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Hit[]>([]);
   const [loading, setLoading] = useState(false);
+  const [syncTick, setSyncTick] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -48,14 +50,20 @@ export function StartAnalysisSheet({
     timer.current = setTimeout(() => {
       void api
         .searchInstruments(query.trim(), 8)
-        .then((res) => setResults(res.results))
+        .then((res) => {
+          setResults(res.results);
+          if (res.syncing && res.results.length === 0) {
+            syncTimer.current = setTimeout(() => setSyncTick((value) => value + 1), 1500);
+          }
+        })
         .catch(() => setResults([]))
         .finally(() => setLoading(false));
     }, 180);
     return () => {
       if (timer.current) clearTimeout(timer.current);
+      if (syncTimer.current) clearTimeout(syncTimer.current);
     };
-  }, [open, query]);
+  }, [open, query, syncTick]);
 
   if (!open) return null;
 

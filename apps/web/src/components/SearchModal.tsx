@@ -26,6 +26,7 @@ export function SearchModal() {
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -45,10 +46,15 @@ export function SearchModal() {
     setResults([]);
     setActive(0);
     requestAnimationFrame(() => inputRef.current?.focus());
+    return () => {
+      if (timer.current) clearTimeout(timer.current);
+      if (syncTimer.current) clearTimeout(syncTimer.current);
+    };
   }, [open]);
 
   const runSearch = useCallback((q: string) => {
     if (timer.current) clearTimeout(timer.current);
+    if (syncTimer.current) clearTimeout(syncTimer.current);
     if (!q.trim()) {
       setResults([]);
       return;
@@ -61,6 +67,9 @@ export function SearchModal() {
           setResults(res.results);
           setIndexSize(res.indexSize);
           setActive(0);
+          if (res.syncing && res.results.length === 0) {
+            syncTimer.current = setTimeout(() => runSearch(q), 1500);
+          }
         })
         .catch(() => setResults([]))
         .finally(() => setLoading(false));

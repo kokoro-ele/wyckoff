@@ -203,7 +203,7 @@ export function submitFeedback(rating: number, comment: string): Promise<{
 export function searchInstruments(
   query: string,
   limit = 30,
-): Promise<{ results: (Instrument & { score: number })[]; indexSize: number }> {
+): Promise<{ results: (Instrument & { score: number })[]; indexSize: number; syncing?: boolean }> {
   return request(`/search?q=${encodeURIComponent(query)}&limit=${limit}`);
 }
 

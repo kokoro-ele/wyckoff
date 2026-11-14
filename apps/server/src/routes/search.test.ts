@@ -16,7 +16,12 @@ it("search syncs a partial index populated by the initial chart", async () => {
       await getInstrument("AAPL.US");
       expect(indexSize()).toBe(1);
       const {libraryRoutes}=await import("./library.js");
-      const response=await new Hono().route("/api",libraryRoutes).request("/api/search?q=goog");
+      const first = await new Hono().route("/api",libraryRoutes).request("/api/search?q=goog");
+      expect(first.status).toBe(200);
+      // The route warms a missing index in the background so interactive
+      // search never waits for the full exchange sync.
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      const response = await new Hono().route("/api",libraryRoutes).request("/api/search?q=goog");
       expect(response.status).toBe(200);
       const body = await response.json() as { results: Array<{ symbol: string }> };
       expect(body.results).toEqual(expect.arrayContaining([expect.objectContaining({symbol:"GOOG.US"})]));

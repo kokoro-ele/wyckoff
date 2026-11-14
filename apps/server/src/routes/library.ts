@@ -8,15 +8,22 @@ import * as watchlist from "../services/watchlist.js";
 export const libraryRoutes = new Hono();
 
 libraryRoutes.get("/search", async (c) => {
-  if (isSyncNeeded()) await syncInstruments();
-  await ensureEnglishNames();
+  // Never block an interactive search on the five-exchange sync or the
+  // Nasdaq name download. Return whatever is already indexed and warm the
+  // index in the background; the client retries when `syncing` is true.
   loadIndex();
+  const syncing = isSyncNeeded();
+  if (syncing) {
+    void Promise.all([syncInstruments(), ensureEnglishNames()])
+      .then(() => loadIndex())
+      .catch((error) => console.warn("[search] background sync failed:", (error as Error).message));
+  }
   const q = c.req.query("q") ?? "";
   const limit = Number(c.req.query("limit") ?? 30);
   return c.json({
     results: searchInstruments(q, Number.isFinite(limit) ? Math.min(limit, 100) : 30),
     indexSize: indexSize(),
-    syncing: isSyncNeeded(),
+    syncing,
   });
 });
 
