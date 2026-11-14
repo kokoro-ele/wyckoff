@@ -88,7 +88,7 @@ pnpm dev
 - Admin dashboard: <http://localhost:5273/admin> (set `ADMIN_EMAILS`)
 - Legal: `/privacy`, `/terms`, `/refund`, `/contact`
 - API server: <http://127.0.0.1:8787>
-- Wyckoff method reference: <http://localhost:5273/wyckoff.html>
+- Wyckoff method reference: <http://localhost:5273/learn/en#events>
 
 > The dev server and `db:migrate` both read `.env` and `.env.local`; the latter wins. You can also provide configuration only through the process environment. The first search syncs the instrument directory into the current account's workspace.
 

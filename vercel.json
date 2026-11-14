@@ -38,5 +38,12 @@
         }
       ]
     }
+  ],
+  "redirects": [
+    {
+      "source": "/wyckoff.html",
+      "destination": "/learn/en#events",
+      "permanent": false
+    }
   ]
 }

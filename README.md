@@ -92,7 +92,7 @@ pnpm dev
 - 管理面板：<http://localhost:5273/admin>（需在 `ADMIN_EMAILS` 中配置管理员邮箱）
 - 合规页面：`/privacy`、`/terms`、`/refund`、`/contact`
 - 后端：<http://127.0.0.1:8787>
-- Wyckoff 方法说明：<http://localhost:5273/wyckoff.html>
+- Wyckoff 方法说明：<http://localhost:5273/learn/zh#events>
 
 > 开发服务器与 `db:migrate` 都会读取 `.env` 和 `.env.local`，后者优先。也可以只通过进程环境变量提供配置。首次启动会同步标的索引到当前账号的工作区。
 

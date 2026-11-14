@@ -365,7 +365,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
           <div className="flex items-center gap-1">
             {agent && (
               <>
-                <button type="button" title={t("chat.method")} aria-label={t("chat.method")} className="hand-icon chat-head-tool" onClick={() => window.open("/wyckoff.html", "_blank", "noopener")}>
+                <button type="button" title={t("chat.method")} aria-label={t("chat.method")} className="hand-icon chat-head-tool" onClick={() => window.open(`/learn/${lang}#events`, "_blank", "noopener")}>
                   <BookOpen size={15} />
                 </button>
                 <button type="button" title={t("chat.newSession")} aria-label={t("chat.newSession")} className="hand-icon chat-head-tool" onClick={resetSession}>
@@ -385,7 +385,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
             <Sparkles size={14} />
             <span>{t("research.agentTab")}</span>
           </button>
-          <button type="button" className="chat-mobile-tool" title={t("chat.method")} aria-label={t("chat.method")} onClick={() => window.open("/wyckoff.html", "_blank", "noopener")}>
+          <button type="button" className="chat-mobile-tool" title={t("chat.method")} aria-label={t("chat.method")} onClick={() => window.open(`/learn/${lang}#events`, "_blank", "noopener")}>
             <BookOpen size={14} />
           </button>
           {onCloseDock && (

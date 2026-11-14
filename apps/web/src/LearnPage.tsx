@@ -3,12 +3,40 @@ import { ArrowLeft, ArrowRight, BookOpen, ExternalLink, Languages, Moon, Sun } f
 import { useI18n } from "./i18n.js";
 import { SEO_ORIGIN, useSeo } from "./lib/seo.js";
 import { useTheme } from "./theme.js";
+import { WYCKOFF_EVENTS, WYCKOFF_EVENT_CODES, type WyckoffEventCode, type WyckoffSide } from "@wyckoff/shared";
 
 const LINKS = [
   { labelZh: "Wyckoff Analytics · 方法介绍", labelEn: "Wyckoff Analytics · Method", href: "https://www.wyckoffanalytics.com/wyckoff-method/" },
   { labelZh: "Google · Wyckoff events and phases", labelEn: "Google · Wyckoff events and phases", href: "https://www.google.com/search?q=wyckoff+events+and+phases" },
-  { labelZh: "完整事件目录（英文）", labelEn: "Full event catalog (English)", href: "/wyckoff.html" },
+  { labelZh: "完整事件目录（本页）", labelEn: "Full event catalog (this page)", href: "#events" },
 ];
+
+const EVENT_EN: Record<WyckoffEventCode, string> = {
+  PS: "First notable support on expanding volume and spread during a decline; large operators begin to bid, but this is usually not the low.",
+  SC: "Panic extreme: huge volume, wide spread and a close well off the low. Heavy absorption leaves a footprint.",
+  AR: "The automatic rally after selling (or the reaction after buying) is exhausted. Its end defines a range boundary.",
+  ST: "Return to the climax area to test supply and demand. Volume and spread should contract if the prior effort is spent.",
+  Spring: "A brief break below range support, followed by a fast reclaim. It flushes weak hands and is the Phase C test.",
+  Shakeout: "A more violent Spring: a sharp, high-volume break below support that is quickly recovered.",
+  Test: "A quiet retest of a prior low or high. Ideally low volume, narrow spread and a close back in favor.",
+  SOS: "A wide-spread rally on expanding volume through range resistance; demand takes control and Phase D begins.",
+  LPS: "A low-volume pullback after SOS that holds a higher low. A classic lower-risk long setup.",
+  JAC: "A decisive move across the Creek, the resistance line along the range highs; the pictorial SOS.",
+  BU: "The pullback after JAC, where old resistance becomes new support.",
+  PSY: "The first volume stall in an advance. Distribution begins, but the top is not necessarily in yet.",
+  BC: "A climactic high-volume up-bar that fails to hold. The Composite Man sells into late demand.",
+  UT: "A break above resistance that immediately falls back inside the range: a failed breakout.",
+  UTAD: "The final bull trap after distribution is built, followed by a fast failure. It is the Phase C test.",
+  SOW: "A wide-spread decline on expanding volume through range support; supply is in control.",
+  LPSY: "A weak rally after SOW that makes a lower high; a lower-risk short or exit.",
+  ICE: "A break below the Ice, the support line along range lows, often followed by a throwback.",
+};
+
+const SIDE_LABEL: Record<WyckoffSide, { zh: string; en: string }> = {
+  accumulation: { zh: "吸筹事件", en: "Accumulation events" },
+  distribution: { zh: "派发事件", en: "Distribution events" },
+  both: { zh: "两类结构共有", en: "Shared events" },
+};
 
 export function LearnPage({ pathLang }: { pathLang: "zh" | "en" }) {
   const { setLang } = useI18n();
@@ -108,6 +136,54 @@ export function LearnPage({ pathLang }: { pathLang: "zh" | "en" }) {
             ].map(([name, phase, body], index) => (
               <article key={name} className={`learn-cycle-card learn-cycle-${index}`}><span>Phase {phase}</span><h3>{name}</h3><p>{body}</p></article>
             ))}
+          </div>
+        </section>
+
+        <section id="events" className="learn-section">
+          <div className="learn-section-head"><span>03</span><h2>{zh ? "事件目录" : "Event catalog"}</h2></div>
+          <p className="learn-events-intro">
+            {zh
+              ? "事件不是孤立信号。先确认交易区间和阶段，再用量能、价差与收盘位置确认事件是否成立。"
+              : "Events are not standalone signals. Confirm the range and phase first, then validate an event with volume, spread and the close."}
+            {" "}
+            <a href="https://www.wyckoffanalytics.com/wyckoff-method/" target="_blank" rel="noreferrer">
+              {zh ? "查看 Wyckoff Analytics 的完整方法说明 →" : "Read the full method at Wyckoff Analytics →"}
+            </a>
+          </p>
+          <div className="learn-event-groups">
+            {(["accumulation", "distribution", "both"] as WyckoffSide[]).map((side) => {
+              const codes = WYCKOFF_EVENT_CODES.filter((code) => WYCKOFF_EVENTS[code].side === side);
+              return (
+                <section key={side} className="learn-event-group">
+                  <h3>{zh ? SIDE_LABEL[side].zh : SIDE_LABEL[side].en}</h3>
+                  <div className="learn-event-table-wrap">
+                    <table className="learn-event-table">
+                      <thead>
+                        <tr>
+                          <th>{zh ? "代号" : "Code"}</th>
+                          <th>{zh ? "名称" : "Name"}</th>
+                          <th>{zh ? "阶段" : "Phase"}</th>
+                          <th>{zh ? "含义" : "Meaning"}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {codes.map((code) => {
+                          const meta = WYCKOFF_EVENTS[code];
+                          return (
+                            <tr key={code}>
+                              <td><code>{meta.code}</code></td>
+                              <td>{zh ? meta.nameZh : meta.nameEn}</td>
+                              <td className="learn-event-phases">{meta.phases.join(", ")}</td>
+                              <td>{zh ? meta.description : EVENT_EN[code]}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              );
+            })}
           </div>
         </section>
 
