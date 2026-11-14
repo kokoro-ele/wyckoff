@@ -76,6 +76,22 @@ CREATE TABLE IF NOT EXISTS feedback_responses(
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS price_alerts(
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  symbol TEXT NOT NULL,
+  period TEXT NOT NULL DEFAULT '1d',
+  adjust TEXT NOT NULL DEFAULT 'forward',
+  target_price NUMERIC NOT NULL CHECK(target_price>0),
+  direction TEXT NOT NULL CHECK(direction IN ('above','below')),
+  label TEXT NOT NULL DEFAULT '',
+  language TEXT NOT NULL DEFAULT 'zh' CHECK(language IN ('zh','en')),
+  status TEXT NOT NULL DEFAULT 'active' CHECK(status IN ('active','sent','cancelled')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  sent_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS price_alerts_active ON price_alerts(status,created_at);
+
 CREATE TABLE IF NOT EXISTS credit_usage(
   -- token metering; credits is the final charged amount for this request
 
@@ -156,12 +172,13 @@ ALTER TABLE credit_meta ENABLE ROW LEVEL SECURITY;
 ALTER TABLE credit_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE credit_ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE feedback_responses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE price_alerts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE credit_usage ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON user_identity,auth_referral_intents,api_rate_limits,credit_meta,credit_accounts,credit_ledger,credit_usage,feedback_responses FROM PUBLIC;
+REVOKE ALL ON user_identity,auth_referral_intents,api_rate_limits,credit_meta,credit_accounts,credit_ledger,credit_usage,feedback_responses,price_alerts FROM PUBLIC;
 DO $$ DECLARE r TEXT; BEGIN
   FOREACH r IN ARRAY ARRAY['anon','authenticated'] LOOP
     IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname=r) THEN
-      EXECUTE format('REVOKE ALL ON auth_referral_intents,api_rate_limits,credit_meta,credit_accounts,credit_ledger,credit_usage,feedback_responses FROM %I',r);
+      EXECUTE format('REVOKE ALL ON auth_referral_intents,api_rate_limits,credit_meta,credit_accounts,credit_ledger,credit_usage,feedback_responses,price_alerts FROM %I',r);
     END IF;
   END LOOP;
 END $$;

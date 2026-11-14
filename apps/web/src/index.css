@@ -2035,3 +2035,10 @@
   .left-sidebar-stack { width: 100%; height: auto; flex: 1; min-height: 0; }
   .left-sidebar-stack > aside { height: 100%; }
 }
+
+.trade-plan-alerts { border: 1px dashed var(--color-line); border-radius: 8px 12px 7px 10px; background: var(--paper-mint); padding: 7px 9px; }
+.trade-plan-alerts-label { display: flex; align-items: center; gap: 4px; color: var(--color-ink-faint); font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.trade-plan-alert-buttons { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 5px; }
+.trade-plan-alert { display: inline-flex; align-items: center; gap: 3px; border: 1px solid var(--color-line); border-radius: 5px 8px 4px 7px; background: var(--color-panel); padding: 4px 6px; color: var(--color-accent); font-size: 10px; }
+.trade-plan-alert:hover:not(:disabled) { border-color: var(--color-accent); }
+.trade-plan-alert.is-done { border-color: var(--color-down); color: var(--color-down); opacity: .8; }

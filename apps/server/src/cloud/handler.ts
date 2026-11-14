@@ -2,6 +2,7 @@ import { workspaceContext } from "./context.js";
 import { handleBillingWebhook } from "../billing/index.js";
 import { getPool } from "./postgres.js";
 import { cancelAgentRun } from "../services/agentRuns.js";
+import { checkPriceAlerts } from "../services/priceAlerts.js";
 import { createCreditsRouter } from "../credits/index.js";
 import { grantVerifiedCredits } from "../credits/store.js";
 import { waitUntil } from "@vercel/functions";
@@ -83,6 +84,15 @@ export async function cloudFetch(request: Request): Promise<Response> {
     const origin = request.headers.get("origin");
     if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && origin !== trustedOrigin(request)) {
       return Response.json({ code: "FORBIDDEN", message: "请求来源无效" }, { status: 403 });
+    }
+
+    // Vercel Cron invokes this endpoint with the CRON_SECRET bearer token.
+    if (path === "/api/cron/alerts" && request.method === "GET") {
+      const secret = process.env.CRON_SECRET;
+      if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
+        return Response.json({ code: "UNAUTHORIZED", message: "unauthorized" }, { status: 401 });
+      }
+      return Response.json(await checkPriceAlerts(getPool()));
     }
 
     // Stop signals must not wait behind the workspace row lock held by the

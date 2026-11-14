@@ -45,5 +45,11 @@
       "destination": "/learn/en#events",
       "permanent": false
     }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/alerts",
+      "schedule": "0 22 * * *"
+    }
   ]
 }

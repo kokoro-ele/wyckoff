@@ -28,6 +28,7 @@ import { useWorkbench, type ChatEntry, type ToolTraceItem } from "@/store.js";
 import { MarkdownContent } from "./MarkdownContent.js";
 import { ResearchPanel } from "./ResearchPanel.js";
 import { FeedbackDialog } from "./FeedbackDialog.js";
+import { TradePlanAlerts } from "./TradePlanAlerts.js";
 import { useAuth } from "@/auth/AuthProvider.js";
 import { useI18n } from "@/i18n.js";
 
@@ -422,6 +423,9 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
             {visible.map((message) => (
               <MessageBubble key={message.id} message={message} showTrace={SHOW_TRACE} />
             ))}
+            {!sending && visible.some((message) => message.role === "assistant" && !message.streaming) && (
+              <TradePlanAlerts symbol={symbol} period={period} adjust={adjust} />
+            )}
             {sending && (
               <ThinkingBubble
                 label={thinking}

@@ -122,6 +122,38 @@ export function fetchCreditStatus(): Promise<CreditStatus> {
   return request("/credits/status");
 }
 
+export interface PriceAlert {
+  id: string;
+  symbol: string;
+  period: string;
+  adjust: string;
+  target_price: number;
+  direction: "above" | "below";
+  label: string;
+  language: "zh" | "en";
+  status: string;
+  created_at: string;
+}
+
+export function createPriceAlert(payload: {
+  symbol: string;
+  period: Period;
+  adjust: AdjustType;
+  targetPrice: number;
+  label: string;
+  language: "zh" | "en";
+}): Promise<{ ok: boolean; duplicate: boolean; id?: string; direction?: "above" | "below" }> {
+  return request("/alerts", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function fetchPriceAlerts(): Promise<{ alerts: PriceAlert[] }> {
+  return request("/alerts");
+}
+
+export function deletePriceAlert(id: string): Promise<{ ok: boolean }> {
+  return request(`/alerts/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
 export interface DailyLoginReward {
   granted: boolean;
   amount: number;
