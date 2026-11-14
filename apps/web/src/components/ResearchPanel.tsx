@@ -4,6 +4,7 @@ import type { AdjustType, AgentTradePlan, Period, ResearchLevel, ResearchRespons
 import * as api from "@/lib/api.js";
 import { useWorkbench } from "@/store.js";
 import { useI18n } from "@/i18n.js";
+import { TradePlanAlerts } from "./TradePlanAlerts.js";
 import {
   cn,
   formatCompactCurrency,
@@ -278,6 +279,7 @@ export function ResearchPanel({
             </div>
 
             <p className="mt-2 text-[11px] leading-relaxed text-ink-dim">{plan.note}</p>
+            <TradePlanAlerts symbol={symbol} period={period} adjust={adjust} />
             <p className="mt-2 text-[9px] leading-relaxed text-ink-faint">{t("research.ruleNote")}<br />{t("research.disclaimer")}</p>
           </section>
         ) : (
