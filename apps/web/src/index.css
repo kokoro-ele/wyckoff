@@ -2045,3 +2045,7 @@
 
 .market-sector-group { margin-bottom: 7px; }
 .market-sector-label { padding: 6px 7px 2px; color: var(--color-ink-faint); font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+
+.market-group-head { display: flex; width: 100%; align-items: center; gap: 4px; border: 0; border-bottom: 1px dashed var(--color-line-soft); padding: 6px 7px 3px; color: var(--color-ink-faint); font-size: 9px; font-weight: 700; letter-spacing: .12em; text-align: left; text-transform: uppercase; }
+.market-group-count { margin-left: auto; color: var(--color-ink-faint); font-family: var(--font-mono); font-size: 9px; font-weight: 400; }
+.market-group-head:hover { color: var(--color-accent); }

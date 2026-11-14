@@ -115,6 +115,7 @@ export interface MarketOverviewRow {
   changePct: number | null;
   volume: number;
   volumeRatio: number | null;
+  turnoverRate: number | null;
   amount: number;
   high: number;
   low: number;
@@ -123,5 +124,6 @@ export interface MarketOverviewRow {
 
 export interface MarketOverviewResponse {
   rows: MarketOverviewRow[];
+  indices: MarketOverviewRow[];
   updatedAt: string;
 }
