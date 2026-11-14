@@ -4,8 +4,17 @@ import { type Context, Hono } from "hono";
 import { isFreeTier } from "../config.js";
 import { getInstrument } from "../services/instruments.js";
 import { getFeatures, getKlines, MarketDataError } from "../services/market.js";
+import { getMarketOverview } from "../services/marketOverview.js";
 
 export const marketRoutes = new Hono();
+
+marketRoutes.get("/market/overview", async (c) => {
+  try {
+    return c.json(await getMarketOverview());
+  } catch (error) {
+    return errorResponse(c, error);
+  }
+});
 
 marketRoutes.get("/klines", async (c) => {
   const parsed = klineQuerySchema.safeParse(c.req.query());

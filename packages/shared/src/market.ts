@@ -103,3 +103,24 @@ export const TIME_SPANS = [
 ] as const;
 
 export type TimeSpanId = (typeof TIME_SPANS)[number]["id"];
+
+/** Public market overview row used by the left market tab. */
+export interface MarketOverviewRow {
+  symbol: string;
+  name: string;
+  nameEn: string;
+  region: string;
+  price: number;
+  changePct: number | null;
+  volume: number;
+  volumeRatio: number | null;
+  amount: number;
+  high: number;
+  low: number;
+  asOf: number;
+}
+
+export interface MarketOverviewResponse {
+  rows: MarketOverviewRow[];
+  updatedAt: string;
+}

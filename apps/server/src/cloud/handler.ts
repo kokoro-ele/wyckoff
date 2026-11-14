@@ -33,6 +33,7 @@ const PUBLIC_GET_PATHS = new Set([
   "/api/search",
   "/api/research",
   "/api/chat/status",
+  "/api/market/overview",
 ]);
 
 function isPublicRequest(request: Request, path: string): boolean {

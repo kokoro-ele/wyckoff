@@ -1,5 +1,6 @@
 import type {
   AdjustType,
+  MarketOverviewResponse,
   AgentEvent,
   AgentMemorySnapshot,
   AgentTradePlan,
@@ -89,6 +90,10 @@ export function fetchInstrument(symbol: string): Promise<{ instrument: Instrumen
 
 export function fetchCapabilities(): Promise<{ freeTier: boolean; note: string }> {
   return request("/capabilities");
+}
+
+export function fetchMarketOverview(): Promise<MarketOverviewResponse> {
+  return request("/market/overview");
 }
 
 export function fetchResearch(params: {
