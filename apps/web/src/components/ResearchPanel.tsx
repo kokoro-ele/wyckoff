@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Check, Crosshair, Landmark, LockKeyhole, RefreshCw, Save, Sparkles } from "lucide-react";
+import { Check, Copy, Crosshair, Landmark, LockKeyhole, RefreshCw, Sparkles } from "lucide-react";
 import type { AdjustType, AgentTradePlan, Period, ResearchLevel, ResearchResponse } from "@wyckoff/shared";
 import * as api from "@/lib/api.js";
 import { useWorkbench } from "@/store.js";
@@ -73,11 +73,10 @@ export function ResearchPanel({
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [reload, setReload] = useState(0);
-  const [strategySaved, setStrategySaved] = useState(false);
-  const [savingStrategy, setSavingStrategy] = useState(false);
+  const [strategyCopied, setStrategyCopied] = useState(false);
 
   useEffect(() => {
-    setStrategySaved(false);
+    setStrategyCopied(false);
     if (!hasAnalysis) {
       setPlan(null);
       return;
@@ -285,20 +284,31 @@ export function ResearchPanel({
             <button
               type="button"
               className="hand-btn mt-2 inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[10px]"
-              disabled={savingStrategy || strategySaved}
               onClick={() => {
-                setSavingStrategy(true);
-                void api.saveStrategy({ symbol, period, adjust })
+                const lines = [
+                  `${symbol} · ${period} · ${adjust}`,
+                  `${t("research.bias")}: ${t(`research.bias.${plan.bias}`)}`,
+                  `${t("research.trigger")}: ${plan.trigger}`,
+                  `${t("research.entry")}: ${plan.entryLow !== null && plan.entryHigh !== null ? `${formatPrice(plan.entryLow)}–${formatPrice(plan.entryHigh)}` : "—"}`,
+                  `${t("research.stop")}: ${plan.stop === null ? "—" : formatPrice(plan.stop)}`,
+                  `${t("research.target1")}: ${plan.target1 === null ? "—" : formatPrice(plan.target1)}`,
+                  `${t("research.target2")}: ${plan.target2 === null ? "—" : formatPrice(plan.target2)}`,
+                  `${t("research.invalidation")}: ${plan.invalidation}`,
+                  `${t("research.rr")}: ${plan.riskReward === null ? "—" : `${plan.riskReward.toFixed(2)} : 1`}`,
+                  `${t("research.support")}: ${plan.support.length ? plan.support.map(formatPrice).join(", ") : "—"}`,
+                  `${t("research.resistance")}: ${plan.resistance.length ? plan.resistance.map(formatPrice).join(", ") : "—"}`,
+                ];
+                void navigator.clipboard.writeText(lines.join("\n"))
                   .then(() => {
-                    setStrategySaved(true);
-                    useWorkbench.getState().notify(t("research.strategySaved"), "info");
+                    setStrategyCopied(true);
+                    useWorkbench.getState().notify(t("research.strategyCopied"), "info");
+                    window.setTimeout(() => setStrategyCopied(false), 2500);
                   })
-                  .catch(() => useWorkbench.getState().notify(t("research.strategySaveFailed"), "error"))
-                  .finally(() => setSavingStrategy(false));
+                  .catch(() => useWorkbench.getState().notify(t("research.strategyCopyFailed"), "error"));
               }}
             >
-              {strategySaved ? <Check size={12} /> : <Save size={12} />}
-              {strategySaved ? t("research.strategySavedShort") : t("research.saveStrategy")}
+              {strategyCopied ? <Check size={12} /> : <Copy size={12} />}
+              {strategyCopied ? t("research.strategyCopiedShort") : t("research.copyStrategy")}
             </button>
             <TradePlanAlerts symbol={symbol} period={period} adjust={adjust} />
             <p className="mt-2 text-[9px] leading-relaxed text-ink-faint">{t("research.ruleNote")}<br />{t("research.disclaimer")}</p>

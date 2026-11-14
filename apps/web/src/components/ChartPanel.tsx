@@ -58,7 +58,6 @@ function ChartContextPanel() {
   const readyRef = useRef(false);
   const ready = status === "ready";
   const containerRef = useRef<HTMLDivElement>(null);
-  const panelRef = useRef<HTMLElement>(null);
   const chartRef = useRef<Chart | null>(null);
   const paneIds = useRef<Map<IndicatorId, string>>(new Map());
   const loadingKey = useRef("");
@@ -404,33 +403,46 @@ function ChartContextPanel() {
   };
 
   const captureChart = async () => {
-    if (!panelRef.current || screenshotBusy) return;
+    const element = containerRef.current;
+    if (!element || screenshotBusy) return;
     setScreenshotBusy(true);
     try {
-      const canvas = await html2canvas(panelRef.current, {
-        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--color-panel").trim() || "#fffdf7",
-        scale: Math.min(2, window.devicePixelRatio || 1),
-        useCORS: true,
-        logging: false,
-      });
-      const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+      // Capture only the chart surface. Header, toolbar and side panels must
+      // never appear in the exported image.
+      let canvas: HTMLCanvasElement | null = null;
+      try {
+        canvas = await html2canvas(element, {
+          backgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--color-panel").trim() || "#fffdf7",
+          scale: Math.min(2, window.devicePixelRatio || 1),
+          useCORS: true,
+          allowTaint: true,
+          logging: false,
+        });
+      } catch {
+        canvas = null;
+      }
+      if (!canvas) canvas = compositeChartCanvases(element);
+      if (!canvas) throw new Error("empty chart canvas");
+      const blob = await new Promise<Blob | null>((resolve) => canvas!.toBlob(resolve, "image/png"));
       if (!blob) throw new Error("empty image");
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       link.download = `${symbol.replaceAll(".", "-")}-${formatDate(Date.now())}.png`;
+      document.body.appendChild(link);
       link.click();
+      link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
       notify(t("chart.screenshotSaved"), "info");
-    } catch {
-      notify(t("chart.screenshotError"), "error");
+    } catch (error) {
+      notify(`${t("chart.screenshotError")} ${error instanceof Error ? error.message : ""}`.trim(), "error");
     } finally {
       setScreenshotBusy(false);
     }
   };
 
   return (
-    <main ref={panelRef} data-tour="chart" className="glass-panel chart-panel flex min-w-0 flex-1 flex-col overflow-hidden rounded-[20px]">
+    <main data-tour="chart" className="glass-panel chart-panel flex min-w-0 flex-1 flex-col overflow-hidden rounded-[20px]">
       <div className="panel-header flex min-h-[67px] flex-wrap items-center justify-between gap-2 border-b border-line-soft px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-3">
           <div className="market-mark" aria-hidden="true">
@@ -612,6 +624,32 @@ function WatchStarButton() {
       {watched ? t("chart.favorited") : t("chart.favorite")}
     </button>
   );
+}
+
+function compositeChartCanvases(element: HTMLElement): HTMLCanvasElement | null {
+  const sources = Array.from(element.querySelectorAll<HTMLCanvasElement>("canvas"));
+  if (sources.length === 0) return null;
+  const rect = element.getBoundingClientRect();
+  if (rect.width < 1 || rect.height < 1) return null;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  const output = document.createElement("canvas");
+  output.width = Math.round(rect.width * dpr);
+  output.height = Math.round(rect.height * dpr);
+  const context = output.getContext("2d");
+  if (!context) return null;
+  context.scale(dpr, dpr);
+  context.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--color-panel").trim() || "#fffdf7";
+  context.fillRect(0, 0, rect.width, rect.height);
+  for (const source of sources) {
+    const sourceRect = source.getBoundingClientRect();
+    if (sourceRect.width < 1 || sourceRect.height < 1 || source.width < 1 || source.height < 1) continue;
+    try {
+      context.drawImage(source, sourceRect.left - rect.left, sourceRect.top - rect.top, sourceRect.width, sourceRect.height);
+    } catch {
+      /* skip a tainted/empty layer; other layers still render */
+    }
+  }
+  return output;
 }
 
 function fitTimeSpan(chart: Chart, span: ReturnType<typeof useWorkbench.getState>["timeSpan"]) {
