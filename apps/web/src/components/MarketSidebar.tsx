@@ -6,7 +6,7 @@ import { useWorkbench } from "@/store.js";
 import { cn, localizedInstrumentName } from "@/lib/utils.js";
 import { useI18n } from "@/i18n.js";
 
-const REGIONS = ["all", "US", "CN", "HK"] as const;
+const REGIONS = ["US", "CN"] as const;
 type Region = (typeof REGIONS)[number];
 
 function compactVolume(value: number, lang: "zh" | "en"): string {
@@ -28,7 +28,7 @@ export function MarketSidebar({ onSelect }: { onSelect?: () => void }) {
   const [data, setData] = useState<MarketOverviewResponse | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [region, setRegion] = useState<Region>("all");
+  const [region, setRegion] = useState<Region>("US");
 
   const load = () => {
     setLoading(true);
@@ -40,7 +40,11 @@ export function MarketSidebar({ onSelect }: { onSelect?: () => void }) {
   };
 
   useEffect(() => { load(); }, []);
-  const rows = (data?.rows ?? []).filter((row) => region === "all" || row.region === region);
+  const rows = (data?.rows ?? []).filter((row) => row.region === region);
+  const grouped = rows.reduce<Map<string, MarketOverviewRow[]>>((map, row) => {
+    map.set(row.sector, [...(map.get(row.sector) ?? []), row]);
+    return map;
+  }, new Map());
 
   const pick = (row: MarketOverviewRow) => {
     void setSymbol(row.symbol, row.name, row.nameEn);
@@ -72,27 +76,31 @@ export function MarketSidebar({ onSelect }: { onSelect?: () => void }) {
         {error && <p className="px-2 py-3 text-[11px] text-warn">{error}</p>}
         {loading && !data && <p className="px-2 py-6 text-center text-[11px] text-ink-faint">{t("market.loading")}</p>}
         {!loading && rows.length === 0 && !error && <p className="px-2 py-6 text-center text-[11px] text-ink-faint">{t("market.empty")}</p>}
-        {rows.map((row) => {
-          const name = localizedInstrumentName(row.name, lang, row.symbol, row.nameEn);
-          const up = (row.changePct ?? 0) >= 0;
-          return (
-            <button type="button" key={row.symbol} className="market-row" onClick={() => pick(row)}>
-              <div className="market-row-head">
-                <span className="market-row-symbol">{row.symbol.split(".")[0]}</span>
-                <span className={cn("market-row-change", up ? "text-up" : "text-down")}>
-                  {up ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
-                  {row.changePct === null ? "—" : `${up ? "+" : ""}${row.changePct.toFixed(2)}%`}
-                </span>
-              </div>
-              <div className="market-row-name">{name}</div>
-              <div className="market-row-meta">
-                <span className="market-row-price">{row.price.toLocaleString(lang === "zh" ? "zh-CN" : "en-US", { maximumFractionDigits: 2 })}</span>
-                <span><BarChart3 size={10} /> {compactVolume(row.volume, lang)}</span>
-                {row.volumeRatio !== null && <span>{t("market.volumeRatio", { n: row.volumeRatio.toFixed(2) })}</span>}
-              </div>
-            </button>
-          );
-        })}
+        {Array.from(grouped.entries()).map(([sector, sectorRows]) => (
+          <div key={sector} className="market-sector-group">
+            <div className="market-sector-label">{t(`market.sector.${sector}`) === `market.sector.${sector}` ? sector : t(`market.sector.${sector}`)}</div>
+            {sectorRows.map((row) => {
+              const name = localizedInstrumentName(row.name, lang, row.symbol, row.nameEn);
+              const up = (row.changePct ?? 0) >= 0;
+              return (
+                <button type="button" key={row.symbol} className="market-row" onClick={() => pick(row)}>
+                  <div className="market-row-head">
+                    <span className="market-row-symbol">{row.symbol.split(".")[0]}</span>
+                    <span className={cn("market-row-change", up ? "text-up" : "text-down")}>
+                      {up ? <ArrowUpRight size={11} /> : <ArrowDownRight size={11} />}
+                      {row.changePct === null ? "—" : `${up ? "+" : ""}${row.changePct.toFixed(2)}%`}
+                    </span>
+                  </div>
+                  <div className="market-row-name">{name}</div>
+                  <div className="market-row-meta">
+                    <span className="market-row-price">{row.price.toLocaleString(lang === "zh" ? "zh-CN" : "en-US", { maximumFractionDigits: 2 })}</span>
+                    <span><BarChart3 size={10} /> {compactVolume(row.volume, lang)}</span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </div>
       {data && <div className="market-footnote shrink-0">{t("market.asOf", { time: new Date(data.updatedAt).toLocaleTimeString(lang === "zh" ? "zh-CN" : "en-US", { hour: "2-digit", minute: "2-digit" }) })}</div>}
     </aside>

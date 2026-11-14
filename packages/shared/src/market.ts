@@ -110,6 +110,7 @@ export interface MarketOverviewRow {
   name: string;
   nameEn: string;
   region: string;
+  sector: string;
   price: number;
   changePct: number | null;
   volume: number;

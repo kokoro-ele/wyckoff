@@ -27,7 +27,7 @@ export interface SecFundamentals {
   fiscalYear: string | null;
 }
 
-const TENCENT_PREFIX: Record<string, string> = {
+export const TENCENT_PREFIX: Record<string, string> = {
   SH: "sh",
   SZ: "sz",
   BJ: "bj",
@@ -95,6 +95,71 @@ export async function fetchTencentQuote(instrument: Instrument): Promise<Tencent
     return parseTencentQuote(text, instrument);
   } catch {
     return null;
+  }
+}
+
+export interface TencentMarketQuote {
+  price: number;
+  changePct: number | null;
+  volume: number;
+  amount: number;
+  high: number;
+  low: number;
+  asOf: number;
+}
+
+/**
+ * Batch quote endpoint used by the market tab. Tencent's public endpoint
+ * accepts many symbols in one GBK response, so the overview does not need one
+ * K-line request per symbol.
+ */
+export async function fetchTencentMarketQuotes(
+  items: Array<{ symbol: string; exchange: string; code: string }>,
+): Promise<Map<string, TencentMarketQuote>> {
+  const query = items
+    .map((item) => `${TENCENT_PREFIX[item.exchange] ?? ""}${item.code}`)
+    .filter(Boolean)
+    .join(",");
+  if (!query) return new Map();
+  try {
+    const response = await fetch(`https://qt.gtimg.cn/q=${query}`, {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131 Safari/537.36",
+        Referer: "https://gu.qq.com/",
+      },
+      signal: AbortSignal.timeout(8_000),
+    });
+    if (!response.ok) return new Map();
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const text = new TextDecoder("gbk").decode(buffer);
+    const quotes = new Map<string, TencentMarketQuote>();
+    for (const match of text.matchAll(/v_([^=]+)="([^"]*)"/g)) {
+      const key = match[1];
+      const fields = match[2].split("~");
+      if (fields.length < 35) continue;
+      const price = Number(fields[3]);
+      if (!Number.isFinite(price) || price <= 0) continue;
+      const asOfRaw = fields[30];
+      const asOf = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(asOfRaw)
+        ? Date.parse(`${asOfRaw.replace(" ", "T")}+08:00`)
+        : Date.now();
+      // The batch key is the Tencent code (usNVDA / sh600519).
+      const symbol = items.find((item) => `${TENCENT_PREFIX[item.exchange] ?? ""}${item.code}` === key)?.symbol;
+      if (!symbol) continue;
+      quotes.set(symbol, {
+        price,
+        changePct: Number.isFinite(Number(fields[32])) ? Number(fields[32]) : null,
+        volume: Number(fields[6]) || 0,
+        amount: Number(fields[37]) || 0,
+        high: Number(fields[33]) || price,
+        low: Number(fields[34]) || price,
+        asOf: Number.isFinite(asOf) ? asOf : Date.now(),
+      });
+    }
+    return quotes;
+  } catch {
+    return new Map();
   }
 }
 

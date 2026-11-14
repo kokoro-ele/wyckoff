@@ -10,7 +10,7 @@ const POPULAR = [
   { symbol: "AAPL.US", name: "Apple", nameEn: "Apple" },
   { symbol: "TSLA.US", name: "Tesla", nameEn: "Tesla" },
   { symbol: "600519.SH", name: "贵州茅台", nameEn: "Kweichow Moutai" },
-  { symbol: "00700.HK", name: "腾讯控股", nameEn: "Tencent" },
+  { symbol: "000858.SZ", name: "五粮液", nameEn: "Wuliangye" },
 ] as const;
 
 type Hit = Instrument & { score?: number };
