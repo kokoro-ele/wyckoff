@@ -199,10 +199,13 @@ adminRoutes.get("/users", async (c) => {
        COALESCE(c.balance,0) AS balance, c.invite_code AS "inviteCode",
        i.public_id AS "publicId", i.ordinal,
        (SELECT count(*) FROM credit_usage cu WHERE cu.user_id=u.id AND cu.state='consumed') AS analyses,
-       (SELECT COALESCE(sum(cu.credits),0)::int FROM credit_usage cu WHERE cu.user_id=u.id AND cu.state='consumed') AS spent
+       (SELECT COALESCE(sum(cu.credits),0)::int FROM credit_usage cu WHERE cu.user_id=u.id AND cu.state='consumed') AS spent,
+       e.status AS "byokStatus", e.source AS "byokSource", e.current_period_end AS "byokEnd",
+       COALESCE(e.status='active' AND (e.current_period_end IS NULL OR e.current_period_end>now()),false) AS "byokActive"
      FROM "user" u
      LEFT JOIN credit_accounts c ON c.user_id=u.id
      LEFT JOIN user_identity i ON i.user_id=u.id
+     LEFT JOIN access_entitlements e ON e.user_id=u.id AND e.product='byok' 
      ${where}
      ORDER BY u."createdAt" DESC
      LIMIT 100`,
@@ -260,18 +263,27 @@ adminRoutes.post(
       | { userId?: unknown; active?: unknown; days?: unknown }
       | null;
     const userId = typeof body?.userId === "string" ? body.userId : "";
-    if (!userId) return c.json({ code: "BAD_REQUEST", message: "缺少 userId" }, 400);
-    if (body?.active === false) {
+    if (!userId || !body || typeof body.active !== "boolean") {
+      return c.json({ code: "BAD_REQUEST", message: "参数无效" }, 400);
+    }
+    if (!body.active) {
       await revokeEntitlement(getPool(), userId, "byok");
       return c.json({ ok: true, active: false });
     }
-    const days = body?.days === undefined ? null : Math.min(Math.max(1, Number(body.days)), 3650);
+    let days: number | null = null;
+    if (body.days !== undefined && body.days !== null) {
+      const parsed = Number(body.days);
+      if (!Number.isFinite(parsed) || parsed < 1) {
+        return c.json({ code: "BAD_REQUEST", message: "有效天数无效" }, 400);
+      }
+      days = Math.min(Math.floor(parsed), 3650);
+    }
     await grantEntitlement(getPool(), userId, {
       product: "byok",
       source: "admin",
-      currentPeriodEnd: days ? new Date(Date.now() + days * 86_400_000) : null,
+      currentPeriodEnd: days === null ? null : new Date(Date.now() + days * 86_400_000),
     });
-    return c.json({ ok: true, active: true });
+    return c.json({ ok: true, active: true, days });
   },
 );
 

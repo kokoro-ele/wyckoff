@@ -539,6 +539,10 @@ export interface AdminUser {
   ordinal: number | null;
   analyses: string;
   spent: number;
+  byokStatus: "active" | "canceled" | "expired" | null;
+  byokSource: "subscription" | "lifetime" | "admin" | null;
+  byokEnd: string | null;
+  byokActive: boolean;
 }
 
 export function fetchAdminOverview(): Promise<AdminOverview> {
@@ -551,6 +555,10 @@ export function fetchAdminUsers(query = ""): Promise<{ users: AdminUser[] }> {
 
 export function setAdminCredits(userId: string, balance: number): Promise<{ ok: boolean; updated: number; balance: number }> {
   return request("/admin/credits", { method: "POST", body: JSON.stringify({ userId, balance }) });
+}
+
+export function setAdminEntitlement(userId: string, active: boolean, days?: number): Promise<{ ok: boolean; active: boolean; days?: number | null }> {
+  return request("/admin/entitlements", { method: "POST", body: JSON.stringify({ userId, active, ...(days === undefined ? {} : { days }) }) });
 }
 
 export function resetAdminCredits(balance = 10): Promise<{ ok: boolean; updated: number; balance: number }> {

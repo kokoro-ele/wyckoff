@@ -93,6 +93,19 @@ export function AdminPage() {
     }
   };
 
+  const setEntitlement = async (user: api.AdminUser, active: boolean, days?: number) => {
+    setBusy(user.id);
+    setError("");
+    try {
+      await api.setAdminEntitlement(user.id, active, days);
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "BYOK update failed");
+    } finally {
+      setBusy("");
+    }
+  };
+
   const removeUser = async (user: api.AdminUser) => {
     const label = user.email;
     if (!window.confirm(zh ? `永久删除 ${label} 的账户和全部私有数据？此操作不可撤销。` : `Permanently delete ${label} and all private data? This cannot be undone.`)) return;
@@ -261,12 +274,27 @@ export function AdminPage() {
           </div>
           <div className="admin-table-wrap hand-card">
             <table className="admin-table">
-              <thead><tr><th>{zh ? "用户" : "User"}</th><th>{zh ? "状态" : "Status"}</th><th>{zh ? "余额 credits" : "Balance"}</th><th>{zh ? "已用 credits" : "Spent"}</th><th>{zh ? "分析次数" : "Runs"}</th><th>{zh ? "注册" : "Joined"}</th><th>{zh ? "调整" : "Adjust"}</th></tr></thead>
+              <thead><tr><th>{zh ? "用户" : "User"}</th><th>{zh ? "状态" : "Status"}</th><th>BYOK</th><th>{zh ? "余额 credits" : "Balance"}</th><th>{zh ? "已用 credits" : "Spent"}</th><th>{zh ? "分析次数" : "Runs"}</th><th>{zh ? "注册" : "Joined"}</th><th>{zh ? "调整" : "Adjust"}</th></tr></thead>
               <tbody>
                 {users.map((user) => (
                   <tr key={user.id}>
                     <td><div className="admin-user"><strong>{user.name || user.email.split("@")[0]}</strong><span>{user.email}</span>{user.publicId && <span className="font-mono">{user.publicId}{user.ordinal && user.ordinal <= 100 ? " · early" : ""}</span>}</div></td>
                     <td>{user.emailVerified ? <span className="admin-pill ok">{zh ? "已验证" : "verified"}</span> : <span className="admin-pill">{zh ? "待验证" : "pending"}</span>}</td>
+                    <td>
+                      <div className="admin-byok">
+                        <span className={`admin-pill ${user.byokActive ? "ok" : ""}`}>
+                          {user.byokActive
+                            ? user.byokEnd ? `${zh ? "至" : "until"} ${fmtDate(user.byokEnd, lang)}` : zh ? "永久" : "lifetime"
+                            : zh ? "未开通" : "off"}
+                        </span>
+                        {user.byokActive && user.byokSource && <span className="text-[9px] text-ink-faint">{user.byokSource}</span>}
+                        <div className="admin-actions">
+                          <button type="button" disabled={busy === user.id} onClick={() => void setEntitlement(user, true, 30)}>30d</button>
+                          <button type="button" disabled={busy === user.id} onClick={() => void setEntitlement(user, true)}>∞</button>
+                          {user.byokActive && <button type="button" disabled={busy === user.id} onClick={() => void setEntitlement(user, false)}>{zh ? "关闭" : "off"}</button>}
+                        </div>
+                      </div>
+                    </td>
                     <td className="font-mono">{user.balance}</td>
                     <td className="font-mono">{user.spent ?? 0}</td>
                     <td className="font-mono">{user.analyses}</td>
