@@ -152,6 +152,148 @@ adminRoutes.get("/analytics", async (c) => {
     },
   });
 });
+
+async function stripeGet(path: string): Promise<Record<string, any>> {
+  const key = process.env.STRIPE_SECRET_KEY;
+  if (!key) throw new Error("Stripe is not configured");
+  const response = await fetch(`https://api.stripe.com${path}`, {
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Stripe-Version": "2025-02-24.acacia",
+    },
+    signal: AbortSignal.timeout(15_000),
+  });
+  const body = (await response.json().catch(() => ({}))) as Record<string, any>;
+  if (!response.ok) throw new Error(body.error?.message ?? `Stripe returned ${response.status}`);
+  return body;
+}
+
+adminRoutes.get("/stripe/health", async (c) => {
+  const denied = await guard(c);
+  if (denied) return denied;
+  const orderId = (c.req.query("orderId") ?? "").trim();
+  let order: {
+    id: string;
+    kind: "credits" | "subscription";
+    status: string;
+    amount: number;
+    currency: string;
+    createdAt: Date;
+    sessionId: string | null;
+  } | null = null;
+  if (orderId) {
+    const row = (
+      await getPool().query<{
+        id: string;
+        kind: "credits" | "subscription";
+        status: string;
+        amount: number;
+        currency: string;
+        created_at: Date;
+        session_id: string | null;
+      }>(
+        `SELECT id,'credits'::text AS kind,status,amount,currency,created_at,provider_id AS session_id
+           FROM billing_orders WHERE id=$1
+         UNION ALL
+         SELECT id,'subscription'::text AS kind,status,amount,currency,created_at,stripe_session_id AS session_id
+           FROM subscription_orders WHERE id=$1
+         LIMIT 1`,
+        [orderId],
+      )
+    ).rows[0];
+    if (row) {
+      order = {
+        id: row.id,
+        kind: row.kind,
+        status: row.status,
+        amount: row.amount,
+        currency: row.currency,
+        createdAt: row.created_at,
+        sessionId: row.session_id,
+      };
+    }
+  }
+
+  const [account, webhooks, session] = await Promise.all([
+    stripeGet("/v1/account").catch((error) => ({ error: (error as Error).message })),
+    stripeGet("/v1/webhook_endpoints?limit=20").catch((error) => ({ error: (error as Error).message })),
+    order?.sessionId
+      ? stripeGet(
+          `/v1/checkout/sessions/${encodeURIComponent(order.sessionId)}?expand[]=payment_intent&expand[]=subscription`,
+        ).catch((error) => ({ error: (error as Error).message }))
+      : Promise.resolve(null),
+  ]);
+
+  const a = account as Record<string, any>;
+  const accountSafe = a.error
+    ? { error: String(a.error) }
+    : {
+        id: a.id,
+        country: a.country,
+        default_currency: a.default_currency,
+        charges_enabled: a.charges_enabled,
+        payouts_enabled: a.payouts_enabled,
+        details_submitted: a.details_submitted,
+        currently_due: a.requirements?.currently_due ?? [],
+        disabled_reason: a.requirements?.disabled_reason ?? null,
+      };
+  const w = webhooks as Record<string, any>;
+  const webhookSafe = w.error
+    ? { error: String(w.error) }
+    : {
+        endpoints: (w.data ?? []).map((endpoint: Record<string, any>) => ({
+          id: endpoint.id,
+          url: endpoint.url,
+          status: endpoint.status,
+          enabled_events: endpoint.enabled_events,
+          api_version: endpoint.api_version,
+        })),
+      };
+  let sessionSafe: Record<string, any> | null = null;
+  if (session) {
+    const s = session as Record<string, any>;
+    if (s.error) {
+      sessionSafe = { error: String(s.error) };
+    } else {
+      sessionSafe = {
+        id: s.id,
+        mode: s.mode,
+        status: s.status,
+        payment_status: s.payment_status,
+        amount_total: s.amount_total,
+        currency: s.currency,
+        created: s.created,
+        expires_at: s.expires_at,
+        client_reference_id: s.client_reference_id,
+        payment_intent:
+          s.payment_intent && typeof s.payment_intent === "object"
+            ? {
+                id: s.payment_intent.id,
+                status: s.payment_intent.status,
+                amount: s.payment_intent.amount,
+                last_payment_error: s.payment_intent.last_payment_error
+                  ? {
+                      code: s.payment_intent.last_payment_error.code,
+                      message: s.payment_intent.last_payment_error.message,
+                      type: s.payment_intent.last_payment_error.type,
+                    }
+                  : null,
+              }
+            : s.payment_intent,
+        subscription:
+          s.subscription && typeof s.subscription === "object"
+            ? {
+                id: s.subscription.id,
+                status: s.subscription.status,
+                cancel_at_period_end: s.subscription.cancel_at_period_end,
+              }
+            : s.subscription,
+      };
+    }
+  }
+  return c.json({ order, account: accountSafe, webhooks: webhookSafe, session: sessionSafe });
+});
+
 adminRoutes.get("/bugs", async (c) => {
   const denied = await guard(c);
   if (denied) return denied;
