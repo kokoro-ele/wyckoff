@@ -74,8 +74,8 @@ Online payment is not enabled yet. The free allowance is 3 analyses. Admin can a
 
 The two credit packs are reasonable for the current product:
 
-- Small: **$5 → 30 credits** (about $0.167 per platform analysis)
-- Big: **$10 → 80 credits** (about $0.125 per platform analysis)
+- Small: **$1 → 30 credits**
+- Big: **$3 → 80 credits**
 
 The monthly proposal needs adjustment:
 

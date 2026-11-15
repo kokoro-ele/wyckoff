@@ -57,6 +57,8 @@ export async function registerIdentity(pool: Pool, userId: string): Promise<User
   }
 }
 
-export function welcomeCreditsFor(identity: UserIdentity | null): number {
-  return identity && identity.ordinal <= EARLY_BIRD_LIMIT ? EARLY_BIRD_CREDITS : 3;
+export function welcomeCreditsFor(_identity: UserIdentity | null): number {
+  // The welcome grant is the same for every new verified account now that the
+  // early-bird campaign has ended.
+  return EARLY_BIRD_CREDITS;
 }
