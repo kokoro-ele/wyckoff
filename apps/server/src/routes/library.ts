@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { indexSize, isSyncNeeded, loadIndex, searchInstruments, syncInstruments } from "../services/instruments.js";
 import { ensureEnglishNames } from "../services/englishNames.js";
+import { searchRemoteInstruments } from "../services/remoteSearch.js";
 import * as watchlist from "../services/watchlist.js";
 
 /** 标的检索与收藏。 */
@@ -20,8 +21,20 @@ libraryRoutes.get("/search", async (c) => {
   }
   const q = c.req.query("q") ?? "";
   const limit = Number(c.req.query("limit") ?? 30);
+  const cap = Number.isFinite(limit) ? Math.min(limit, 100) : 30;
+  const local = searchInstruments(q, cap);
+  // Cold serverless instances may only have a partial exchange index. Tencent
+  // smartbox fills the gap immediately while the full index warms in background.
+  const remote = local.length === 0 ? await searchRemoteInstruments(q) : [];
+  const merged = [...local];
+  for (const item of remote) {
+    if (merged.length >= cap) break;
+    if (!merged.some((row) => row.symbol === item.symbol)) {
+      merged.push({ ...item, score: 450 });
+    }
+  }
   return c.json({
-    results: searchInstruments(q, Number.isFinite(limit) ? Math.min(limit, 100) : 30),
+    results: merged,
     indexSize: indexSize(),
     syncing,
   });
