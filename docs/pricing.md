@@ -74,8 +74,8 @@ Online payment is not enabled yet. The free allowance is 3 analyses. Admin can a
 
 The two credit packs are reasonable for the current product:
 
-- Small: **$1 → 30 credits**
-- Big: **$3 → 80 credits**
+- Small: **$2 → 30 credits**
+- Big: **$4 → 80 credits**
 
 The monthly proposal needs adjustment:
 

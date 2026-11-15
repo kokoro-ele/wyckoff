@@ -166,7 +166,7 @@ Official references: [Stripe Checkout Sessions](https://docs.stripe.com/api/chec
 
 1. 在 Stripe 后台创建账户，先切到测试模式。
 2. 把 `STRIPE_SECRET_KEY`、`STRIPE_WEBHOOK_SECRET` 和 `BILLING_PUBLIC_ORIGIN` 放进服务端环境变量。
-3. 在 `ANALYSIS_CREDIT_PACKS` 配置次数包；金额单位是分，例如 $1.00 写 `100`。
+3. 在 `ANALYSIS_CREDIT_PACKS` 配置次数包；金额单位是分，例如 $2.00 写 `200`。
 4. Webhook 地址：`https://你的域名/api/billing/webhooks/stripe`；订阅事件 `checkout.session.completed` 和 `checkout.session.async_payment_succeeded`。
 5. 本地测试用 Stripe CLI 转发回调，测试卡 `4242 4242 4242 4242`。
 6. 微信支付已从代码、UI 和环境变量中移除；历史微信订单保留在数据库里，但不再自动处理。
