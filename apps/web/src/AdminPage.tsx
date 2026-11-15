@@ -15,6 +15,13 @@ function fmtDate(value: string | Date | null | undefined, lang: "zh" | "en"): st
   });
 }
 
+function fmtMoney(amount: number, currency: string, lang: "zh" | "en"): string {
+  return new Intl.NumberFormat(lang === "zh" ? "zh-CN" : "en-US", {
+    style: "currency",
+    currency,
+  }).format(amount / 100);
+}
+
 export function AdminPage() {
   const { lang } = useI18n();
   const { isPending, isVerified } = useAuth();
@@ -181,7 +188,7 @@ export function AdminPage() {
             <div className="hand-card"><Coins size={16} /><span>{zh ? "剩余总次数" : "Credits left"}</span><strong>{overview.credits}</strong></div>
             <div className="hand-card"><WalletCards size={16} /><span>{zh ? "已用分析" : "Analyses used"}</span><strong>{overview.analyses}</strong></div>
             <div className="hand-card"><WalletCards size={16} /><span>{zh ? "已付款订单" : "Paid orders"}</span><strong>{overview.orders}</strong></div>
-            <div className="hand-card"><WalletCards size={16} /><span>{zh ? "收入（最小单位）" : "Revenue (minor)"}</span><strong>{overview.revenueMinor}</strong></div>
+            <div className="hand-card"><WalletCards size={16} /><span>{zh ? "收入" : "Revenue"}</span><strong>{overview.revenueByCurrency.length ? overview.revenueByCurrency.map((row) => fmtMoney(row.amount, row.currency, lang)).join(" · ") : "—"}</strong></div>
           </div>
         )}
 
@@ -297,7 +304,15 @@ export function AdminPage() {
           <section className="admin-section hand-card">
             <h2>{zh ? "最近订单" : "Recent orders"}</h2>
             {overview?.recentOrders.length ? overview.recentOrders.map((order) => (
-              <div key={order.id} className="admin-list-row"><span>{order.plan} · {order.status}</span><span>{order.amount} {order.currency}</span></div>
+              <div key={order.id} className="admin-list-row">
+                <span className="min-w-0">
+                  <strong>{order.email}</strong>
+                  <span className="ml-1 text-ink-faint">
+                    {order.source === "byok" ? "BYOK" : "Credits"} · {order.product} · {order.status} · {order.provider}
+                  </span>
+                </span>
+                <span className="shrink-0 font-mono">{fmtMoney(order.amount, order.currency, lang)}</span>
+              </div>
             )) : <p className="text-[11px] text-ink-faint">{zh ? "暂无订单" : "No orders yet"}</p>}
           </section>
         </div>

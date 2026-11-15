@@ -501,17 +501,20 @@ export interface AdminOverview {
   credits: number;
   analyses: number;
   orders: number;
-  revenueMinor: number;
+  revenueByCurrency: { currency: string; amount: number }[];
   recentSignups: { id: string; email: string; name: string | null; emailVerified: boolean; createdAt: string }[];
   recentOrders: {
     id: string;
     user_id: string;
-    plan: string;
-    period: string;
+    email: string;
+    product: string;
+    period: string | null;
     credits: number | null;
     amount: number;
     currency: string;
     status: string;
+    source: "credits" | "byok";
+    provider: string;
     created_at: string;
   }[];
 }

@@ -32,17 +32,36 @@ adminRoutes.get("/overview", async (c) => {
   const denied = await guard(c);
   if (denied) return denied;
   const pool = getPool();
-  const [users, verified, credits, analyses, orders, signups, recentOrders] = await Promise.all([
+  const [users, verified, credits, analyses, orders, revenue, signups, recentOrders] = await Promise.all([
     pool.query<{ count: string }>('SELECT count(*) FROM "user"'),
     pool.query<{ count: string }>('SELECT count(*) FROM "user" WHERE "emailVerified"=true'),
     pool.query<{ total: string | null }>("SELECT COALESCE(sum(balance),0)::text AS total FROM credit_accounts"),
     pool.query<{ count: string }>("SELECT count(*) FROM credit_usage WHERE state='consumed'"),
-    pool.query<{ count: string; revenue: string | null }>(
-      "SELECT count(*)::text AS count, COALESCE(sum(amount),0)::text AS revenue FROM billing_orders WHERE status='paid'",
+    pool.query<{ count: string }>(
+      `SELECT count(*)::text AS count FROM (
+         SELECT id FROM billing_orders WHERE status='paid'
+         UNION ALL
+         SELECT id FROM subscription_orders WHERE status='paid'
+       ) paid`,
+    ),
+    pool.query<{ currency: string; amount: string }>(
+      `SELECT currency, sum(amount)::text AS amount FROM (
+         SELECT amount,currency FROM billing_orders WHERE status='paid'
+         UNION ALL
+         SELECT amount,currency FROM subscription_orders WHERE status='paid'
+       ) paid GROUP BY currency ORDER BY currency`,
     ),
     pool.query('SELECT id,email,name,"emailVerified","createdAt" FROM "user" ORDER BY "createdAt" DESC LIMIT 8'),
     pool.query(
-      "SELECT id,user_id,plan,period,credits,amount,currency,status,created_at FROM billing_orders ORDER BY created_at DESC LIMIT 8",
+      `SELECT * FROM (
+         SELECT o.id,o.user_id,u.email,o.plan AS product,o.period,o.credits,o.amount,o.currency,o.status,o.created_at,
+                'credits'::text AS source, o.provider AS provider
+         FROM billing_orders o JOIN "user" u ON u.id=o.user_id
+         UNION ALL
+         SELECT s.id,s.user_id,u.email,s.product,NULL::text AS period,NULL::int AS credits,s.amount,s.currency,s.status,s.created_at,
+                'byok'::text AS source,'stripe'::text AS provider
+         FROM subscription_orders s JOIN "user" u ON u.id=s.user_id
+       ) orders ORDER BY created_at DESC LIMIT 12`,
     ),
   ]);
   return c.json({
@@ -51,7 +70,7 @@ adminRoutes.get("/overview", async (c) => {
     credits: Number(credits.rows[0]?.total ?? 0),
     analyses: Number(analyses.rows[0]?.count ?? 0),
     orders: Number(orders.rows[0]?.count ?? 0),
-    revenueMinor: Number(orders.rows[0]?.revenue ?? 0),
+    revenueByCurrency: revenue.rows.map((row) => ({ currency: row.currency, amount: Number(row.amount) })),
     recentSignups: signups.rows,
     recentOrders: recentOrders.rows,
   });
