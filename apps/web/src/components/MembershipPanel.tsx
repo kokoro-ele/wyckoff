@@ -280,6 +280,32 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
             {catalog.packs.length === 0 && (
               <p className="mt-3 rounded-xl border border-line p-4 text-sm text-ink-dim">{t("membership.noPacks")}</p>
             )}
+        {order && (
+          <div className="mt-5 rounded-2xl border border-line p-4 text-center">
+            <h3 className="inline-flex items-center gap-1.5 font-semibold">
+              <Crown size={15} className="text-accent" />
+              {order.status === "paid"
+                ? t("membership.paid")
+                : terminal(order)
+                  ? t("membership.ended")
+                  : t("membership.pending")}
+            </h3>
+            {!terminal(order) && (
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                {order.checkoutUrl && order.status === "pending" && (
+                  <button type="button" onClick={resumePayment} className="hand-btn px-3 py-2 text-sm">
+                    {t("membership.resume")}
+                  </button>
+                )}
+                <button type="button" disabled={busy} onClick={() => void cancelPending()} className="hand-btn px-3 py-2 text-sm disabled:opacity-45">
+                  {t("membership.cancelPending")}
+                </button>
+              </div>
+            )}
+            <p className="mt-2 text-xs text-ink-faint">{t("membership.order", { id: order.orderId })}</p>
+          </div>
+        )}
+
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               {catalog.packs.map((pack) => (
                 <section key={pack.id} className="hand-card p-4">
@@ -334,31 +360,6 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
           </>
         )}
 
-        {order && (
-          <div className="mt-5 rounded-2xl border border-line p-4 text-center">
-            <h3 className="inline-flex items-center gap-1.5 font-semibold">
-              <Crown size={15} className="text-accent" />
-              {order.status === "paid"
-                ? t("membership.paid")
-                : terminal(order)
-                  ? t("membership.ended")
-                  : t("membership.pending")}
-            </h3>
-            {!terminal(order) && (
-              <div className="mt-3 flex flex-wrap justify-center gap-2">
-                {order.checkoutUrl && order.status === "pending" && (
-                  <button type="button" onClick={resumePayment} className="hand-btn px-3 py-2 text-sm">
-                    {t("membership.resume")}
-                  </button>
-                )}
-                <button type="button" disabled={busy} onClick={() => void cancelPending()} className="hand-btn px-3 py-2 text-sm disabled:opacity-45">
-                  {t("membership.cancelPending")}
-                </button>
-              </div>
-            )}
-            <p className="mt-2 text-xs text-ink-faint">{t("membership.order", { id: order.orderId })}</p>
-          </div>
-        )}
       </section>
     </div>
   );
