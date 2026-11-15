@@ -3,6 +3,7 @@ import type { Lang } from "../i18n.js";
 export interface LandingCopy {
   brand: string;
   language: string;
+  bug: string;
   hero: {
     kicker: string;
     title: string;
@@ -30,6 +31,7 @@ export interface LandingCopy {
 const zh: LandingCopy = {
   brand: "EasyWyckoff",
   language: "English",
+  bug: "反馈问题",
   hero: {
     kicker: "WYCKOFF · PRICE & VOLUME",
     title: "看见价格背后的结构",
@@ -57,6 +59,7 @@ const zh: LandingCopy = {
 const en: LandingCopy = {
   brand: "EasyWyckoff",
   language: "中文",
+  bug: "Report a bug",
   hero: {
     kicker: "WYCKOFF · PRICE & VOLUME",
     title: "See the structure behind the price.",

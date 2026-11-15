@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { config, isFreeTier, hasLlmConfiguration } from "./config.js";
 import { adminRoutes } from "./routes/admin.js";
 import { alertRoutes } from "./routes/alerts.js";
+import { bugRoutes } from "./routes/bugs.js";
 import { annotationRoutes } from "./routes/annotations.js";
 import { chatRoutes } from "./routes/chat.js";
 import { libraryRoutes } from "./routes/library.js";
@@ -37,6 +38,7 @@ app.route("/api/news", newsRoutes);
 app.route("/api/admin", adminRoutes);
 app.route("/api/chat", chatRoutes);
 app.route("/api/alerts", alertRoutes);
+app.route("/api/bugs", bugRoutes);
 
 app.notFound((c) => c.json({ code: "NOT_FOUND", message: "接口不存在" }, 404));
 

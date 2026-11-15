@@ -92,6 +92,19 @@ CREATE TABLE IF NOT EXISTS price_alerts(
 );
 CREATE INDEX IF NOT EXISTS price_alerts_active ON price_alerts(status,created_at);
 
+CREATE TABLE IF NOT EXISTS bug_reports(
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  body TEXT NOT NULL,
+  page_url TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending','confirmed','rejected')),
+  credits_granted INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  confirmed_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS bug_reports_created ON bug_reports(created_at);
+
 CREATE TABLE IF NOT EXISTS credit_usage(
   -- token metering; credits is the final charged amount for this request
 
@@ -173,12 +186,13 @@ ALTER TABLE credit_accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE credit_ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE feedback_responses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE price_alerts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE bug_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE credit_usage ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON user_identity,auth_referral_intents,api_rate_limits,credit_meta,credit_accounts,credit_ledger,credit_usage,feedback_responses,price_alerts FROM PUBLIC;
+REVOKE ALL ON user_identity,auth_referral_intents,api_rate_limits,credit_meta,credit_accounts,credit_ledger,credit_usage,feedback_responses,price_alerts,bug_reports FROM PUBLIC;
 DO $$ DECLARE r TEXT; BEGIN
   FOREACH r IN ARRAY ARRAY['anon','authenticated'] LOOP
     IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname=r) THEN
-      EXECUTE format('REVOKE ALL ON auth_referral_intents,api_rate_limits,credit_meta,credit_accounts,credit_ledger,credit_usage,feedback_responses,price_alerts FROM %I',r);
+      EXECUTE format('REVOKE ALL ON auth_referral_intents,api_rate_limits,credit_meta,credit_accounts,credit_ledger,credit_usage,feedback_responses,price_alerts,bug_reports FROM %I',r);
     END IF;
   END LOOP;
 END $$;

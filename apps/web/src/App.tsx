@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { LineChart, PanelLeft, PanelRight, Search, Settings2, Star, UserRound, X } from "lucide-react";
+import { Bug, LineChart, PanelLeft, PanelRight, Search, Settings2, Star, UserRound, X } from "lucide-react";
 import { useWorkbench } from "./store.js";
 import { WatchlistSidebar } from "./components/WatchlistSidebar.js";
 import { MarketSidebar } from "./components/MarketSidebar.js";
 import { NewsTicker } from "./components/NewsTicker.js";
+import { BugReportDialog } from "./components/BugReportDialog.js";
 import { ChartPanel } from "./components/ChartPanel.js";
 import { ChatPanel } from "./components/ChatPanel.js";
 import { SearchModal } from "./components/SearchModal.js";
@@ -37,6 +38,7 @@ export function App() {
   const [leftTab, setLeftTab] = useState<"watch" | "market">("watch");
   const [chatOpen, setChatOpen] = useState(() => window.innerWidth >= 1100);
   const [startOpen, setStartOpen] = useState(() => new URLSearchParams(window.location.search).has("start"));
+  const [bugOpen, setBugOpen] = useState(() => new URLSearchParams(window.location.search).has("bug"));
   const [dailyReward, setDailyReward] = useState<{ amount: number; balance: number } | null>(null);
   // Keep desktop preferences separate when rotating/resizing a mobile viewport.
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
@@ -235,6 +237,10 @@ export function App() {
           <Settings2 size={16} />
           <span>{t("action.settings")}</span>
         </button>
+        <button type="button" className="canvas-action bug-action" aria-label={t("bug.entry")} onClick={() => setBugOpen(true)}>
+          <Bug size={16} />
+          <span>{t("bug.entry")}</span>
+        </button>
       </header>
 
       <div className="app-stage canvas-stage relative flex min-h-0 min-w-0 flex-1 overflow-hidden p-2">
@@ -273,6 +279,7 @@ export function App() {
 
       <StartAnalysisSheet open={startOpen && !isPending && !isVerified} onClose={closeStart} onPick={(nextSymbol, name, nameEn) => void beginStartAnalysis(nextSymbol, name, nameEn)} />
       <DailyRewardDialog reward={dailyReward} onClose={() => setDailyReward(null)} />
+      <BugReportDialog open={bugOpen} onClose={() => setBugOpen(false)} />
       <SearchModal />
       <Toast />
       <OnboardingModal />

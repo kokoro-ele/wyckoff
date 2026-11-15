@@ -1,4 +1,4 @@
-import { ArrowRight, BookOpen, Languages, Moon, Sun } from "lucide-react";
+import { ArrowRight, BookOpen, Bug, Languages, Moon, Sun } from "lucide-react";
 import { useI18n } from "../i18n.js";
 import { useTheme } from "../theme.js";
 import { landingCopy } from "./copy.js";
@@ -71,6 +71,7 @@ export function LandingPage() {
             <Languages size={13} />
             <span>{copy.language}</span>
           </button>
+          <a className="site-icon" href="/app?bug=1" aria-label={copy.bug} title={copy.bug}><Bug size={15} /></a>
           <button
             type="button"
             className="site-icon"

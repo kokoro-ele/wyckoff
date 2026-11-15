@@ -59,5 +59,5 @@ it("keeps the five workbench actions in the top bar", () => {
   const labels = [...header.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/g)]
     .map((match) => match[1].match(/<span>(.*?)<\/span>/)?.[1])
     .filter(Boolean);
-  expect(labels).toEqual(["自选", "搜索", "Agent 分析", "账户", "设置"]);
+  expect(labels).toEqual(["自选", "搜索", "Agent 分析", "账户", "设置", "反馈问题"]);
 });

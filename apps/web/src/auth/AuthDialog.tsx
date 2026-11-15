@@ -378,6 +378,7 @@ export function AuthDialog({
                     </button>
                   );
                 })()}
+                {verifying && <p className="text-center text-[10px] leading-relaxed text-ink-faint">{t("auth.checkSpam")}</p>}
               </form>
             ) : (
               <p className="mt-4 text-sm text-ink-dim">{t("auth.emailUnavailable")}</p>

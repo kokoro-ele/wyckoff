@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Activity, ArrowLeft, BarChart3, Coins, RefreshCw, Search, ShieldCheck, Trash2, Users, WalletCards } from "lucide-react";
+import { Activity, ArrowLeft, BarChart3, Bug, Coins, RefreshCw, Search, ShieldCheck, Trash2, Users, WalletCards } from "lucide-react";
 import * as api from "@/lib/api.js";
 import { useAuth } from "@/auth/AuthProvider.js";
 import { authClient } from "@/lib/auth.js";
@@ -40,6 +40,7 @@ export function AdminPage() {
   const [analytics, setAnalytics] = useState<api.AdminAnalytics | null>(null);
   const [users, setUsers] = useState<api.AdminUser[]>([]);
   const [feedback, setFeedback] = useState<Awaited<ReturnType<typeof api.fetchAdminFeedback>>["feedback"]>([]);
+  const [bugs, setBugs] = useState<api.BugReport[]>([]);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
@@ -48,16 +49,18 @@ export function AdminPage() {
   const load = async (q = query) => {
     setError("");
     try {
-      const [o, u, a, f] = await Promise.all([
+      const [o, u, a, f, bugsResult] = await Promise.all([
         api.fetchAdminOverview(),
         api.fetchAdminUsers(q),
         api.fetchAdminAnalytics(),
         api.fetchAdminFeedback(),
+        api.fetchAdminBugs(),
       ]);
       setOverview(o);
       setUsers(u.users);
       setAnalytics(a);
       setFeedback(f.feedback);
+      setBugs(bugsResult.reports);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Admin unavailable");
     }
@@ -274,6 +277,34 @@ export function AdminPage() {
               </tbody>
             </table>
           </div>
+        </section>
+
+        <section className="admin-section hand-card">
+          <h2><Bug size={17} className="mr-1 inline text-accent" />{zh ? "Bug 反馈" : "Bug reports"}</h2>
+          {bugs.length === 0 ? (
+            <p className="text-[11px] text-ink-faint">{zh ? "暂无 bug 反馈" : "No bug reports yet"}</p>
+          ) : (
+            bugs.map((bug) => (
+              <div key={bug.id} className="admin-list-row">
+                <span className="min-w-0">
+                  <strong>{bug.email ?? bug.user_id}</strong>
+                  <span className="ml-2 text-ink-faint">{bug.title} · {bug.status} · {bug.credits_granted} credits</span>
+                  <span className="mt-0.5 block text-ink-dim">{bug.body}</span>
+                  <span className="text-[9px] text-ink-faint">{bug.page_url}</span>
+                </span>
+                {bug.status === "pending" && (
+                  <span className="flex shrink-0 gap-1">
+                    <button type="button" className="hand-btn px-2 py-1 text-[10px]" onClick={() => void api.confirmAdminBug(bug.id).then(() => load()).catch((error) => setError(error instanceof Error ? error.message : "Failed"))}>
+                      {zh ? "确认 +10" : "Confirm +10"}
+                    </button>
+                    <button type="button" className="hand-btn px-2 py-1 text-[10px] text-up" onClick={() => void api.rejectAdminBug(bug.id).then(() => load()).catch((error) => setError(error instanceof Error ? error.message : "Failed"))}>
+                      {zh ? "拒绝" : "Reject"}
+                    </button>
+                  </span>
+                )}
+              </div>
+            ))
+          )}
         </section>
 
         <section className="admin-section hand-card">

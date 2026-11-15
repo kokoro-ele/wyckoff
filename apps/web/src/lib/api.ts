@@ -548,6 +548,39 @@ export function resetAdminCredits(balance = 3): Promise<{ ok: boolean; updated: 
   return request("/admin/credits/reset", { method: "POST", body: JSON.stringify({ balance }) });
 }
 
+export interface BugReport {
+  id: string;
+  user_id: string;
+  email?: string;
+  title: string;
+  body: string;
+  page_url: string;
+  status: "pending" | "confirmed" | "rejected";
+  credits_granted: number;
+  created_at: string;
+  confirmed_at: string | null;
+}
+
+export function submitBug(payload: { title: string; body: string; pageUrl: string }): Promise<{ report: BugReport }> {
+  return request("/bugs", { method: "POST", body: JSON.stringify(payload) });
+}
+
+export function fetchMyBugs(): Promise<{ reports: BugReport[] }> {
+  return request("/bugs");
+}
+
+export function fetchAdminBugs(): Promise<{ reports: BugReport[] }> {
+  return request("/admin/bugs");
+}
+
+export function confirmAdminBug(id: string): Promise<{ ok: boolean; already: boolean; credits: number }> {
+  return request(`/admin/bugs/${encodeURIComponent(id)}/confirm`, { method: "POST", body: JSON.stringify({}) });
+}
+
+export function rejectAdminBug(id: string): Promise<{ ok: boolean }> {
+  return request(`/admin/bugs/${encodeURIComponent(id)}/reject`, { method: "POST", body: JSON.stringify({}) });
+}
+
 export function deleteAdminUser(userId: string): Promise<{ ok: boolean; deleted: string }> {
   return request(`/admin/users/${encodeURIComponent(userId)}`, { method: "DELETE" });
 }

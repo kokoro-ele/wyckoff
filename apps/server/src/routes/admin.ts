@@ -3,6 +3,7 @@ import { bodyLimit } from "hono/body-limit";
 import { getAuth } from "../cloud/auth.js";
 import { getPool } from "../cloud/postgres.js";
 import { grantEntitlement, revokeEntitlement } from "../billing/entitlements.js";
+import { confirmBugReport, listBugReports, rejectBugReport } from "../services/bugs.js";
 
 export const adminRoutes = new Hono();
 
@@ -149,6 +150,27 @@ adminRoutes.get("/analytics", async (c) => {
     },
   });
 });
+adminRoutes.get("/bugs", async (c) => {
+  const denied = await guard(c);
+  if (denied) return denied;
+  return c.json({ reports: await listBugReports(getPool()) });
+});
+
+adminRoutes.post("/bugs/:id/confirm", async (c) => {
+  const denied = await guard(c);
+  if (denied) return denied;
+  const result = await confirmBugReport(getPool(), c.req.param("id"));
+  if (!result.ok) return c.json({ code: result.reason === "not_found" ? "NOT_FOUND" : "BAD_REQUEST" }, result.reason === "not_found" ? 404 : 400);
+  return c.json(result);
+});
+
+adminRoutes.post("/bugs/:id/reject", async (c) => {
+  const denied = await guard(c);
+  if (denied) return denied;
+  const ok = await rejectBugReport(getPool(), c.req.param("id"));
+  return ok ? c.json({ ok: true }) : c.json({ code: "NOT_FOUND" }, 404);
+});
+
 adminRoutes.get("/feedback", async (c) => {
   const denied = await guard(c);
   if (denied) return denied;
