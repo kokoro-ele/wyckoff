@@ -22,6 +22,15 @@ function fmtMoney(amount: number, currency: string, lang: "zh" | "en"): string {
   }).format(amount / 100);
 }
 
+function fmtDateTime(value: string, lang: "zh" | "en"): string {
+  return new Date(value).toLocaleString(lang === "zh" ? "zh-CN" : "en-US", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function AdminPage() {
   const { lang } = useI18n();
   const { isPending, isVerified } = useAuth();
@@ -341,6 +350,7 @@ export function AdminPage() {
                   <span className="ml-1 text-ink-faint">
                     {order.source === "byok" ? "BYOK" : "Credits"} · {order.product} · {order.status} · {order.provider}
                   </span>
+                  <span className="mt-0.5 block font-mono text-[9px] text-ink-faint">{fmtDateTime(order.created_at, lang)}</span>
                 </span>
                 <span className="shrink-0 font-mono">{fmtMoney(order.amount, order.currency, lang)}</span>
               </div>
