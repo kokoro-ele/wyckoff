@@ -265,6 +265,7 @@ adminRoutes.get("/stripe/health", async (c) => {
         created: s.created,
         expires_at: s.expires_at,
         client_reference_id: s.client_reference_id,
+        payment_method_types: s.payment_method_types,
         payment_intent:
           s.payment_intent && typeof s.payment_intent === "object"
             ? {
