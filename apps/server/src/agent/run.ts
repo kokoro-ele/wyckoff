@@ -30,9 +30,9 @@ import { buildSystemPrompt } from "./prompt.js";
 import { executeTool, type RunContext, responseTools, toolDefinitionsForMode } from "./tools.js";
 
 /** Agent 每轮最多来回调用几次本地工具，防止模型陷入循环。 */
-const MAX_ITERATIONS = 10;
+const MAX_ITERATIONS = 6;
 /** 带入上下文的历史消息条数。 */
-const HISTORY_LIMIT = 20;
+const HISTORY_LIMIT = 12;
 
 function logJson(label: string, payload: unknown): void {
   // Prompts and histories may contain private user research. Only emit them

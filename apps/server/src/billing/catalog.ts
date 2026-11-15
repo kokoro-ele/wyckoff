@@ -25,12 +25,12 @@ export class BillingError extends Error {
 }
 
 export function billingErrorResponse(error: unknown): {
-  body: { error: string; code: string };
+  body: { error: string; message: string; code: string };
   status: 400 | 401 | 402 | 409 | 429 | 503;
 } {
   return error instanceof BillingError
-    ? { body: { error: error.message, code: error.code }, status: error.status }
-    : { body: { error: "Billing temporarily unavailable", code: "BILLING_UNAVAILABLE" }, status: 503 };
+    ? { body: { error: error.message, message: error.message, code: error.code }, status: error.status }
+    : { body: { error: "Billing temporarily unavailable", message: "Billing temporarily unavailable", code: "BILLING_UNAVAILABLE" }, status: 503 };
 }
 
 export function addPeriod(date: Date, period: Period) {

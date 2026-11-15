@@ -61,6 +61,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
   const [activityOpen, setActivityOpen] = useState(false);
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [quotaError, setQuotaError] = useState(false);
   const feedbackAsked = useRef(false);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sendingRef = useRef(false);
@@ -142,6 +143,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
     setPlan(null);
     setActivities([]);
     setActivityOpen(false);
+    setQuotaError(false);
 
     const userMsg: ChatEntry = {
       id: `u_${Date.now()}`,
@@ -276,6 +278,10 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
           }));
           break;
         case "error":
+          if (/额度|次数|credit|quota|充值/i.test(event.message)) {
+            setQuotaError(true);
+            window.dispatchEvent(new Event("credits:exhausted"));
+          }
           updateAssistant((entry) => ({
             ...entry,
             streaming: false,
@@ -313,7 +319,10 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
           : error instanceof Error
             ? error.message
             : t("chat.error");
-      if (code === "QUOTA_EXCEEDED") window.dispatchEvent(new Event("credits:exhausted"));
+      if (code === "QUOTA_EXCEEDED" || /额度|次数|credit|quota|充值/i.test(message)) {
+        setQuotaError(true);
+        window.dispatchEvent(new Event("credits:exhausted"));
+      }
       if (code === "UNAUTHORIZED" || code === "EMAIL_UNVERIFIED") openAuth();
       updateAssistant((entry) => ({
         ...entry,
@@ -463,6 +472,12 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
           </div>
 
           <div className="chat-composer border-t border-line-soft p-3">
+            {quotaError && (
+              <div className="chat-quota-notice">
+                <span>{t("chat.quota")}</span>
+                <button type="button" onClick={() => window.dispatchEvent(new Event("credits:exhausted"))}>{t("chat.topUp")}</button>
+              </div>
+            )}
             {pendingContext && <ContextCapsule context={pendingContext} onClear={() => setPendingContext(null)} />}
             <div className="agent-wait-note" role="note">
               <Clock3 size={12} />

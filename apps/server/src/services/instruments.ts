@@ -3,7 +3,7 @@ import type { Instrument, InstrumentDetail } from "@wyckoff/shared";
 import { pinyin } from "pinyin-pro";
 import { db, getState, setState } from "../db/index.js";
 import { fetchExchangeInstruments, fetchInstruments, type RawInstrument } from "../tickflow/client.js";
-import { ensureEnglishNames, getEnglishName } from "./englishNames.js";
+import { getEnglishName } from "./englishNames.js";
 
 /** TickFlow 覆盖的交易所。免费档也能拉全量标的清单。 */
 const EXCHANGES = ["SH", "SZ", "BJ", "HK", "US"] as const;
@@ -211,7 +211,8 @@ export function searchInstruments(query: string, limit = 30): (Instrument & { sc
 
 /** 取单个标的的详情，本地没有就回源一次。 */
 export async function getInstrument(symbol: string): Promise<InstrumentDetail | null> {
-  await ensureEnglishNames();
+  // Do not block chart/Agent loading on the optional Nasdaq display-name file.
+  // Watchlist/search callers warm it separately when they specifically need it.
   const row = db
     .prepare<[string], { symbol: string; exchange: string; code: string; name: string | null; region: string; type: string | null; ext: string | null }>(
       "SELECT symbol, exchange, code, name, region, type, ext FROM instruments WHERE symbol = ?",

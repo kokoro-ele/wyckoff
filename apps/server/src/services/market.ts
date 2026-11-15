@@ -181,13 +181,16 @@ export async function getKlines(params: GetKlinesParams): Promise<Kline[]> {
 }
 
 /** 计算完整的 Wyckoff 特征，并尽量附上相对基准指数的强弱。 */
-export async function getFeatures(params: GetKlinesParams): Promise<MarketFeatures> {
+export async function getFeatures(
+  params: GetKlinesParams,
+  options: { skipBenchmark?: boolean } = {},
+): Promise<MarketFeatures> {
   const klines = await getKlines(params);
   const features = computeFeatures({ symbol: params.symbol, period: params.period, klines });
 
   const exchange = params.symbol.split(".")[1] ?? "";
   const benchmark = BENCHMARK_BY_EXCHANGE[exchange];
-  if (benchmark && benchmark !== params.symbol && klines.length > 0) {
+  if (!options.skipBenchmark && benchmark && benchmark !== params.symbol && klines.length > 0) {
     try {
       const benchKlines = await getKlines({
         symbol: benchmark,

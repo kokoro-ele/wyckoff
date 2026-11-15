@@ -451,8 +451,8 @@ export async function streamChat(
     let message = `对话请求失败（${response.status}）`;
     let code = "CHAT_FAILED";
     try {
-      const body = JSON.parse(text) as { message?: string; code?: string };
-      message = body.message ?? message;
+      const body = JSON.parse(text) as { message?: string; error?: string; code?: string };
+      message = body.message ?? body.error ?? message;
       code = body.code ?? code;
     } catch {
       /* 保持默认文案 */

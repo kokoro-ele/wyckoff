@@ -447,7 +447,7 @@ async function getFeaturesTool(args: Args, ctx: RunContext): Promise<ToolResult>
     adjust: ctx.adjust,
     startTime,
     endTime,
-  });
+  }, { skipBenchmark: true });
   const featureMs = Date.now() - started;
 
   return {
