@@ -55,12 +55,14 @@ adminRoutes.get("/overview", async (c) => {
     pool.query('SELECT id,email,name,"emailVerified","createdAt" FROM "user" ORDER BY "createdAt" DESC LIMIT 8'),
     pool.query(
       `SELECT * FROM (
-         SELECT o.id,o.user_id,u.email,o.plan AS product,o.period,o.credits,o.amount,o.currency,o.status,o.created_at,
-                'credits'::text AS source, o.provider AS provider
+         SELECT o.id,o.user_id,u.email,o.plan AS product,o.period,o.credits,o.amount,o.currency,
+                CASE WHEN o.status IN ('creating','pending') AND o.expires_at<=now() THEN 'expired' ELSE o.status END AS status,
+                o.created_at,'credits'::text AS source, o.provider AS provider
          FROM billing_orders o JOIN "user" u ON u.id=o.user_id
          UNION ALL
-         SELECT s.id,s.user_id,u.email,s.product,NULL::text AS period,NULL::int AS credits,s.amount,s.currency,s.status,s.created_at,
-                'byok'::text AS source,'stripe'::text AS provider
+         SELECT s.id,s.user_id,u.email,s.product,NULL::text AS period,NULL::int AS credits,s.amount,s.currency,
+                CASE WHEN s.status IN ('creating','pending') AND s.expires_at<=now() THEN 'expired' ELSE s.status END AS status,
+                s.created_at,'byok'::text AS source,'stripe'::text AS provider
          FROM subscription_orders s JOIN "user" u ON u.id=s.user_id
        ) orders ORDER BY created_at DESC LIMIT 12`,
     ),
