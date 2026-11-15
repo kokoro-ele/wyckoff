@@ -3,8 +3,9 @@ import { bodyLimit } from "hono/body-limit";
 import type { Pool } from "pg";
 import { BillingError, billingErrorResponse } from "../billing/catalog.js";
 import { availability } from "../billing/providers.js";
-import { checkoutCreditPack, currentOrder, getOrder } from "../billing/store.js";
+import { cancelCreditOrder, checkoutCreditPack, currentOrder, getOrder } from "../billing/store.js";
 import {
+  cancelSubscriptionOrder,
   checkoutSubscription,
   createBillingPortal,
   currentSubscriptionOrder,
@@ -51,6 +52,9 @@ export function createCreditsRouter(pool: Pool, userId: string) {
     });
   });
   app.get("/subscriptions/orders/current", async (c) => c.json({ order: await currentSubscriptionOrder(pool, userId) }));
+  app.post("/subscriptions/orders/:id/cancel", async (c) =>
+    c.json(await cancelSubscriptionOrder(pool, userId, c.req.param("id"))),
+  );
   app.get("/subscriptions/orders/:id", async (c) => c.json(await getSubscriptionOrder(pool, userId, c.req.param("id"))));
   app.get("/purchases", async (c) => {
     const [credits, subscriptions] = await Promise.all([
@@ -94,6 +98,7 @@ export function createCreditsRouter(pool: Pool, userId: string) {
   });
 
   app.get("/orders/current", async (c) => c.json({ order: await currentOrder(pool, userId) }));
+  app.post("/orders/:id/cancel", async (c) => c.json(await cancelCreditOrder(pool, userId, c.req.param("id"))));
   app.get("/orders/:id", async (c) => c.json(await getOrder(pool, userId, c.req.param("id"))));
 
   app.post("/subscriptions/portal", async (c) => {

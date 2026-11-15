@@ -17,6 +17,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
   const [apiKey, setApiKey] = useState("");
   const [mode, setMode] = useState<"operator" | "custom">("operator");
   const [byokProducts, setByokProducts] = useState<api.SubscriptionProduct[]>([]);
+  const [byokOrder, setByokOrder] = useState<{ orderId: string; product: string; mode: string; status: string; checkoutUrl?: string; expiresAt: string } | null>(null);
   const [byokBusy, setByokBusy] = useState("");
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -25,6 +26,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     if (!isVerified) return;
     void api.fetchSubscriptionCatalog().then((value) => setByokProducts(value.products)).catch(() => undefined);
+    void api.fetchCurrentSubscriptionOrder().then((value) => setByokOrder(value.order)).catch(() => undefined);
   }, [isVerified]);
 
   const load = async () => {
@@ -108,11 +110,40 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const byokPending = Boolean(byokOrder && ["creating", "pending"].includes(byokOrder.status));
+
+  const resumeByokPayment = () => {
+    if (!byokOrder?.checkoutUrl) return;
+    try {
+      const url = new URL(byokOrder.checkoutUrl);
+      if (url.protocol !== "https:" || url.hostname !== "checkout.stripe.com") throw new Error();
+      window.location.assign(url.href);
+    } catch {
+      setError(t("settings.llm.byokUnavailable"));
+    }
+  };
+
+  const cancelByokOrder = async () => {
+    if (!byokOrder || byokBusy) return;
+    setByokBusy("cancel");
+    setError("");
+    try {
+      const next = await api.cancelSubscriptionOrder(byokOrder.orderId);
+      setByokOrder(next);
+      notify(t("settings.llm.orderCancelled"), "info");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t("settings.llm.error"));
+    } finally {
+      setByokBusy("");
+    }
+  };
+
   const buyByok = async (productId: string) => {
     setByokBusy(productId);
     setError("");
     try {
       const order = await api.checkoutSubscription(productId);
+      setByokOrder(order);
       if (!order.checkoutUrl) throw new Error(t("settings.llm.byokUnavailable"));
       window.location.assign(order.checkoutUrl);
     } catch (cause) {
@@ -205,12 +236,27 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
               ) : !settings?.byokEntitled ? (
                 <div className="mt-2 rounded-lg border border-dashed border-line p-3">
                   <p className="text-[10px] leading-relaxed text-ink-dim">{t("settings.llm.byokRequired")}</p>
+                  {byokPending && byokOrder && (
+                    <div className="mb-2 rounded-md border border-warn/40 bg-warn/5 p-2.5">
+                      <p className="text-[10px] leading-relaxed text-ink-dim">{t("settings.llm.pendingOrder")}</p>
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {byokOrder.checkoutUrl && (
+                          <button type="button" className="hand-btn px-2 py-1 text-[10px]" onClick={resumeByokPayment}>
+                            {t("membership.resume")}
+                          </button>
+                        )}
+                        <button type="button" disabled={Boolean(byokBusy)} className="hand-btn px-2 py-1 text-[10px] disabled:opacity-45" onClick={() => void cancelByokOrder()}>
+                          {t("settings.llm.cancelOrder")}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                   <div className="mt-2 space-y-1.5">
                     {byokProducts.map((product) => (
                       <button
                         key={product.id}
                         type="button"
-                        disabled={!product.available || Boolean(byokBusy)}
+                        disabled={!product.available || Boolean(byokBusy) || byokPending}
                         className="flex w-full items-center justify-between gap-2 rounded-md border border-line bg-panel-2 px-2.5 py-2 text-left text-[11px] text-ink disabled:opacity-45"
                         onClick={() => void buyByok(product.id)}
                       >

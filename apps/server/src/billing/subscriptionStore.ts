@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 import { BillingError } from "./catalog.js";
-import { availability } from "./providers.js";
+import { availability, expireProviderCheckout } from "./providers.js";
 import { withAccountLock } from "./store.js";
 import { consumeRateLimit } from "../credits/rateLimit.js";
 import { findSubscriptionProduct, priceIdFor, type SubscriptionProduct } from "./subscriptionCatalog.js";
@@ -32,6 +32,24 @@ export function publicSubscriptionOrder(order: SubscriptionOrder) {
     checkoutUrl: order.checkout_url ?? undefined,
     expiresAt: order.expires_at.toISOString(),
   };
+}
+
+export async function cancelSubscriptionOrder(pool: Pool, userId: string, id: string) {
+  return withAccountLock(pool, userId, async (db) => {
+    const row = (
+      await db.query<SubscriptionOrder>(
+        "SELECT * FROM subscription_orders WHERE user_id=$1 AND id=$2 FOR UPDATE",
+        [userId, id],
+      )
+    ).rows[0];
+    if (!row) throw new BillingError("ORDER_NOT_FOUND", "Order not found");
+    if (row.status === "creating" || row.status === "pending") {
+      await expireProviderCheckout(row.stripe_session_id);
+      await db.query("UPDATE subscription_orders SET status='expired' WHERE id=$1", [row.id]);
+      row.status = "expired";
+    }
+    return publicSubscriptionOrder(row);
+  });
 }
 
 export function stripeOrigin(env: NodeJS.ProcessEnv = process.env): string | null {

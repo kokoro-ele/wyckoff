@@ -406,7 +406,15 @@ export function openBillingPortal(): Promise<{ url: string }> {
   return request("/credits/subscriptions/portal", { method: "POST", body: JSON.stringify({}) });
 }
 
-export function checkoutSubscription(productId: string): Promise<{ orderId: string; product: string; mode: string; status: string; checkoutUrl?: string }> {
+export function fetchCurrentSubscriptionOrder(): Promise<{ order: { orderId: string; product: string; mode: string; status: string; checkoutUrl?: string; expiresAt: string } | null }> {
+  return request("/credits/subscriptions/orders/current");
+}
+
+export function cancelSubscriptionOrder(id: string): Promise<{ orderId: string; product: string; mode: string; status: string; checkoutUrl?: string; expiresAt: string }> {
+  return request(`/credits/subscriptions/orders/${encodeURIComponent(id)}/cancel`, { method: "POST", body: JSON.stringify({}) });
+}
+
+export function checkoutSubscription(productId: string): Promise<{ orderId: string; product: string; mode: string; status: string; checkoutUrl?: string; expiresAt: string }> {
   return request("/credits/subscriptions/checkout", {
     method: "POST",
     headers: { "Content-Type": "application/json", "Idempotency-Key": crypto.randomUUID() },

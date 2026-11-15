@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
 import { BillingError, addPeriod } from "./catalog.js";
 import type { PaidPlan, Period, Provider } from "./catalog.js";
-import { availability, createProviderCheckout } from "./providers.js";
+import { availability, createProviderCheckout, expireProviderCheckout } from "./providers.js";
 import type { CheckoutOrder } from "./providers.js";
 
 export async function withAccountLock<T>(
@@ -149,6 +149,22 @@ export async function currentOrder(pool: Pool, userId: string) {
     )
   ).rows.at(0);
   return row ? publicOrder(row) : null;
+}
+
+/** Cancels an unpaid credit-pack checkout so the user can start a new one. */
+export async function cancelCreditOrder(pool: Pool, userId: string, id: string) {
+  return withAccountLock(pool, userId, async (db) => {
+    const row = (
+      await db.query<StoredOrder>("SELECT * FROM billing_orders WHERE user_id=$1 AND id=$2 FOR UPDATE", [userId, id])
+    ).rows[0];
+    if (!row) throw new BillingError("ORDER_NOT_FOUND", "Order not found");
+    if (row.status === "creating" || row.status === "pending") {
+      await expireProviderCheckout(row.provider_id);
+      await db.query("UPDATE billing_orders SET status='expired' WHERE id=$1", [row.id]);
+      row.status = "expired";
+    }
+    return publicOrder(row);
+  });
 }
 
 /** Creates a checkout for an operator-configured permanent credit pack. */

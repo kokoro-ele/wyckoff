@@ -119,6 +119,26 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const cancelPending = async () => {
+    if (!order || busy) return;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    try {
+      const next = await request<Order>(`orders/${encodeURIComponent(order.orderId)}/cancel`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      setOrder(next);
+      setNotice(t("membership.cancelledPending"));
+      await reload();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t("error.NETWORK"));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const resumePayment = () => {
     if (!order?.checkoutUrl) return;
     try {
@@ -324,10 +344,17 @@ export function MembershipPanel({ onClose }: { onClose: () => void }) {
                   ? t("membership.ended")
                   : t("membership.pending")}
             </h3>
-            {order.checkoutUrl && order.status === "pending" && (
-              <button type="button" onClick={resumePayment} className="hand-btn mt-3 px-3 py-2 text-sm">
-                {t("membership.resume")}
-              </button>
+            {!terminal(order) && (
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                {order.checkoutUrl && order.status === "pending" && (
+                  <button type="button" onClick={resumePayment} className="hand-btn px-3 py-2 text-sm">
+                    {t("membership.resume")}
+                  </button>
+                )}
+                <button type="button" disabled={busy} onClick={() => void cancelPending()} className="hand-btn px-3 py-2 text-sm disabled:opacity-45">
+                  {t("membership.cancelPending")}
+                </button>
+              </div>
             )}
             <p className="mt-2 text-xs text-ink-faint">{t("membership.order", { id: order.orderId })}</p>
           </div>

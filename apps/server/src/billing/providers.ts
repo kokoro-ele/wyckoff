@@ -58,6 +58,31 @@ export interface CheckoutOrder {
   expires_at: Date;
 }
 
+/** Expires an open Stripe Checkout Session so an abandoned order cannot be paid later. */
+export async function expireProviderCheckout(providerId: string | null | undefined, env: Env = process.env) {
+  if (!providerId || !env.STRIPE_SECRET_KEY) return;
+  try {
+    const response = await fetch(
+      `https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(providerId)}/expire`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${env.STRIPE_SECRET_KEY}`,
+          "Stripe-Version": "2025-02-24.acacia",
+        },
+        signal: AbortSignal.timeout(10_000),
+      },
+    );
+    if (!response.ok && response.status !== 404) {
+      console.warn("[billing] could not expire Stripe checkout", response.status);
+    }
+  } catch (error) {
+    // The local order can still be expired. If Stripe later reports a delayed
+    // payment, the webhook remains authoritative and will fulfil it.
+    console.warn("[billing] expire checkout failed:", (error as Error).message);
+  }
+}
+
 export async function createProviderCheckout(order: CheckoutOrder, env: Env = process.env) {
   if (order.provider !== "stripe" || !availability(env).stripe.available) {
     throw new BillingError("PROVIDER_UNAVAILABLE", "Stripe is not activated", 503);
