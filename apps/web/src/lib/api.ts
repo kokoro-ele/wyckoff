@@ -530,6 +530,7 @@ export interface AdminUser {
   publicId: string | null;
   ordinal: number | null;
   analyses: string;
+  spent: number;
 }
 
 export function fetchAdminOverview(): Promise<AdminOverview> {
@@ -544,7 +545,7 @@ export function setAdminCredits(userId: string, balance: number): Promise<{ ok: 
   return request("/admin/credits", { method: "POST", body: JSON.stringify({ userId, balance }) });
 }
 
-export function resetAdminCredits(balance = 3): Promise<{ ok: boolean; updated: number; balance: number }> {
+export function resetAdminCredits(balance = 10): Promise<{ ok: boolean; updated: number; balance: number }> {
   return request("/admin/credits/reset", { method: "POST", body: JSON.stringify({ balance }) });
 }
 

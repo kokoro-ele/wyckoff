@@ -109,11 +109,11 @@ export function AdminPage() {
   };
 
   const resetAll = async () => {
-    if (!window.confirm(zh ? "把所有用户的次数重置为 3 次？" : "Reset every user to 3 credits?")) return;
+    if (!window.confirm(zh ? "把所有用户的 credits 重置为 10？" : "Reset every user to 10 credits?")) return;
     setBusy("reset");
     setError("");
     try {
-      await api.resetAdminCredits(3);
+      await api.resetAdminCredits(10);
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Reset failed");
@@ -186,7 +186,7 @@ export function AdminPage() {
               <RefreshCw size={13} />{zh ? "刷新" : "Refresh"}
             </button>
             <button type="button" className="hand-btn hand-btn-primary px-3 py-1.5 text-xs" disabled={busy === "reset"} onClick={() => void resetAll()}>
-              <Coins size={13} />{zh ? "全员重置为 3 次" : "Reset everyone to 3"}
+              <Coins size={13} />{zh ? "全员重置为 10 credits" : "Reset everyone to 10"}
             </button>
           </div>
         </div>
@@ -261,13 +261,14 @@ export function AdminPage() {
           </div>
           <div className="admin-table-wrap hand-card">
             <table className="admin-table">
-              <thead><tr><th>{zh ? "用户" : "User"}</th><th>{zh ? "状态" : "Status"}</th><th>{zh ? "次数" : "Credits"}</th><th>{zh ? "已用" : "Used"}</th><th>{zh ? "注册" : "Joined"}</th><th>{zh ? "调整" : "Adjust"}</th></tr></thead>
+              <thead><tr><th>{zh ? "用户" : "User"}</th><th>{zh ? "状态" : "Status"}</th><th>{zh ? "余额 credits" : "Balance"}</th><th>{zh ? "已用 credits" : "Spent"}</th><th>{zh ? "分析次数" : "Runs"}</th><th>{zh ? "注册" : "Joined"}</th><th>{zh ? "调整" : "Adjust"}</th></tr></thead>
               <tbody>
                 {users.map((user) => (
                   <tr key={user.id}>
                     <td><div className="admin-user"><strong>{user.name || user.email.split("@")[0]}</strong><span>{user.email}</span>{user.publicId && <span className="font-mono">{user.publicId}{user.ordinal && user.ordinal <= 100 ? " · early" : ""}</span>}</div></td>
                     <td>{user.emailVerified ? <span className="admin-pill ok">{zh ? "已验证" : "verified"}</span> : <span className="admin-pill">{zh ? "待验证" : "pending"}</span>}</td>
                     <td className="font-mono">{user.balance}</td>
+                    <td className="font-mono">{user.spent ?? 0}</td>
                     <td className="font-mono">{user.analyses}</td>
                     <td>{fmtDate(user.createdAt, lang)}</td>
                     <td>

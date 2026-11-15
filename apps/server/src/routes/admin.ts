@@ -196,7 +196,8 @@ adminRoutes.get("/users", async (c) => {
     `SELECT u.id,u.email,u.name,u."emailVerified",u."createdAt",
        COALESCE(c.balance,0) AS balance, c.invite_code AS "inviteCode",
        i.public_id AS "publicId", i.ordinal,
-       (SELECT count(*) FROM credit_usage cu WHERE cu.user_id=u.id AND cu.state='consumed') AS analyses
+       (SELECT count(*) FROM credit_usage cu WHERE cu.user_id=u.id AND cu.state='consumed') AS analyses,
+       (SELECT COALESCE(sum(cu.credits),0)::int FROM credit_usage cu WHERE cu.user_id=u.id AND cu.state='consumed') AS spent
      FROM "user" u
      LEFT JOIN credit_accounts c ON c.user_id=u.id
      LEFT JOIN user_identity i ON i.user_id=u.id
