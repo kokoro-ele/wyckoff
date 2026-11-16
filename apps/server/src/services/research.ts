@@ -330,7 +330,9 @@ export async function getResearch(params: {
   const features = computeFeatures({ symbol: params.symbol, period: params.period, klines });
 
   const tencentKey = `research:tencent:${params.symbol}`;
-  const secKey = `research:sec:${params.symbol}`;
+  // v2 invalidates the old cache that could mix a stale revenue tag with
+  // newer net-income facts.
+  const secKey = `research:sec:v2:${params.symbol}`;
   const cachedTencent = readCache<TencentQuote>(tencentKey, TENCENT_TTL);
   const cachedSec = readCache<SecFundamentals>(secKey, SEC_TTL);
 

@@ -98,6 +98,32 @@ describe("research data parsers", () => {
     });
   });
 
+  it("chooses the newest annual fact across XBRL revenue concepts", () => {
+    const facts = {
+      "us-gaap": {
+        RevenueFromContractWithCustomerExcludingAssessedTax: {
+          units: {
+            USD: [{ end: "2022-01-30", val: 26_914_000_000, form: "10-K", fp: "FY" }],
+          },
+        },
+        Revenues: {
+          units: {
+            USD: [{ end: "2026-01-25", val: 215_938_000_000, form: "10-K", fp: "FY" }],
+          },
+        },
+        NetIncomeLoss: {
+          units: { USD: [{ end: "2026-01-25", val: 120_067_000_000, form: "10-K", fp: "FY" }] },
+        },
+      },
+      dei: {},
+    };
+    expect(parseSecFundamentals(facts, "NVIDIA CORP")).toMatchObject({
+      revenue: 215_938_000_000,
+      netIncome: 120_067_000_000,
+      fiscalYear: "2026",
+    });
+  });
+
   it("extracts annual SEC facts and computes the fiscal year", () => {
     const facts = {
       "us-gaap": {

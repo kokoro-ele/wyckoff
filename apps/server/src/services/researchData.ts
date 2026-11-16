@@ -222,18 +222,22 @@ async function secTickerMap(): Promise<Map<string, { cik: string; title: string 
 }
 
 function latestFact(facts: SecFacts, concepts: string[], unit: string): SecFact | null {
+  // Companies can change XBRL revenue tags over time. Searching only the
+  // first available concept can return a stale 2022 value while net income
+  // comes from 2026. Pick the newest annual fact across every candidate tag.
+  let latest: SecFact | null = null;
   for (const concept of concepts) {
     const units = facts[concept]?.units?.[unit];
     if (!Array.isArray(units) || units.length === 0) continue;
     const annual = units.filter((fact) => fact.form === "10-K" && fact.fp === "FY");
     const pool = annual.length ? annual : units.filter((fact) => fact.form === "10-K");
     if (pool.length === 0) continue;
-    const latest = [...pool]
+    const candidate = [...pool]
       .filter((fact) => Number.isFinite(fact.val) && typeof fact.end === "string")
       .sort((a, b) => (b.end ?? "").localeCompare(a.end ?? ""))[0];
-    if (latest) return latest;
+    if (candidate && (!latest || (candidate.end ?? "") > (latest.end ?? ""))) latest = candidate;
   }
-  return null;
+  return latest;
 }
 
 export function parseSecFundamentals(
