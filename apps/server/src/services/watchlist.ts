@@ -1,6 +1,7 @@
 import type { WatchGroup, WatchItem } from "@wyckoff/shared";
 import { db } from "../db/index.js";
 import { getEnglishName } from "./englishNames.js";
+import { decodeUnicodeEscapes } from "./text.js";
 
 export function listGroups(): WatchGroup[] {
   return db
@@ -97,7 +98,11 @@ export function listItems(): WatchItem[] {
       ORDER BY w.group_id, w.sort, w.added_at
     `)
     .all()
-    .map((item) => ({ ...item, nameEn: getEnglishName(item.symbol.split(".")[0] ?? "") }));
+    .map((item) => ({
+      ...item,
+      name: item.name ? decodeUnicodeEscapes(item.name) : item.name,
+      nameEn: getEnglishName(item.symbol.split(".")[0] ?? ""),
+    }));
 }
 
 export function addItem(symbol: string, groupId: number): void {

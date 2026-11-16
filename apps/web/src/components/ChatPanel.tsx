@@ -534,6 +534,7 @@ function QuickActions({ disabled, onRun }: { disabled: boolean; onRun: (prompt: 
     { key: "window", label: t("chat.quick.window"), prompt: t("chat.quick.windowPrompt") },
     { key: "update", label: t("chat.quick.update"), prompt: t("chat.quick.updatePrompt") },
     { key: "event", label: t("chat.quick.event"), prompt: t("chat.quick.eventPrompt") },
+    { key: "scenario", label: t("chat.quick.scenario"), prompt: t("chat.quick.scenarioPrompt") },
     { key: "trade", label: t("chat.quick.trade"), prompt: t("chat.quick.tradePrompt") },
   ];
   return (

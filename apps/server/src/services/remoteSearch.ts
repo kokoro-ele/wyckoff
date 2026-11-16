@@ -1,4 +1,5 @@
 import type { Instrument, InstrumentType, Region } from "@wyckoff/shared";
+import { decodeUnicodeEscapes } from "./text.js";
 
 interface Hint {
   market: string;
@@ -35,7 +36,7 @@ function toInstrument(hint: Hint): Instrument | null {
   const symbol = hint.market === "us"
     ? `${code.toUpperCase()}.US`
     : `${code.toUpperCase()}.${market.exchange}`;
-  const name = hint.name || null;
+  const name = hint.name ? decodeUnicodeEscapes(hint.name) : null;
   return {
     symbol,
     exchange: market.exchange,

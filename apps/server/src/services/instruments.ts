@@ -4,6 +4,7 @@ import { pinyin } from "pinyin-pro";
 import { db, getState, setState } from "../db/index.js";
 import { fetchExchangeInstruments, fetchInstruments, type RawInstrument } from "../tickflow/client.js";
 import { getEnglishName } from "./englishNames.js";
+import { decodeUnicodeEscapes } from "./text.js";
 
 /** TickFlow 覆盖的交易所。免费档也能拉全量标的清单。 */
 const EXCHANGES = ["SH", "SZ", "BJ", "HK", "US"] as const;
@@ -55,7 +56,7 @@ const storeInstruments = db.transaction((rows: RawInstrument[]) => {
       symbol: item.symbol,
       exchange: item.exchange,
       code: item.code,
-      name: item.name ?? null,
+      name: item.name ? decodeUnicodeEscapes(item.name) : null,
       region: item.region,
       type: item.type ?? null,
       pinyin_full: full,
@@ -90,7 +91,7 @@ export function loadIndex(): void {
       symbol: r.symbol,
       exchange: r.exchange,
       code: r.code,
-      name: r.name,
+      name: r.name ? decodeUnicodeEscapes(r.name) : null,
       nameEn,
       region: r.region,
       type: (r.type as Instrument["type"]) ?? null,
@@ -246,7 +247,7 @@ function toDetail(row: {
     symbol: row.symbol,
     exchange: row.exchange,
     code: row.code,
-    name: row.name,
+    name: row.name ? decodeUnicodeEscapes(row.name) : null,
     nameEn: getEnglishName(row.code),
     region: row.region,
     type: (row.type as Instrument["type"]) ?? null,
