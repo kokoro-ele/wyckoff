@@ -1104,13 +1104,15 @@ const en: Record<string, string> = {
 
 const dictionaries: Record<Lang, Record<string, string>> = { zh, en };
 
+const LANG_CHOICE_KEY = "wyckoff:lang-choice";
+
 function detectLang(): Lang {
-  // English is the product default. An explicit ?lang= or a language the user
-  // previously chose still takes precedence.
+  // English is the product default. Only an explicit ?lang= or a language the
+  // user actively selected after this change persists across visits.
   if (typeof window === "undefined") return "en";
   const fromUrl = new URLSearchParams(window.location.search).get("lang");
   if (fromUrl === "zh" || fromUrl === "en") return fromUrl;
-  const saved = window.localStorage.getItem("wyckoff:lang");
+  const saved = window.localStorage.getItem(LANG_CHOICE_KEY);
   if (saved === "zh" || saved === "en") return saved;
   return "en";
 }
@@ -1149,7 +1151,6 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setCurrentLang(lang);
-    window.localStorage.setItem("wyckoff:lang", lang);
     try {
       const secure = window.location.protocol === "https:" ? "; Secure" : "";
       document.cookie = `wyckoff_lang=${lang}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
@@ -1160,6 +1161,11 @@ export function I18nProvider({ children }: { children: ReactNode }) {
 
   const setLang = useCallback((next: Lang) => {
     setLangState(next);
+    try {
+      window.localStorage.setItem(LANG_CHOICE_KEY, next);
+    } catch {
+      /* storage can be disabled in private webviews */
+    }
     const url = new URL(window.location.href);
     if (url.searchParams.has("lang")) {
       url.searchParams.delete("lang");

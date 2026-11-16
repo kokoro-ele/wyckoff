@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ArrowRight, Search, Sparkles, X } from "lucide-react";
+import { ArrowRight, Languages, Search, Sparkles, X } from "lucide-react";
 import type { Instrument } from "@wyckoff/shared";
 import * as api from "@/lib/api.js";
 import { useI18n } from "@/i18n.js";
@@ -24,7 +24,7 @@ export function StartAnalysisSheet({
   onClose: () => void;
   onPick: (symbol: string, name?: string | null, nameEn?: string | null) => void;
 }) {
-  const { t, lang } = useI18n();
+  const { t, lang, setLang } = useI18n();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Hit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -81,9 +81,20 @@ export function StartAnalysisSheet({
             </h2>
             <p className="mt-2 text-[12px] leading-relaxed text-ink-dim">{t("start.subtitle")}</p>
           </div>
-          <button type="button" className="hand-icon" onClick={onClose} aria-label={t("action.close")}>
-            <X size={17} />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              className="hand-btn inline-flex items-center gap-1 px-2 py-1 text-[10px]"
+              onClick={() => setLang(lang === "zh" ? "en" : "zh")}
+              aria-label={lang === "zh" ? "Switch to English" : "切换到中文"}
+            >
+              <Languages size={12} />
+              {lang === "zh" ? "English" : "中文"}
+            </button>
+            <button type="button" className="hand-icon" onClick={onClose} aria-label={t("action.close")}>
+              <X size={17} />
+            </button>
+          </div>
         </div>
 
         <div className="start-search mt-4 flex items-center gap-2">
