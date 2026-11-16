@@ -1105,12 +1105,14 @@ const en: Record<string, string> = {
 const dictionaries: Record<Lang, Record<string, string>> = { zh, en };
 
 function detectLang(): Lang {
-  if (typeof window === "undefined") return "zh";
+  // English is the product default. An explicit ?lang= or a language the user
+  // previously chose still takes precedence.
+  if (typeof window === "undefined") return "en";
   const fromUrl = new URLSearchParams(window.location.search).get("lang");
   if (fromUrl === "zh" || fromUrl === "en") return fromUrl;
   const saved = window.localStorage.getItem("wyckoff:lang");
   if (saved === "zh" || saved === "en") return saved;
-  return navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en";
+  return "en";
 }
 
 let currentLang: Lang = detectLang();

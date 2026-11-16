@@ -10,12 +10,12 @@ it("renders a compact intro, the NVDA chart and the method link", () => {
       <LandingPage />
     </I18nProvider>,
   );
-  expect(html).toContain("看见价格背后的结构");
-  expect(html).toContain("现在开始");
-  expect(html).toContain("学习 Wyckoff");
+  expect(html).toContain("See the structure behind the price.");
+  expect(html).toContain("Start now");
+  expect(html).toContain("Learn Wyckoff");
   expect(html).toContain("NVDA.US");
   expect(html).toContain('href="/app?start=1"');
-  expect(html).toContain('href="/learn/zh"');
+  expect(html).toContain('href="/learn/en"');
   expect(html).toContain("https://www.wyckoffanalytics.com/wyckoff-method/");
   expect(html).not.toContain("AAPL.US");
   expect(html).not.toContain("打开工作台");

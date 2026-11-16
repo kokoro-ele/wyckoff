@@ -37,19 +37,19 @@ afterEach(() => {
 it("leaves the chart unobstructed when opened on a phone", () => {
   window.innerWidth = 390;
   const html = renderToStaticMarkup(<I18nProvider><App /></I18nProvider>);
-  expect(html).toMatch(/aria-label="自选"[^>]*aria-pressed="false"/);
-  expect(html).toMatch(/aria-label="Agent 分析"[^>]*aria-pressed="false"/);
+  expect(html).toMatch(/aria-label="Watchlist"[^>]*aria-pressed="false"/);
+  expect(html).toMatch(/aria-label="Agent"[^>]*aria-pressed="false"/);
   expect(html).toMatch(/class="canvas-dock canvas-dock-left"[^>]*hidden/);
   expect(html).toMatch(/class="canvas-dock canvas-dock-right"[^>]*hidden/);
 });
 
 it("keeps both desktop docks open on a wide screen", () => {
   const html = renderToStaticMarkup(<I18nProvider><App /></I18nProvider>);
-  expect(html).toMatch(/aria-label="自选"[^>]*aria-pressed="true"/);
-  expect(html).toMatch(/aria-label="Agent 分析"[^>]*aria-pressed="true"/);
+  expect(html).toMatch(/aria-label="Watchlist"[^>]*aria-pressed="true"/);
+  expect(html).toMatch(/aria-label="Agent"[^>]*aria-pressed="true"/);
 });
 
-it("keeps the five workbench actions in the top bar", () => {
+it("keeps the workbench actions in the top bar", () => {
   const html = renderToStaticMarkup(
     <I18nProvider>
       <App />
@@ -59,5 +59,5 @@ it("keeps the five workbench actions in the top bar", () => {
   const labels = [...header.matchAll(/<button\b[^>]*>([\s\S]*?)<\/button>/g)]
     .map((match) => match[1].match(/<span>(.*?)<\/span>/)?.[1])
     .filter(Boolean);
-  expect(labels).toEqual(["自选", "搜索", "Agent 分析", "账户", "设置", "反馈问题"]);
+  expect(labels).toEqual(["Watchlist", "Search", "Agent", "Account", "Settings", "Report a bug"]);
 });

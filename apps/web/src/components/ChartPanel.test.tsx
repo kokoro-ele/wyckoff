@@ -21,15 +21,15 @@ describe("chart loading interaction", () => {
     const html = renderToStaticMarkup(<I18nProvider><ChartPanel /></I18nProvider>);
     expect(html).toContain('aria-busy="true"');
     expect(html).toContain('visibility:hidden');
-    expect(html).toContain("正在加载");
+    expect(html).toContain("Loading AAPL.US");
     expect(html).not.toContain('class="market-quote');
     expect(html).not.toContain('aria-label="界面主题"');
     expect(html).not.toContain("AI 计划回测");
-    expect(html).toContain("收藏");
+    expect(html).toContain("Save");
   });
   it("disables drawing and range selection while allowing context switching", () => {
     const html = renderToStaticMarkup(<I18nProvider><ChartToolbar dataReady={false} /></I18nProvider>);
-    expect(html).toMatch(/title="框选区间提问" disabled=""/);
-    expect(html).not.toMatch(/title="日线" disabled=""/);
+    expect(html).toMatch(/title="Select a range" disabled=""/);
+    expect(html).not.toMatch(/title="Daily" disabled=""/);
   });
 });
