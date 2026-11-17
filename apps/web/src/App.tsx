@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Bug, LineChart, PanelLeft, PanelRight, Search, Settings2, Star, UserRound, X } from "lucide-react";
 import { useWorkbench } from "./store.js";
 import { WatchlistSidebar } from "./components/WatchlistSidebar.js";
@@ -40,6 +40,7 @@ export function App() {
   const [startOpen, setStartOpen] = useState(() => new URLSearchParams(window.location.search).has("start"));
   const [bugOpen, setBugOpen] = useState(() => new URLSearchParams(window.location.search).has("bug"));
   const [dailyReward, setDailyReward] = useState<{ amount: number; balance: number } | null>(null);
+  const wasVerified = useRef<boolean | null>(null);
   // Keep desktop preferences separate when rotating/resizing a mobile viewport.
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   const [mobileDock, setMobileDock] = useState<"watch" | "chat" | null>(null);
@@ -92,7 +93,11 @@ export function App() {
 
   useEffect(() => {
     if (isPending) return;
-    if (!isVerified) clearPersonalData();
+    // Clearing on every anonymous session refetch erased a guest's just-
+    // generated analysis when the auth hook revalidated. Only clear on a real
+    // signed-in -> anonymous transition (logout).
+    if (wasVerified.current === true && !isVerified) clearPersonalData();
+    wasVerified.current = isVerified;
     void bootstrap(isVerified);
   }, [bootstrap, clearPersonalData, isPending, isVerified]);
 
