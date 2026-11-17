@@ -95,7 +95,14 @@ function ChartContextPanel() {
     if (!el) return;
 
     registerWyckoffOverlays();
-    const chart = init(el, { styles: getChartStyles(theme), locale: lang === "en" ? "en-US" : "zh-CN", timezone: "Asia/Shanghai" });
+    const chart = init(el, {
+      styles: getChartStyles(theme),
+      locale: lang === "en" ? "en-US" : "zh-CN",
+      timezone: "Asia/Shanghai",
+      // Allow 3Y/5Y views to fit without a forced 2px bar width spilling into
+      // future empty space on the right.
+      layout: { barSpaceLimit: { min: 0.5, max: 50 } },
+    });
     if (!chart) { setError(t("chart.initError")); setStatus("error"); return; }
     chartRef.current = chart;
 
@@ -683,7 +690,8 @@ function fitCustomRange(chart: Chart) {
   const data = chart.getDataList();
   if (data.length === 0) return;
   const width = chart.getSize()?.width ?? 800;
-  chart.setBarSpace(Math.max(1, Math.min(22, (width - 60) / data.length)));
+  chart.setBarSpace(Math.max(0.5, Math.min(22, (width - 60) / data.length)));
+  chart.setOffsetRightDistance(0);
   chart.scrollToTimestamp((data[0].timestamp + data[data.length - 1].timestamp) / 2, 0);
 }
 
@@ -700,6 +708,7 @@ function fitTimeSpan(chart: Chart, span: ReturnType<typeof useWorkbench.getState
   }
   const count = Math.max(data.length - fromIdx, 20);
   const width = chart.getSize()?.width ?? 800;
-  chart.setBarSpace(Math.max(1, Math.min(22, (width - 60) / count)));
+  chart.setBarSpace(Math.max(0.5, Math.min(22, (width - 60) / count)));
+  chart.setOffsetRightDistance(0);
   chart.scrollToRealTime();
 }
