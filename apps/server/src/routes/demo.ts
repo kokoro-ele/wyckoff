@@ -197,14 +197,18 @@ demoRoutes.post("/chat", bodyLimit({ maxSize: 1024 * 1024 }), async (c) => {
     } catch (error) {
       console.error("[demo] guest agent failed:", error instanceof Error ? error.message : error);
     }
+    const fallback = fallbackText(deterministicPlan, language);
     if (!sawPlan) {
       await stream.writeSSE({ data: JSON.stringify({ type: "trade_plan", plan: deterministicPlan }) });
     }
+    // A model can finish a tool loop with only an opening sentence. In that
+    // case append the deterministic reference levels so the guest still gets
+    // a usable, checkable result.
+    if (streamedText.trim().length < 240) {
+      await stream.writeSSE({ data: JSON.stringify({ type: "text", delta: fallback }) });
+    }
     if (!sawDone) {
-      const text = streamedText.trim()
-        ? `${streamedText}\n\n${fallbackText(deterministicPlan, language)}`
-        : fallbackText(deterministicPlan, language);
-      await stream.writeSSE({ data: JSON.stringify({ type: "text", delta: fallbackText(deterministicPlan, language) }) });
+      const text = streamedText.trim() ? `${streamedText}\n\n${fallback}` : fallback;
       await stream.writeSSE({
         data: JSON.stringify({ type: "done", messageId: randomUUID(), content: text }),
       });
