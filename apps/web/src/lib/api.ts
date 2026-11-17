@@ -475,8 +475,9 @@ export async function streamChat(
   params: ChatStreamParams,
   onEvent: (event: AgentEvent) => void,
   signal?: AbortSignal,
+  endpoint = "/api/chat",
 ): Promise<void> {
-  const response = await fetch("/api/chat", {
+  const response = await fetch(endpoint, {
     method: "POST",
     headers: { "content-type": "application/json", "Idempotency-Key": params.runId ?? crypto.randomUUID() },
     body: JSON.stringify(params),

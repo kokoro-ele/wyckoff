@@ -32,6 +32,8 @@ export interface RunContext {
   klines(): Promise<Kline[]>;
   /** 用户当前画布可视范围；工具默认围绕这里分析。 */
   viewport?: { startTime: number; endTime: number };
+  /** Guest preview: do not read or write cross-session memory. */
+  ephemeral?: boolean;
 }
 
 export interface ToolResult {
@@ -700,14 +702,16 @@ async function setResearchFocusTool(args: Args, ctx: RunContext): Promise<ToolRe
   if (!question || steps.length === 0) {
     return { content: "研究焦点需要 question 和非空 steps。", summary: "研究焦点校验失败", ok: false };
   }
-  agentMemory.rememberFocus({
-    symbol: ctx.symbol,
-    period: ctx.period,
-    sessionId: ctx.sessionId,
-    question,
-    intent,
-    steps,
-  });
+  if (!ctx.ephemeral) {
+    agentMemory.rememberFocus({
+      symbol: ctx.symbol,
+      period: ctx.period,
+      sessionId: ctx.sessionId,
+      question,
+      intent,
+      steps,
+    });
+  }
   return {
     content: `已明确本轮研究问题：${question}\n计划：${steps.map((step, index) => `${index + 1}. ${step}`).join("；")}`,
     summary: `明确研究问题：${question.slice(0, 60)}`,
@@ -857,6 +861,7 @@ async function saveTradePlanTool(args: Args, ctx: RunContext): Promise<ToolResul
   return {
     content: `已保存 ${plan.symbol} 的 Agent 交易计划：${bias}，触发「${trigger}」，入场 ${entryLow}–${entryHigh}，止损 ${stop}，目标 ${target1}/${target2}。`,
     summary: `保存 Agent 交易计划（${bias}）`,
+    events: [{ type: "trade_plan", plan }],
   };
 }
 

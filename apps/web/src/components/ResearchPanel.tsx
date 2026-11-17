@@ -3,6 +3,7 @@ import { Check, Copy, Crosshair, Landmark, LockKeyhole, RefreshCw, Sparkles } fr
 import type { AdjustType, AgentTradePlan, Period, ResearchLevel, ResearchResponse } from "@wyckoff/shared";
 import * as api from "@/lib/api.js";
 import { useWorkbench } from "@/store.js";
+import { useAuth } from "@/auth/AuthProvider.js";
 import { useI18n } from "@/i18n.js";
 import { TradePlanAlerts } from "./TradePlanAlerts.js";
 import {
@@ -59,7 +60,9 @@ export function ResearchPanel({
   onRequestAnalysis: () => void;
 }) {
   const { t, lang } = useI18n();
+  const { isVerified } = useAuth();
   const messages = useWorkbench((s) => s.messages);
+  const localPlan = useWorkbench((s) => s.tradePlan);
   const hasAnalysis = messages.some(
     (message) =>
       (message.mode ?? "agent") === "agent" &&
@@ -81,6 +84,13 @@ export function ResearchPanel({
       setPlan(null);
       return;
     }
+    if (!isVerified) {
+      // Guest analysis has no authenticated trade-plan endpoint; the SSE
+      // `trade_plan` event is kept in the local workbench store.
+      setPlan(localPlan);
+      setPlanLoading(false);
+      return;
+    }
     let cancelled = false;
     setPlanLoading(true);
     void api
@@ -97,7 +107,7 @@ export function ResearchPanel({
     return () => {
       cancelled = true;
     };
-  }, [hasAnalysis, symbol, period, adjust]);
+  }, [hasAnalysis, symbol, period, adjust, isVerified, localPlan]);
 
   useEffect(() => {
     let cancelled = false;

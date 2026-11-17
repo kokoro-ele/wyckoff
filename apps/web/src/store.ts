@@ -1,6 +1,7 @@
 import type {
   AdjustType,
   AgentMemorySnapshot,
+  AgentTradePlan,
   AnnotationGroup,
   ChatContext,
   ChatMessage,
@@ -88,6 +89,7 @@ interface WorkbenchState {
   annotationGroups: AnnotationGroup[];
   annotations: StoredAnnotation[];
   agentMemory: AgentMemorySnapshot | null;
+  tradePlan: AgentTradePlan | null;
 
   // —— 对话 ——
   dockTab: "research" | "agent";
@@ -136,6 +138,7 @@ interface WorkbenchState {
 
   loadAnnotations: () => Promise<void>;
   loadAgentMemory: () => Promise<void>;
+  setTradePlan: (plan: AgentTradePlan | null) => void;
   applyAnnotationBatch: (groupId: string, title: string, annotations: StoredAnnotation[]) => void;
   removeAnnotationGroup: (groupId: string) => Promise<void>;
   toggleAnnotationGroup: (groupId: string) => Promise<void>;
@@ -194,6 +197,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   annotationGroups: [],
   annotations: [],
   agentMemory: null,
+  tradePlan: null,
 
   dockTab: typeof window !== "undefined" && new URLSearchParams(window.location.search).get("tab") === "agent" ? "agent" : "research",
   sessionId: newSessionId(),
@@ -225,6 +229,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
       instrumentNameEn: nameEn ?? null,
       annotations: [],
       annotationGroups: [],
+      tradePlan: null,
       messages: [],
       pendingContext: null,
       sessionId: newSessionId(),
@@ -248,7 +253,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
 
   setPeriod(period) {
     if (get().period === period) return;
-    set({ period, messages: stopStreaming(get().messages), chartRevision: get().chartRevision + 1, annotations: [], annotationGroups: [],
+    set({ period, messages: stopStreaming(get().messages), chartRevision: get().chartRevision + 1, annotations: [], annotationGroups: [], tradePlan: null,
       activeTool: null, selectionMode: false, focusRequest: null, pendingContext: null, viewport: null, customRange: null, chartReady: false });
     void get().loadAnnotations();
     void get().loadAgentMemory();
@@ -256,7 +261,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
 
   setAdjust(adjust) {
     if (get().adjust === adjust) return;
-    set({ adjust, messages: stopStreaming(get().messages), chartRevision: get().chartRevision + 1, pendingContext: null, focusRequest: null, viewport: null, customRange: null, activeTool: null, selectionMode: false, chartReady: false });
+    set({ adjust, messages: stopStreaming(get().messages), chartRevision: get().chartRevision + 1, pendingContext: null, focusRequest: null, viewport: null, customRange: null, tradePlan: null, activeTool: null, selectionMode: false, chartReady: false });
     void get().loadAnnotations();
   },
   setTimeSpan: (timeSpan) => set({ timeSpan, customRange: null, chartRevision: get().chartRevision + 1, chartReady: false }),
@@ -319,6 +324,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
       annotationGroups: [],
       annotations: [],
       agentMemory: null,
+      tradePlan: null,
       messages: [],
       sessionId: newSessionId(),
       pendingContext: null,
@@ -511,6 +517,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   setDockTab: (dockTab) => set({ dockTab }),
   setChartReady: (chartReady) => set({ chartReady }),
   setPendingContext: (pendingContext) => set({ pendingContext }),
+  setTradePlan: (tradePlan) => set({ tradePlan }),
   requestAgent: (pendingAgentPrompt) => set({ pendingAgentPrompt }),
   consumeAgentPrompt: () => set({ pendingAgentPrompt: null }),
   setViewport: (viewport) => set({ viewport }),

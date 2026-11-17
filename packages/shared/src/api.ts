@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { WyckoffAnnotation } from "./annotation.js";
 import type { Instrument, InstrumentDetail, Kline } from "./market.js";
+import type { AgentTradePlan } from "./research.js";
 import { adjustTypeSchema, periodSchema } from "./market.js";
 
 // ————————————————— 行情接口 —————————————————
@@ -150,6 +151,8 @@ export type AgentEvent =
   | { type: "annotations_cleared"; groupId?: string }
   /** 请求画布滚动/缩放到指定时间范围。 */
   | { type: "focus_range"; startTime: number; endTime: number }
+  /** Agent 新生成的交易计划（游客试用也用它即时展示）。 */
+  | { type: "trade_plan"; plan: AgentTradePlan }
   /** 一轮回复结束。 */
   | { type: "done"; messageId: string }
   | { type: "error"; message: string };

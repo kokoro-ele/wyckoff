@@ -47,7 +47,18 @@ function logJson(label: string, payload: unknown): void {
  * 默认走 OpenAI Responses API，这样可以同时用内置 `web_search` 和本地画图工具。
  * 若当前网关没有 `/v1/responses`，再回退到 Chat Completions（无联网搜索）。
  */
-export async function* runAgent(request: ChatRequest, requestSignal?: AbortSignal, runId?: string): AsyncGenerator<AgentEvent> {
+export interface RunAgentOptions {
+  /** Guest preview: no session or cross-session memory reads/writes. */
+  ephemeral?: boolean;
+}
+
+export async function* runAgent(
+  request: ChatRequest,
+  requestSignal?: AbortSignal,
+  runId?: string,
+  options: RunAgentOptions = {},
+): AsyncGenerator<AgentEvent> {
+  const ephemeral = options.ephemeral === true;
   const llm = resolveLlmSettings();
   if (!llm.apiKey) {
     yield {
@@ -61,8 +72,10 @@ export async function* runAgent(request: ChatRequest, requestSignal?: AbortSigna
   const mode: AnalysisMode = request.mode ?? "agent";
   const showTrace = request.showTrace === true && process.env.ALLOW_AGENT_TRACE === "1";
   const language = request.language ?? "zh";
-  sessions.ensureSession(sessionId, symbol, period);
-  sessions.titleFromFirstMessage(sessionId, message);
+  if (!ephemeral) {
+    sessions.ensureSession(sessionId, symbol, period);
+    sessions.titleFromFirstMessage(sessionId, message);
+  }
 
   const userMessage: ChatMessage = {
     id: makeId("msg"),
@@ -72,14 +85,16 @@ export async function* runAgent(request: ChatRequest, requestSignal?: AbortSigna
     context,
     createdAt: Date.now(),
   };
-  sessions.appendMessage(sessionId, userMessage);
+  if (!ephemeral) sessions.appendMessage(sessionId, userMessage);
 
   const runStartedAt = new Date();
   const runContext = workspaceContext.getStore();
-  const interrupted = runContext?.userId
+  const interrupted = !ephemeral && runContext?.userId
     ? await listInterruptedRuns(runContext.userId, symbol, period).catch(() => [])
     : [];
-  const previousMemory = agentMemory.getSnapshot(symbol, period);
+  const previousMemory = ephemeral
+    ? { focus: null, conclusions: [], corrections: [], open: [] }
+    : agentMemory.getSnapshot(symbol, period);
   if (interrupted.length > 0) {
     const known = new Set(previousMemory.open.map((entry) => entry.content));
     previousMemory.open = [...interrupted.filter((entry) => !known.has(entry.content)), ...previousMemory.open].slice(0, 4);
@@ -90,11 +105,15 @@ export async function* runAgent(request: ChatRequest, requestSignal?: AbortSigna
   const question = resumeQuestion ?? message;
   const intent = detectIntent(question, context);
   const initialPlan = planForIntent(intent, language);
-  if (agentMemory.looksLikeCorrection(message)) {
+  if (!ephemeral && agentMemory.looksLikeCorrection(message)) {
     agentMemory.rememberCorrection({ symbol, period, sessionId, content: message });
   }
-  agentMemory.rememberFocus({ symbol, period, sessionId, question, intent, steps: initialPlan });
-  const memory = agentMemory.getSnapshot(symbol, period);
+  if (!ephemeral) {
+    agentMemory.rememberFocus({ symbol, period, sessionId, question, intent, steps: initialPlan });
+  }
+  const memory = ephemeral
+    ? { focus: null, conclusions: [], corrections: [], open: [] }
+    : agentMemory.getSnapshot(symbol, period);
   if (previousMemory.open.length > 0) {
     const known = new Set(memory.open.map((entry) => entry.content));
     memory.open = [...previousMemory.open.filter((entry) => !known.has(entry.content)), ...memory.open].slice(0, 4);
@@ -111,15 +130,18 @@ export async function* runAgent(request: ChatRequest, requestSignal?: AbortSigna
     question,
     signal: requestSignal ?? runContext?.signal,
     viewport,
+    ephemeral,
     klines: () => (klinesPromise ??= getKlines({ symbol, period, adjust })),
   };
 
   yield { type: "plan", question, intent, steps: initialPlan };
 
-  const history = sessions
-    .getMessages(sessionId)
-    .filter((entry) => (entry.mode ?? "agent") === mode)
-    .slice(-HISTORY_LIMIT - 1, -1);
+  const history = ephemeral
+    ? []
+    : sessions
+        .getMessages(sessionId)
+        .filter((entry) => (entry.mode ?? "agent") === mode)
+        .slice(-HISTORY_LIMIT - 1, -1);
   const situation = await buildSituationPrompt(ctx, viewport);
   const contextNote = await buildContextNote(ctx, context);
   const userContent = contextNote ? `${contextNote}\n\n${message}` : message;
@@ -218,34 +240,43 @@ export async function* runAgent(request: ChatRequest, requestSignal?: AbortSigna
         : undefined,
       createdAt: Date.now(),
     };
-    sessions.appendMessage(sessionId, assistantMessage);
-    agentMemory.rememberConclusion({ symbol, period, sessionId, content: answer });
-    agentMemory.resolveOpen(symbol, period);
-    if (runContext?.userId) {
+    if (!ephemeral) {
+      sessions.appendMessage(sessionId, assistantMessage);
+      agentMemory.rememberConclusion({ symbol, period, sessionId, content: answer });
+      agentMemory.resolveOpen(symbol, period);
+    }
+    if (!ephemeral && runContext?.userId) {
       await clearInterruptedRuns(runContext.userId, symbol, period, runStartedAt).catch(() => undefined);
     }
     yield { type: "done", messageId: assistantMessage.id };
   } catch (error) {
     const cancelled = runId ? await isAgentRunCancelled(runId).catch(() => false) : false;
     const aborted = ctx.signal?.aborted || runContext?.state.get("clientGone") === true || cancelled || isAbortError(error);
-    agentMemory.rememberOpen({
-      symbol,
-      period,
-      sessionId,
-      content: question,
-    });
-    if (answer.trim()) {
-      sessions.appendMessage(sessionId, {
-        id: makeId("msg"),
-        role: "assistant",
-        content: `${answer}\n\n${language === "en" ? "_Stopped before completion._" : "_分析在这里中止，尚未完成。_"}`,
-        mode,
-        interrupted: true,
-        createdAt: Date.now(),
+    if (!ephemeral) {
+      agentMemory.rememberOpen({
+        symbol,
+        period,
+        sessionId,
+        content: question,
       });
+      if (answer.trim()) {
+        sessions.appendMessage(sessionId, {
+          id: makeId("msg"),
+          role: "assistant",
+          content: `${answer}\n\n${language === "en" ? "_Stopped before completion._" : "_分析在这里中止，尚未完成。_"}`,
+          mode,
+          interrupted: true,
+          createdAt: Date.now(),
+        });
+      }
     }
     if (aborted) {
-      yield { type: "error", message: language === "en" ? "Analysis stopped. The unfinished question was saved." : "分析已停止，未完成的问题已保存。" };
+      yield {
+        type: "error",
+        message: ephemeral
+          ? language === "en" ? "Analysis stopped." : "分析已停止。"
+          : language === "en" ? "Analysis stopped. The unfinished question was saved." : "分析已停止，未完成的问题已保存。",
+      };
       return;
     }
     console.error("[agent] 运行失败：", error instanceof Error ? error.message : "unknown error");
@@ -637,7 +668,9 @@ async function buildSituationPrompt(ctx: RunContext, viewport?: { startTime: num
     lines.push(`用户当前视野：${formatBarTime(viewport.startTime, ctx.period)} ~ ${formatBarTime(viewport.endTime, ctx.period)}。`);
   }
 
-  const { groups, annotations } = listAnnotations(ctx.symbol, ctx.period);
+  const { groups, annotations } = ctx.ephemeral
+    ? { groups: [], annotations: [] }
+    : listAnnotations(ctx.symbol, ctx.period);
   if (annotations.length === 0) {
     lines.push("图上目前没有任何标注。");
   } else {

@@ -1,5 +1,8 @@
 import { createHash } from "node:crypto";
 import { Hono } from "hono";
+import { streamSSE } from "hono/streaming";
+import { bodyLimit } from "hono/body-limit";
+import { chatRequestSchema } from "@wyckoff/shared";
 import { z } from "zod";
 import { renderFeatureSummary } from "@wyckoff/wyckoff";
 import { getPool } from "../cloud/postgres.js";
@@ -9,6 +12,8 @@ import { getInstrument } from "../services/instruments.js";
 import { getFeatures, getKlines } from "../services/market.js";
 import { computeStrategy } from "../services/research.js";
 import { consumeRateLimit } from "../credits/rateLimit.js";
+import { runAgent } from "../agent/run.js";
+import { workspaceContext } from "../cloud/context.js";
 
 const demoRequestSchema = z.object({
   symbol: z.string().min(1).max(32),
@@ -110,5 +115,36 @@ This is a research scenario, not a prediction or investment advice.`
     plan,
     latestClose: klines[klines.length - 1].close,
     asOf: klines[klines.length - 1].timestamp,
+  });
+});
+
+demoRoutes.post("/chat", bodyLimit({ maxSize: 1024 * 1024 }), async (c) => {
+  const parsed = chatRequestSchema.safeParse(await c.req.json().catch(() => null));
+  if (!parsed.success) return c.json({ code: "BAD_REQUEST", message: "参数错误" }, 400);
+  if (!resolveLlmSettings().apiKey) {
+    return c.json({ code: "DEMO_UNAVAILABLE", message: "Demo analysis is not configured" }, 503);
+  }
+  const allowed = await consumeRateLimit(getPool(), `demo:${ipKey(c.req.raw.headers)}`, 1, 24 * 60 * 60_000);
+  if (!allowed) {
+    return c.json({ code: "DEMO_USED", message: "The free demo is already used. Create an account to continue." }, 429);
+  }
+  const context = workspaceContext.getStore();
+  if (context) context.signal = c.req.raw.signal;
+  return streamSSE(c, async (stream) => {
+    try {
+      for await (const event of runAgent(
+        { ...parsed.data, showTrace: false },
+        c.req.raw.signal,
+        undefined,
+        { ephemeral: true },
+      )) {
+        if (event.type === "usage") continue;
+        await stream.writeSSE({ data: JSON.stringify(event) });
+      }
+    } catch (error) {
+      await stream.writeSSE({
+        data: JSON.stringify({ type: "error", message: (error as Error).message || "Demo failed" }),
+      });
+    }
   });
 });

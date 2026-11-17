@@ -67,7 +67,7 @@ export async function cloudFetch(request: Request): Promise<Response> {
       return Response.json({ code: "NOT_FOUND", message: "接口不存在" }, { status: 404 });
     }
 
-    if (path === "/api/demo/analysis" && request.method === "POST") {
+    if ((path === "/api/demo/analysis" || path === "/api/demo/chat") && request.method === "POST") {
       const origin = request.headers.get("origin");
       if (origin !== trustedOrigin(request)) {
         return Response.json({ code: "FORBIDDEN", message: "请求来源无效" }, { status: 403 });

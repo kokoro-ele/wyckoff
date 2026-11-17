@@ -23,7 +23,6 @@ import type {
   ChatContext,
   ResearchIntent,
 } from "@wyckoff/shared";
-import * as api from "@/lib/api.js";
 import { ApiError, fetchFeedbackStatus, interruptChat, streamChat } from "@/lib/api.js";
 import { cn, formatDate, formatDuration, formatPrice } from "@/lib/utils.js";
 import { useWorkbench, type ChatEntry, type ToolTraceItem } from "@/store.js";
@@ -136,7 +135,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
     };
   }, [isVerified]);
 
-  const execute = async (text: string) => {
+  const execute = async (text: string, guest = false) => {
     const content = text.trim();
     if (!content || sendingRef.current) return;
     const state = useWorkbench.getState();
@@ -150,11 +149,12 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
     setInput("");
     sendingRef.current = true;
     setSending(true);
-    setProgress(t("chat.connecting"));
+    setProgress(guest ? t("chat.guestWorking") : t("chat.connecting"));
     setPlan(null);
     setActivities([]);
     setActivityOpen(false);
     setQuotaError(false);
+    if (guest) setGuestDone(false);
 
     const userMsg: ChatEntry = {
       id: `u_${Date.now()}`,
@@ -270,9 +270,18 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
         case "focus_range":
           wb.requestFocus(event.startTime, event.endTime);
           break;
+        case "trade_plan":
+          wb.setTradePlan(event.plan);
+          break;
         case "done":
           window.setTimeout(scrollToBottom, 120);
-          scheduleFeedback();
+          if (guest) {
+            setGuestDone(true);
+            setGuestUsed(true);
+            try { localStorage.setItem("wyckoff:guest-demo-used", "1"); } catch { /* storage may be disabled */ }
+          } else {
+            scheduleFeedback();
+          }
           updateAssistant((entry) => ({
             ...entry,
             id: event.messageId || entry.id,
@@ -320,6 +329,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
         },
         onEvent,
         controller.signal,
+        guest ? "/api/demo/chat" : "/api/chat",
       );
     } catch (error) {
       if ((error as Error).name === "AbortError" || !current()) return;
@@ -334,7 +344,11 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
         setQuotaError(true);
         window.dispatchEvent(new Event("credits:exhausted"));
       }
-      if (code === "UNAUTHORIZED" || code === "EMAIL_UNVERIFIED") openAuth();
+      if (guest && code === "DEMO_USED") {
+        setGuestDone(true);
+        setGuestUsed(true);
+        try { localStorage.setItem("wyckoff:guest-demo-used", "1"); } catch { /* storage may be disabled */ }
+      } else if (code === "UNAUTHORIZED" || code === "EMAIL_UNVERIFIED") openAuth();
       updateAssistant((entry) => ({
         ...entry,
         streaming: false,
@@ -342,8 +356,10 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
       }));
       useWorkbench.getState().notify(message, "error");
     } finally {
-      window.dispatchEvent(new Event("credits:changed"));
-      void loadAgentMemory();
+      if (!guest) {
+        window.dispatchEvent(new Event("credits:changed"));
+        void loadAgentMemory();
+      }
       unsubscribe();
       if (abortRef.current === controller) {
         sendingRef.current = false;
@@ -357,84 +373,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
   };
 
   const executeGuest = async (text: string) => {
-    const content = text.trim();
-    if (!content || sendingRef.current) return;
-    const state = useWorkbench.getState();
-    if (!state.llmReady) {
-      state.notify(t("error.SERVICE_UNAVAILABLE"), "error");
-      return;
-    }
-    setInput("");
-    sendingRef.current = true;
-    setSending(true);
-    setProgress(t("chat.guestWorking"));
-    setGuestDone(false);
-    setPlan(null);
-    setActivities([]);
-    setActivityOpen(false);
-    setQuotaError(false);
-    state.appendMessage({
-      id: `u_${Date.now()}`,
-      role: "user",
-      content,
-      mode: "agent",
-      createdAt: Date.now(),
-    });
-    const assistantId = `a_${Date.now()}`;
-    state.appendMessage({
-      id: assistantId,
-      role: "assistant",
-      content: "",
-      mode: "agent",
-      streaming: true,
-      createdAt: Date.now(),
-    });
-    try {
-      const result = await api.runDemoAnalysis({
-        symbol: state.symbol,
-        period: state.period,
-        adjust: state.adjust,
-        language: lang,
-        question: content,
-      });
-      const planText = t("chat.guestPlan", {
-        bias: result.plan.bias,
-        entry: `${result.plan.entryLow}–${result.plan.entryHigh}`,
-        stop: result.plan.stop,
-        target: `${result.plan.target1} / ${result.plan.target2}`,
-      });
-      state.updateLastAssistant((entry) => ({
-        ...entry,
-        content: `${result.answer}\n\n${planText}`,
-        streaming: false,
-      }));
-      setGuestDone(true);
-      setGuestUsed(true);
-      try { localStorage.setItem("wyckoff:guest-demo-used", "1"); } catch { /* storage may be disabled */ }
-    } catch (error) {
-      const code = error instanceof ApiError ? error.code : "CHAT_FAILED";
-      if (code === "DEMO_USED") {
-        setGuestDone(true);
-        setGuestUsed(true);
-        state.updateLastAssistant((entry) => ({
-          ...entry,
-          content: t("chat.guestUsed"),
-          streaming: false,
-        }));
-        state.notify(t("chat.guestUsed"), "info");
-      } else {
-        state.updateLastAssistant((entry) => ({
-          ...entry,
-          content: entry.content || (error instanceof Error ? error.message : t("chat.error")),
-          streaming: false,
-        }));
-      }
-    } finally {
-      sendingRef.current = false;
-      setSending(false);
-      setProgress("");
-      window.setTimeout(scrollToBottom, 80);
-    }
+    await execute(text, true);
   };
 
   const executeRef = useRef(execute);
