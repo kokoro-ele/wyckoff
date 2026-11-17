@@ -1,5 +1,6 @@
 import type { Instrument, InstrumentType, Region } from "@wyckoff/shared";
 import { decodeUnicodeEscapes } from "./text.js";
+import { getEnglishName } from "./englishNames.js";
 
 interface Hint {
   market: string;
@@ -42,7 +43,10 @@ function toInstrument(hint: Hint): Instrument | null {
     exchange: market.exchange,
     code: code.toUpperCase(),
     name,
-    nameEn: market.region === "US" && name && /^[A-Za-z0-9 .,&'()-]+$/.test(name) ? name : null,
+    nameEn:
+      market.region === "US"
+        ? getEnglishName(code) ?? (name && /^[A-Za-z0-9 .,&'()-]+$/.test(name) ? name : null)
+        : null,
     region: market.region,
     type: typeOf(hint.kind),
   };
