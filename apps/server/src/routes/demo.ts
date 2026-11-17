@@ -205,7 +205,8 @@ demoRoutes.post("/chat", bodyLimit({ maxSize: 1024 * 1024 }), async (c) => {
     // case append the deterministic reference levels so the guest still gets
     // a usable, checkable result.
     if (streamedText.trim().length < 240) {
-      await stream.writeSSE({ data: JSON.stringify({ type: "text", delta: fallback }) });
+      const separator = streamedText.trim() ? "\n\n" : "";
+      await stream.writeSSE({ data: JSON.stringify({ type: "text", delta: `${separator}${fallback}` }) });
     }
     if (!sawDone) {
       const text = streamedText.trim() ? `${streamedText}\n\n${fallback}` : fallback;
