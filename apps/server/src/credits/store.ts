@@ -6,7 +6,6 @@ import { getIdentity, registerIdentity, welcomeCreditsFor } from "./identity.js"
 
 type DB = Pool | PoolClient;
 
-export const WELCOME_CREDITS = 3;
 export const TOKENS_PER_CREDIT = 20_000;
 export const INVITE_CREDITS = 3;
 export const DAILY_LOGIN_CREDITS = 2;
@@ -102,7 +101,10 @@ export async function grantVerifiedCredits(pool: Pool, userId: string) {
     if (!eligible) return;
 
     const identity = await getIdentity(db, userId);
-    await addCredits(db, userId, welcomeCreditsFor(identity), `welcome:${userId}`);
+    const welcomeCredits = welcomeCreditsFor(identity);
+    if (welcomeCredits > 0) {
+      await addCredits(db, userId, welcomeCredits, `welcome:${userId}`);
+    }
 
     if (inviterId) {
       // A deleted inviter must never roll back the invited user's welcome gift.

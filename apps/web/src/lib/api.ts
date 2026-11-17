@@ -588,7 +588,7 @@ export function setAdminEntitlement(userId: string, active: boolean, days?: numb
   return request("/admin/entitlements", { method: "POST", body: JSON.stringify({ userId, active, ...(days === undefined ? {} : { days }) }) });
 }
 
-export function resetAdminCredits(balance = 10): Promise<{ ok: boolean; updated: number; balance: number }> {
+export function resetAdminCredits(balance = 0): Promise<{ ok: boolean; updated: number; balance: number }> {
   return request("/admin/credits/reset", { method: "POST", body: JSON.stringify({ balance }) });
 }
 

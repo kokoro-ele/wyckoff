@@ -1,7 +1,9 @@
 import type { Pool, PoolClient } from "pg";
 
 export const EARLY_BIRD_LIMIT = 100;
-export const EARLY_BIRD_CREDITS = 10;
+// New accounts no longer receive a signup grant. Existing balances are not
+// clawed back; this only affects future verified accounts.
+export const EARLY_BIRD_CREDITS = 0;
 
 type DB = Pool | PoolClient;
 
@@ -58,7 +60,5 @@ export async function registerIdentity(pool: Pool, userId: string): Promise<User
 }
 
 export function welcomeCreditsFor(_identity: UserIdentity | null): number {
-  // The welcome grant is the same for every new verified account now that the
-  // early-bird campaign has ended.
   return EARLY_BIRD_CREDITS;
 }

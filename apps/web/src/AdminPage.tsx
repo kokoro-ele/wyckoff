@@ -139,11 +139,11 @@ export function AdminPage() {
   };
 
   const resetAll = async () => {
-    if (!window.confirm(zh ? "把所有用户的 credits 重置为 10？" : "Reset every user to 10 credits?")) return;
+    if (!window.confirm(zh ? "把所有用户的 credits 重置为 0？" : "Reset every user to 0 credits?")) return;
     setBusy("reset");
     setError("");
     try {
-      await api.resetAdminCredits(10);
+      await api.resetAdminCredits(0);
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Reset failed");
@@ -216,7 +216,7 @@ export function AdminPage() {
               <RefreshCw size={13} />{zh ? "刷新" : "Refresh"}
             </button>
             <button type="button" className="hand-btn hand-btn-primary px-3 py-1.5 text-xs" disabled={busy === "reset"} onClick={() => void resetAll()}>
-              <Coins size={13} />{zh ? "全员重置为 10 credits" : "Reset everyone to 10"}
+              <Coins size={13} />{zh ? "全员重置为 0 credits" : "Reset everyone to 0"}
             </button>
           </div>
         </div>

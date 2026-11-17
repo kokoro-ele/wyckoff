@@ -72,13 +72,13 @@ describe.skipIf(!url)("credit PostgreSQL transactions", () => {
     await registerCreditAccount(pool, "bob", alice.inviteCode);
     await Promise.all(Array.from({ length: 8 }, () => grantVerifiedCredits(pool, "bob")));
 
-    expect((await creditStatus(pool, "alice")).balance).toBe(6);
+    expect((await creditStatus(pool, "alice")).balance).toBe(3);
     expect((await creditStatus(pool, "alice")).inviteCount).toBe(1);
-    expect((await creditStatus(pool, "bob")).balance).toBe(3);
+    expect((await creditStatus(pool, "bob")).balance).toBe(0);
     // A pre-migration account is not retroactively gifted.
     expect((await creditStatus(pool, "existing")).balance).toBe(0);
-    // A user whose create hook failed after the migration still gets the welcome grant.
-    expect((await creditStatus(pool, "late")).balance).toBe(3);
+    // New accounts no longer receive a signup grant.
+    expect((await creditStatus(pool, "late")).balance).toBe(0);
 
     await registerCreditAccount(pool, "unverified");
     await expect(grantVerifiedCredits(pool, "unverified")).rejects.toMatchObject({ code: "EMAIL_UNVERIFIED" });
