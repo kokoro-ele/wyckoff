@@ -24,14 +24,14 @@ export function publicCacheDatabase(): Database.Database {
   return publicDatabase;
 }
 
-export async function withPublicWorkspace<T>(work: () => Promise<T>): Promise<T> {
+export async function withPublicWorkspace<T>(work: () => Promise<T>, deadlineMs = 60_000): Promise<T> {
   const context: WorkspaceContext = {
     userId: "__public__",
     database: publicCacheDatabase(),
     dirty: false,
     deferred: [],
     state: new Map(),
-    deadline: Date.now() + 60_000,
+    deadline: Date.now() + deadlineMs,
   };
   return workspaceContext.run(context, work);
 }

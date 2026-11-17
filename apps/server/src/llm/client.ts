@@ -23,7 +23,7 @@ export function getOpenAiClient(): OpenAI {
     const scoped = new OpenAI({
       apiKey: settings.apiKey,
       baseURL: settings.baseUrl,
-      timeout: Math.min(45_000, remaining),
+      timeout: Math.min(180_000, remaining),
       maxRetries: 0,
       fetch: (url, init) =>
         fetch(url, {

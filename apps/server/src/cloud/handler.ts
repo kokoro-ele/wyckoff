@@ -72,7 +72,7 @@ export async function cloudFetch(request: Request): Promise<Response> {
       if (origin !== trustedOrigin(request)) {
         return Response.json({ code: "FORBIDDEN", message: "请求来源无效" }, { status: 403 });
       }
-      const response = await withPublicWorkspace(async () => await app.fetch(request));
+      const response = await withPublicWorkspace(async () => await app.fetch(request), 240_000);
       response.headers.set("Cache-Control", "no-store");
       return response;
     }
@@ -81,7 +81,7 @@ export async function cloudFetch(request: Request): Promise<Response> {
     if (path === "/api/health") return Response.json({ ok: true, backend: "vercel", storage: "postgres" });
 
     if (isPublicRequest(request, path)) {
-      const response = await withPublicWorkspace(async () => await app.fetch(request));
+      const response = await withPublicWorkspace(async () => await app.fetch(request), 240_000);
       response.headers.set("Cache-Control", "public, max-age=60, stale-while-revalidate=300");
       return response;
     }

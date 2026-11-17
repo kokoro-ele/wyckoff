@@ -471,7 +471,7 @@ async function* runCompletionsLoop(args: LoopArgs): AsyncGenerator<AgentEvent> {
       model: args.llm.model,
       messages,
       tools: toolDefinitionsForMode(mode),
-      max_tokens: mode === "fundamental" ? 1_000 : 1_600,
+      max_tokens: mode === "fundamental" ? 1_200 : 2_400,
       stream: true,
       stream_options: { include_usage: true },
     });
