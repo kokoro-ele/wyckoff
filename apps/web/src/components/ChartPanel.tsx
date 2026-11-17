@@ -683,7 +683,7 @@ function fitCustomRange(chart: Chart) {
   const data = chart.getDataList();
   if (data.length === 0) return;
   const width = chart.getSize()?.width ?? 800;
-  chart.setBarSpace(Math.max(2, Math.min(22, (width - 60) / data.length)));
+  chart.setBarSpace(Math.max(1, Math.min(22, (width - 60) / data.length)));
   chart.scrollToTimestamp((data[0].timestamp + data[data.length - 1].timestamp) / 2, 0);
 }
 
@@ -700,6 +700,6 @@ function fitTimeSpan(chart: Chart, span: ReturnType<typeof useWorkbench.getState
   }
   const count = Math.max(data.length - fromIdx, 20);
   const width = chart.getSize()?.width ?? 800;
-  chart.setBarSpace(Math.max(2, Math.min(22, (width - 60) / count)));
+  chart.setBarSpace(Math.max(1, Math.min(22, (width - 60) / count)));
   chart.scrollToRealTime();
 }
