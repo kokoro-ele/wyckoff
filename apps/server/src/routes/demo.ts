@@ -68,20 +68,34 @@ Return a compact analysis with these sections:
 4. Key levels — support and resistance from the plan.
 Do not invent news or fundamentals. Do not give a deterministic price prediction or investment advice. Keep it under 300 words.`;
 
-  const completion = await getOpenAiClient().chat.completions.create({
-    model: resolveLlmSettings().model,
-    messages: [
-      { role: "system", content: "You are a Wyckoff research assistant. Be concise, evidence-led and honest about uncertainty." },
-      { role: "user", content: prompt },
-    ],
-    temperature: 0.2,
-    // Some gateways use reasoning tokens before emitting content; 700 can
-    // leave the visible answer empty even though the request succeeds.
-    max_tokens: 2_000,
-  });
-  const rawMessage = completion.choices[0]?.message as { content?: string | null; reasoning_content?: string | null } | undefined;
-  const answer = (rawMessage?.content || "").trim();
-  if (!answer) return c.json({ code: "DEMO_FAILED", message: "Demo generation failed" }, 502);
+  let generated = "";
+  try {
+    const completion = await getOpenAiClient().chat.completions.create({
+      model: resolveLlmSettings().model,
+      messages: [
+        { role: "system", content: "You are a Wyckoff research assistant. Be concise, evidence-led and honest about uncertainty." },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.2,
+      // Some gateways use reasoning tokens before emitting content; 700 can
+      // leave the visible answer empty even though the request succeeds.
+      max_tokens: 2_000,
+    });
+    generated = completion.choices[0]?.message?.content?.trim() ?? "";
+  } catch (error) {
+    console.error("[demo] model failed:", error instanceof Error ? error.message : error);
+  }
+  const fallback =
+    language === "en"
+      ? `**Structure.** ${plan.range ? `The active reference range is ${plan.range.support}–${plan.range.resistance};` : "No clean active range was detected;"} the current bias from price structure is **${plan.bias}**.
+
+**Base case.** A ${plan.trigger.kind} at ${plan.trigger.price ?? plan.entryLow} is the trigger to watch. The reference entry zone is ${plan.entryLow}–${plan.entryHigh}, with a stop at ${plan.stop} and targets at ${plan.target1} and ${plan.target2}.
+
+**Invalidation.** A ${plan.invalidation.kind === "closeAbove" ? "daily close above" : "daily close below"} ${plan.invalidation.price} invalidates this structure.
+
+This is a research scenario, not a prediction or investment advice.`
+      : `**结构。** ${plan.range ? `当前参考区间为 ${plan.range.support}–${plan.range.resistance}；` : "未识别到清晰的活跃区间；"}量价结构给出的偏向是 **${plan.bias}**。\n\n**基准情景。** 观察 ${plan.trigger.kind} 触发价 ${plan.trigger.price ?? plan.entryLow}。参考入场区 ${plan.entryLow}–${plan.entryHigh}，止损 ${plan.stop}，目标 ${plan.target1} 和 ${plan.target2}。\n\n**失效条件。** 日线${plan.invalidation.kind === "closeAbove" ? "收于" : "跌破"} ${plan.invalidation.price} 上方/下方后，该结构失效。\n\n这是研究情景，不是预测或投资建议。`;
+  const answer = generated || fallback;
 
   // Charge the free trial only after a usable answer exists. A model outage
   // should not burn the visitor's one preview.
