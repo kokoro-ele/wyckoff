@@ -1561,14 +1561,15 @@
 }
 
 @media (max-width: 980px) {
-  .site-home-main { justify-content: flex-start; }
+  .site-home-main { justify-content: flex-start; box-sizing: border-box; max-width: 100%; }
   .site-home-hero { grid-template-columns: 1fr; gap: 20px; }
   .site-home-chart { width: 100%; max-width: 560px; }
   .site-term-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .site-glossary-note { display: none; }
 }
 @media (max-width: 640px) {
-  .site-home-main { padding: 16px 14px 12px; }
+  .site-home-main { box-sizing: border-box; width: calc(100% - 28px); max-width: calc(100% - 28px); padding: 16px 0 12px; }
+  .site-home-chart, .site-home-copy, .site-home-hero { min-width: 0; max-width: 100%; box-sizing: border-box; }
   .site-home-title { font-size: 38px; }
   .site-home-title-en {
   font-family: var(--font-sans);
