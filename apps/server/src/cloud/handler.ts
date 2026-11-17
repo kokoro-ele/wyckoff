@@ -67,6 +67,16 @@ export async function cloudFetch(request: Request): Promise<Response> {
       return Response.json({ code: "NOT_FOUND", message: "接口不存在" }, { status: 404 });
     }
 
+    if (path === "/api/demo/analysis" && request.method === "POST") {
+      const origin = request.headers.get("origin");
+      if (origin !== trustedOrigin(request)) {
+        return Response.json({ code: "FORBIDDEN", message: "请求来源无效" }, { status: 403 });
+      }
+      const response = await withPublicWorkspace(async () => await app.fetch(request));
+      response.headers.set("Cache-Control", "no-store");
+      return response;
+    }
+
     if (path.startsWith("/api/auth/")) return await handleAuthRequest(request);
     if (path === "/api/health") return Response.json({ ok: true, backend: "vercel", storage: "postgres" });
 

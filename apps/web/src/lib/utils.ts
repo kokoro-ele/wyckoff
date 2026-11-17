@@ -71,7 +71,10 @@ export function localizedInstrumentName(
 ): string {
   if (lang === "en") {
     if (englishName) return englishName;
-    if (name && !/[\u3400-\u9fff]/.test(name)) return name;
+    // TickFlow can supply a Chinese company name before the optional Nasdaq
+    // English-name file has warmed up. Showing that name is still much better
+    // than rendering only the ticker.
+    if (name) return name;
     return fallback;
   }
   if (!name) return fallback;

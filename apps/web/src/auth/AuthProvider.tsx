@@ -61,12 +61,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   useEffect(() => {
-    const open = () => setDialogOpen(true);
-    window.addEventListener("auth:required", open);
-    return () => window.removeEventListener("auth:required", open);
-  }, []);
-
-  useEffect(() => {
     if (!isVerified || !dialogOpen) return;
     const action = pending.current;
     pending.current = null;

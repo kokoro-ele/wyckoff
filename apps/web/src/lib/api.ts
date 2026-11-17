@@ -53,9 +53,6 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       localized !== `error.${code}`
         ? localized
         : (err.message ?? err.error ?? `请求失败（${response.status}）`);
-    if (response.status === 401 && typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("auth:required"));
-    }
     throw new ApiError(code, message);
   }
   return body as T;
@@ -422,6 +419,38 @@ export function checkoutSubscription(productId: string): Promise<{ orderId: stri
   });
 }
 
+
+export interface DemoAnalysis {
+  symbol: string;
+  name: string | null;
+  answer: string;
+  plan: {
+    bias: string;
+    trigger: { kind: string; price?: number | null };
+    entryLow: number;
+    entryHigh: number;
+    stop: number;
+    target1: number;
+    target2: number;
+    invalidation: { kind: string; price: number };
+  };
+  latestClose: number;
+  asOf: number;
+}
+
+export function runDemoAnalysis(params: {
+  symbol: string;
+  period: Period;
+  adjust: AdjustType;
+  language: "zh" | "en";
+  question?: string;
+}): Promise<DemoAnalysis> {
+  return request("/demo/analysis", {
+    method: "POST",
+    body: JSON.stringify(params),
+  });
+}
+
 export interface ChatStreamParams {
   sessionId: string;
   symbol: string;
@@ -467,9 +496,6 @@ export async function streamChat(
     }
     const localized = translate(`error.${code}`);
     if (localized !== `error.${code}`) message = localized;
-    if (response.status === 401 && typeof window !== "undefined") {
-      window.dispatchEvent(new CustomEvent("auth:required"));
-    }
     throw new ApiError(code, message);
   }
 

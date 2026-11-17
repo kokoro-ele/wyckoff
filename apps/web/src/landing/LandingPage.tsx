@@ -11,6 +11,10 @@ export function LandingPage() {
   const { theme, setPreference } = useTheme();
   const copy = landingCopy[lang];
   const dark = theme === "dark";
+  const labels =
+    lang === "zh"
+      ? { phase: "阶段", range: "区间", bias: "偏向", trigger: "触发", entry: "入场区", stop: "止损", targets: "目标", invalidation: "失效" }
+      : { phase: "Phase", range: "Range", bias: "Bias", trigger: "Trigger", entry: "Entry", stop: "Stop", targets: "Targets", invalidation: "Invalidation" };
   const invite =
     typeof window === "undefined" ? null : new URLSearchParams(window.location.search).get("invite");
   const appHref = invite ? `/app?start=1&invite=${encodeURIComponent(invite)}` : "/app?start=1";
@@ -107,6 +111,97 @@ export function LandingPage() {
             </div>
             <CaseChart study={landingCase} labels={copy.chart} zoneLabel={copy.hero.zoneLabel} />
           </figure>
+        </section>
+
+        <section id="sample" className="site-sample">
+          <div className="site-section-head">
+            <div className="site-kicker">{copy.sample.kicker}</div>
+            <h2>{copy.sample.title}</h2>
+            <p>{copy.sample.intro}</p>
+          </div>
+          <div className="site-sample-grid">
+            <article className="site-sample-thesis hand-card">
+              <div className="site-sample-meta">{copy.sample.window}</div>
+              <h3>{copy.sample.thesis}</h3>
+              <dl className="site-sample-facts">
+                <div><dt>{labels.phase}</dt><dd>{copy.sample.phase}</dd></div>
+                <div><dt>{labels.range}</dt><dd>{copy.sample.range}</dd></div>
+                <div><dt>{labels.bias}</dt><dd>{copy.sample.bias}</dd></div>
+                <div><dt>{labels.invalidation}</dt><dd>{copy.sample.invalidation}</dd></div>
+              </dl>
+              <p className="site-sample-levels">{copy.sample.levels}</p>
+            </article>
+            <article className="site-sample-plan hand-card">
+              <div className="site-plan-kicker">TRADE PLAN · NVDA.US</div>
+              {[
+                [labels.trigger, copy.sample.trigger],
+                [labels.entry, copy.sample.entry],
+                [labels.stop, copy.sample.stop],
+                [labels.targets, copy.sample.targets],
+                [labels.invalidation, copy.sample.invalidation],
+              ].map(([label, value]) => (
+                <div className="site-plan-row" key={label}>
+                  <span>{label}</span>
+                  <strong>{value}</strong>
+                </div>
+              ))}
+              <p className="site-sample-note">{copy.sample.note}</p>
+            </article>
+          </div>
+          <div className="site-sample-foot">
+            <span>{copy.sample.note}</span>
+            <a className="hand-btn hand-btn-primary" href={appHref}>{copy.sample.cta}<ArrowRight size={14} /></a>
+          </div>
+        </section>
+
+        <section className="site-features">
+          <div className="site-section-head">
+            <div className="site-kicker">{copy.features.kicker}</div>
+            <h2>{copy.features.title}</h2>
+          </div>
+          <ul className="site-feature-list">
+            {copy.features.items.map((item) => <li key={item}><span>✦</span>{item}</li>)}
+          </ul>
+        </section>
+
+        <section className="site-pricing">
+          <div className="site-section-head">
+            <div className="site-kicker">{copy.pricing.kicker}</div>
+            <h2>{copy.pricing.title}</h2>
+            <p>{copy.pricing.intro}</p>
+          </div>
+          <div className="site-pricing-grid">
+            <article className="site-price-card hand-card">
+              <span className="site-price-tag">FREE</span>
+              <strong>{copy.pricing.free}</strong>
+              <p>{copy.pricing.daily}</p>
+            </article>
+            <article className="site-price-card hand-card site-price-featured">
+              <span className="site-price-tag">STARTER</span>
+              <strong>{copy.pricing.packs.split(" · ")[0]}</strong>
+              <p>{copy.pricing.billing}</p>
+            </article>
+            <article className="site-price-card hand-card">
+              <span className="site-price-tag">PRO</span>
+              <strong>{copy.pricing.packs.split(" · ")[1]}</strong>
+              <p>{copy.pricing.cta}</p>
+            </article>
+          </div>
+        </section>
+
+        <section className="site-faq">
+          <div className="site-section-head">
+            <div className="site-kicker">{copy.faq.kicker}</div>
+            <h2>{copy.faq.title}</h2>
+          </div>
+          <div className="site-faq-list">
+            {copy.faq.items.map((item) => (
+              <details key={item.q}>
+                <summary>{item.q}</summary>
+                <p>{item.a}</p>
+              </details>
+            ))}
+          </div>
         </section>
 
         <section id="method" className="site-method">

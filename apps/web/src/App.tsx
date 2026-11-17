@@ -23,20 +23,20 @@ import { cn } from "./lib/utils.js";
 import * as api from "./lib/api.js";
 
 export function App() {
-  const { t } = useI18n();
-  const { session, isPending, isVerified, openAuth } = useAuth();
+  const { t, lang } = useI18n();
+  const { session, isPending, isVerified } = useAuth();
   useSeo({
-    title: "Wyckoff 研究工作台 · EasyWyckoff",
-    description: "Wyckoff 研究工作台",
+    title: lang === "zh" ? "Wyckoff 研究工作台 · EasyWyckoff" : "Wyckoff research workbench · EasyWyckoff",
+    description: lang === "zh" ? "Wyckoff 研究工作台" : "Wyckoff market-structure research workbench",
     path: "/app",
-    lang: "zh",
+    lang,
     noindex: true,
   });
   const [membershipOpen, setMembershipOpen] = useState(() => new URLSearchParams(window.location.search).has("billing"));
   const [accountOpen, setAccountOpen] = useState(() => new URLSearchParams(window.location.search).has("account"));
   const [watchOpen, setWatchOpen] = useState(true);
   const [leftTab, setLeftTab] = useState<"watch" | "market">("watch");
-  const [chatOpen, setChatOpen] = useState(() => window.innerWidth >= 1100);
+  const [chatOpen, setChatOpen] = useState(() => window.innerWidth >= 1280);
   const [startOpen, setStartOpen] = useState(() => new URLSearchParams(window.location.search).has("start"));
   const [bugOpen, setBugOpen] = useState(() => new URLSearchParams(window.location.search).has("bug"));
   const [dailyReward, setDailyReward] = useState<{ amount: number; balance: number } | null>(null);
@@ -164,15 +164,10 @@ export function App() {
     } catch { /* storage may be disabled in private webviews */ }
     await setSymbol(symbolToUse, name, nameEn);
     closeStart();
-    if (isVerified) {
-      try { localStorage.removeItem("wyckoff:pendingStart"); } catch { /* ignore */ }
-      requestAgent(prompt);
-      return;
-    }
-    const url = new URL(window.location.href);
-    url.searchParams.set("auth", "register");
-    window.history.replaceState(null, "", url);
-    openAuth("register");
+    try { localStorage.removeItem("wyckoff:pendingStart"); } catch { /* ignore */ }
+    // Anonymous visitors get one guest analysis. ChatPanel decides whether to
+    // run the free trial or ask them to sign in after it has been used.
+    requestAgent(prompt);
   };
 
   return (

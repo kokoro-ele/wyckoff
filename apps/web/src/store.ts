@@ -71,6 +71,7 @@ interface WorkbenchState {
   period: Period;
   adjust: AdjustType;
   timeSpan: TimeSpanId;
+  customRange: { startTime: number; endTime: number } | null;
   indicators: IndicatorId[];
   activeTool: DrawingToolId | null;
   selectionMode: boolean;
@@ -111,6 +112,7 @@ interface WorkbenchState {
   setPeriod: (period: Period) => void;
   setAdjust: (adjust: AdjustType) => void;
   setTimeSpan: (span: TimeSpanId) => void;
+  setCustomRange: (range: { startTime: number; endTime: number } | null) => void;
   toggleIndicator: (id: IndicatorId) => void;
   setActiveTool: (tool: DrawingToolId | null) => void;
   toggleSelectionMode: () => void;
@@ -179,6 +181,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   period: "1d",
   adjust: "forward",
   timeSpan: "1Y",
+  customRange: null,
   indicators: [],
   activeTool: null,
   selectionMode: false,
@@ -226,6 +229,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
       pendingContext: null,
       sessionId: newSessionId(),
       viewport: null,
+      customRange: null,
       chartReady: false,
     });
 
@@ -245,17 +249,18 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
   setPeriod(period) {
     if (get().period === period) return;
     set({ period, messages: stopStreaming(get().messages), chartRevision: get().chartRevision + 1, annotations: [], annotationGroups: [],
-      activeTool: null, selectionMode: false, focusRequest: null, pendingContext: null, viewport: null, chartReady: false });
+      activeTool: null, selectionMode: false, focusRequest: null, pendingContext: null, viewport: null, customRange: null, chartReady: false });
     void get().loadAnnotations();
     void get().loadAgentMemory();
   },
 
   setAdjust(adjust) {
     if (get().adjust === adjust) return;
-    set({ adjust, messages: stopStreaming(get().messages), chartRevision: get().chartRevision + 1, pendingContext: null, focusRequest: null, viewport: null, activeTool: null, selectionMode: false, chartReady: false });
+    set({ adjust, messages: stopStreaming(get().messages), chartRevision: get().chartRevision + 1, pendingContext: null, focusRequest: null, viewport: null, customRange: null, activeTool: null, selectionMode: false, chartReady: false });
     void get().loadAnnotations();
   },
-  setTimeSpan: (timeSpan) => set({ timeSpan }),
+  setTimeSpan: (timeSpan) => set({ timeSpan, customRange: null, chartRevision: get().chartRevision + 1, chartReady: false }),
+  setCustomRange: (customRange) => set({ customRange, chartRevision: get().chartRevision + 1, chartReady: false }),
 
   toggleIndicator: (id) =>
     set((state) => ({

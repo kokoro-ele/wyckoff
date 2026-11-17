@@ -75,6 +75,7 @@ function ChartContextPanel() {
   const period = useWorkbench((s) => s.period);
   const adjust = useWorkbench((s) => s.adjust);
   const timeSpan = useWorkbench((s) => s.timeSpan);
+  const customRange = useWorkbench((s) => s.customRange);
   const indicators = useWorkbench((s) => s.indicators);
   const activeTool = useWorkbench((s) => s.activeTool);
   const selectionMode = useWorkbench((s) => s.selectionMode);
@@ -107,14 +108,28 @@ function ChartContextPanel() {
         try {
           let bars: Kline[] = [];
           if (params.type === "init" || params.type === "update") {
-            const count = barsForTimeSpan(state.timeSpan, state.period);
-            const res = await fetchKlines({
-              symbol: state.symbol,
-              period: state.period,
-              adjust: state.adjust,
-              count: Math.max(count, 500),
-            });
-            bars = res.klines;
+            if (state.customRange) {
+              const res = await fetchKlines({
+                symbol: state.symbol,
+                period: state.period,
+                adjust: state.adjust,
+                startTime: state.customRange.startTime,
+                endTime: state.customRange.endTime,
+              });
+              bars = res.klines;
+            } else {
+              const count = barsForTimeSpan(state.timeSpan, state.period);
+              const res = await fetchKlines({
+                symbol: state.symbol,
+                period: state.period,
+                adjust: state.adjust,
+                count: Math.max(count, 500),
+              });
+              bars = res.klines;
+            }
+          } else if (state.customRange) {
+            params.callback([], false);
+            return;
           } else if (params.type === "forward" && params.timestamp != null) {
             const res = await fetchKlines({
               symbol: state.symbol,
@@ -153,7 +168,8 @@ function ChartContextPanel() {
           // 数据到位后按时间跨度调整可视密度
           requestAnimationFrame(() => {
             if (!current()) return;
-            fitTimeSpan(chart, state.timeSpan);
+            if (state.customRange) fitCustomRange(chart);
+            else fitTimeSpan(chart, state.timeSpan);
             publishViewport();
             // Only consider the chart ready after its visible range has been
             // published, so the first Agent request uses the user's actual view.
@@ -462,7 +478,7 @@ function ChartContextPanel() {
               <span className="text-line">/</span>
               <span>{t(`adjust.${adjust}`)}</span>
               <span className="text-line">/</span>
-              <span>{t(`span.${timeSpan}`)}</span>
+              <span>{customRange ? t("span.custom") : t(`span.${timeSpan}`)}</span>
               {rangeChange !== null && (
                 <>
                   <span className="text-line">/</span>
@@ -661,6 +677,14 @@ function compositeChartCanvases(element: HTMLElement): HTMLCanvasElement | null 
     }
   }
   return output;
+}
+
+function fitCustomRange(chart: Chart) {
+  const data = chart.getDataList();
+  if (data.length === 0) return;
+  const width = chart.getSize()?.width ?? 800;
+  chart.setBarSpace(Math.max(2, Math.min(22, (width - 60) / data.length)));
+  chart.scrollToTimestamp((data[0].timestamp + data[data.length - 1].timestamp) / 2, 0);
 }
 
 function fitTimeSpan(chart: Chart, span: ReturnType<typeof useWorkbench.getState>["timeSpan"]) {

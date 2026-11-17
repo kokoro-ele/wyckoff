@@ -23,6 +23,7 @@ import type {
   ChatContext,
   ResearchIntent,
 } from "@wyckoff/shared";
+import * as api from "@/lib/api.js";
 import { ApiError, fetchFeedbackStatus, interruptChat, streamChat } from "@/lib/api.js";
 import { cn, formatDate, formatDuration, formatPrice } from "@/lib/utils.js";
 import { useWorkbench, type ChatEntry, type ToolTraceItem } from "@/store.js";
@@ -62,6 +63,8 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
   const [memoryOpen, setMemoryOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [quotaError, setQuotaError] = useState(false);
+  const [guestDone, setGuestDone] = useState(false);
+  const [guestUsed, setGuestUsed] = useState(false);
   const feedbackAsked = useRef(false);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const sendingRef = useRef(false);
@@ -77,6 +80,14 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
   useEffect(() => () => {
     abortRef.current?.abort();
     if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+  }, []);
+
+  useEffect(() => {
+    try {
+      setGuestUsed(localStorage.getItem("wyckoff:guest-demo-used") === "1");
+    } catch {
+      /* storage may be disabled in private webviews */
+    }
   }, []);
 
   useEffect(() => {
@@ -345,18 +356,112 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
     }
   };
 
+  const executeGuest = async (text: string) => {
+    const content = text.trim();
+    if (!content || sendingRef.current) return;
+    const state = useWorkbench.getState();
+    if (!state.llmReady) {
+      state.notify(t("error.SERVICE_UNAVAILABLE"), "error");
+      return;
+    }
+    setInput("");
+    sendingRef.current = true;
+    setSending(true);
+    setProgress(t("chat.guestWorking"));
+    setGuestDone(false);
+    setPlan(null);
+    setActivities([]);
+    setActivityOpen(false);
+    setQuotaError(false);
+    state.appendMessage({
+      id: `u_${Date.now()}`,
+      role: "user",
+      content,
+      mode: "agent",
+      createdAt: Date.now(),
+    });
+    const assistantId = `a_${Date.now()}`;
+    state.appendMessage({
+      id: assistantId,
+      role: "assistant",
+      content: "",
+      mode: "agent",
+      streaming: true,
+      createdAt: Date.now(),
+    });
+    try {
+      const result = await api.runDemoAnalysis({
+        symbol: state.symbol,
+        period: state.period,
+        adjust: state.adjust,
+        language: lang,
+        question: content,
+      });
+      const planText = t("chat.guestPlan", {
+        bias: result.plan.bias,
+        entry: `${result.plan.entryLow}–${result.plan.entryHigh}`,
+        stop: result.plan.stop,
+        target: `${result.plan.target1} / ${result.plan.target2}`,
+      });
+      state.updateLastAssistant((entry) => ({
+        ...entry,
+        content: `${result.answer}\n\n${planText}`,
+        streaming: false,
+      }));
+      setGuestDone(true);
+      setGuestUsed(true);
+      try { localStorage.setItem("wyckoff:guest-demo-used", "1"); } catch { /* storage may be disabled */ }
+    } catch (error) {
+      const code = error instanceof ApiError ? error.code : "CHAT_FAILED";
+      if (code === "DEMO_USED") {
+        setGuestDone(true);
+        setGuestUsed(true);
+        state.updateLastAssistant((entry) => ({
+          ...entry,
+          content: t("chat.guestUsed"),
+          streaming: false,
+        }));
+        state.notify(t("chat.guestUsed"), "info");
+      } else {
+        state.updateLastAssistant((entry) => ({
+          ...entry,
+          content: entry.content || (error instanceof Error ? error.message : t("chat.error")),
+          streaming: false,
+        }));
+      }
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
+      setProgress("");
+      window.setTimeout(scrollToBottom, 80);
+    }
+  };
+
   const executeRef = useRef(execute);
   executeRef.current = execute;
 
   useEffect(() => {
-    if (!pendingAgentPrompt || !isVerified || !llmReady || !chartReady || sendingRef.current) return;
+    if (!pendingAgentPrompt || !llmReady || !chartReady || sendingRef.current) return;
+    const prompt = pendingAgentPrompt;
     consumeAgentPrompt();
-    void executeRef.current(pendingAgentPrompt);
-  }, [pendingAgentPrompt, isVerified, llmReady, chartReady, consumeAgentPrompt]);
+    if (!isVerified) {
+      if (!guestUsed && !guestDone) {
+        void executeGuest(prompt);
+      } else {
+        requireAuth(() => void execute(prompt));
+      }
+      return;
+    }
+    void executeRef.current(prompt);
+  }, [pendingAgentPrompt, isVerified, guestUsed, guestDone, llmReady, chartReady, consumeAgentPrompt, requireAuth]);
 
   const send = (text: string) => {
     if (!text.trim() || sendingRef.current) return;
     if (!isVerified) {
+      if (!guestUsed && !guestDone) {
+        void executeGuest(text);
+        return;
+      }
       requireAuth(() => void execute(text));
       return;
     }
@@ -457,7 +562,13 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
             {visible.map((message) => (
               <MessageBubble key={message.id} message={message} showTrace={SHOW_TRACE} />
             ))}
-            {!sending && visible.some((message) => message.role === "assistant" && !message.streaming) && (
+            {guestDone && !isVerified && (
+              <div className="guest-cta">
+                <span>{t("chat.guestCta")}</span>
+                <button type="button" onClick={() => openAuth("register")}>{t("chat.guestSignup")}</button>
+              </div>
+            )}
+            {!sending && isVerified && visible.some((message) => message.role === "assistant" && !message.streaming) && (
               <TradePlanAlerts symbol={symbol} period={period} adjust={adjust} onReady={scrollToBottom} />
             )}
             {sending && (
@@ -487,7 +598,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
               disabled={sending || !llmReady}
               onRun={(prompt) => void send(prompt)}
             />
-            <p className="mb-2 text-[10px] text-ink-faint">{t("chat.creditsNote")}</p>
+            <p className="mb-2 text-[10px] text-ink-faint">{isVerified ? t("chat.creditsNote") : t("chat.guestHint")}</p>
             <form
               className="flex items-end gap-2"
               onSubmit={(event) => {
@@ -507,7 +618,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
                 }}
                 rows={2}
                 disabled={sending || !llmReady}
-                placeholder={isVerified ? t("chat.placeholder.agent") : t("chat.loginHint")}
+                placeholder={isVerified ? t("chat.placeholder.agent") : guestUsed ? t("chat.loginHint") : t("chat.guestPlaceholder")}
                 className="hand-input min-h-[56px] flex-1 resize-none px-2.5 py-2 text-sm disabled:opacity-60"
               />
               {sending ? (
@@ -574,11 +685,21 @@ function TabIntro({
       <p className="mt-3 text-[13px] font-semibold">{t("chat.intro.agent")}</p>
       {!verified ? (
         <>
-          <p className="mt-1.5 text-[11px] text-ink-dim">{t("chat.loginHint")}</p>
-          <button type="button" className="hand-btn hand-btn-primary mt-4 inline-flex items-center gap-1.5 px-3 py-2 text-xs" onClick={onLogin}>
-            <LockKeyhole size={13} />
-            {t("chat.loginToAnalyze")}
-          </button>
+          <p className="mt-1.5 text-[11px] text-ink-dim">{t("chat.guestHint")}</p>
+          {llmReady ? (
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <button type="button" className="hand-btn hand-btn-primary inline-flex items-center gap-1.5 px-3 py-2 text-xs" onClick={onRun}>
+                <Sparkles size={13} />
+                {t("chat.guestTry")}
+              </button>
+              <button type="button" className="hand-btn inline-flex items-center gap-1.5 px-3 py-2 text-xs" onClick={onLogin}>
+                <LockKeyhole size={13} />
+                {t("chat.loginToAnalyze")}
+              </button>
+            </div>
+          ) : (
+            <p className="mt-3 text-[11px] text-warn">{t("error.SERVICE_UNAVAILABLE")}</p>
+          )}
         </>
       ) : llmReady ? (
         <button type="button" className="hand-btn hand-btn-primary mt-4 inline-flex items-center gap-1.5 px-3 py-2 text-xs" onClick={onRun}>

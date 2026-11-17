@@ -5,7 +5,7 @@ import {
   type Period,
   TIME_SPANS,
 } from "@wyckoff/shared";
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   Crosshair,
   Eraser,
@@ -27,6 +27,7 @@ export function ChartToolbar({ dataReady = true }: { dataReady?: boolean }) {
   const period = useWorkbench((s) => s.period);
   const adjust = useWorkbench((s) => s.adjust);
   const timeSpan = useWorkbench((s) => s.timeSpan);
+  const customRange = useWorkbench((s) => s.customRange);
   const indicators = useWorkbench((s) => s.indicators);
   const activeTool = useWorkbench((s) => s.activeTool);
   const selectionMode = useWorkbench((s) => s.selectionMode);
@@ -35,6 +36,7 @@ export function ChartToolbar({ dataReady = true }: { dataReady?: boolean }) {
   const setPeriod = useWorkbench((s) => s.setPeriod);
   const setAdjust = useWorkbench((s) => s.setAdjust);
   const setTimeSpan = useWorkbench((s) => s.setTimeSpan);
+  const setCustomRange = useWorkbench((s) => s.setCustomRange);
   const toggleIndicator = useWorkbench((s) => s.toggleIndicator);
   const setActiveTool = useWorkbench((s) => s.setActiveTool);
   const toggleSelectionMode = useWorkbench((s) => s.toggleSelectionMode);
@@ -42,6 +44,25 @@ export function ChartToolbar({ dataReady = true }: { dataReady?: boolean }) {
   const removeAnnotationGroup = useWorkbench((s) => s.removeAnnotationGroup);
   const clearAllAnnotations = useWorkbench((s) => s.clearAllAnnotations);
   const notify = useWorkbench((s) => s.notify);
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+
+  useEffect(() => {
+    if (!customRange) return;
+    setFrom(new Date(customRange.startTime).toISOString().slice(0, 10));
+    setTo(new Date(customRange.endTime).toISOString().slice(0, 10));
+  }, [customRange]);
+
+  const applyRange = () => {
+    if (!from || !to) return;
+    const startTime = Date.parse(`${from}T00:00:00Z`);
+    const endTime = Date.parse(`${to}T23:59:59Z`);
+    if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || startTime >= endTime) {
+      notify(t("toolbar.invalidRange"), "error");
+      return;
+    }
+    setCustomRange({ startTime, endTime });
+  };
 
   return (
     <div className="chart-toolbar flex flex-col gap-1.5 border-b border-line-soft px-3 py-2.5">
@@ -84,11 +105,20 @@ export function ChartToolbar({ dataReady = true }: { dataReady?: boolean }) {
 
         <ToolGroup label={t("toolbar.span")}>
           {TIME_SPANS.map((s) => (
-            <Chip key={s.id} active={timeSpan === s.id} onClick={() => setTimeSpan(s.id)}>
+            <Chip key={s.id} active={timeSpan === s.id && !customRange} onClick={() => setTimeSpan(s.id)}>
               {t(`span.${s.id}`)}
             </Chip>
           ))}
         </ToolGroup>
+        <div className="chart-custom-range">
+          <input type="date" value={from} onChange={(event) => setFrom(event.target.value)} aria-label={t("toolbar.from")} />
+          <span>→</span>
+          <input type="date" value={to} onChange={(event) => setTo(event.target.value)} aria-label={t("toolbar.to")} />
+          <button type="button" onClick={applyRange} disabled={!from || !to}>{t("toolbar.applyRange")}</button>
+          {customRange && (
+            <button type="button" className="chart-custom-clear" onClick={() => setCustomRange(null)} aria-label={t("toolbar.clearRange")}>×</button>
+          )}
+        </div>
       </div>
 
       <div className="chart-toolbar-row flex flex-wrap items-center gap-1">

@@ -177,7 +177,11 @@ export async function getKlines(params: GetKlinesParams): Promise<Kline[]> {
     )
     .all(...args) as Kline[];
 
-  return count ? rows.reverse() : rows;
+  // Providers occasionally return a stray future-dated bar. Never let it
+  // stretch the chart axis into next year.
+  const latestAllowed = Date.now() + 2 * 86_400_000;
+  const valid = rows.filter((row) => row.timestamp <= latestAllowed);
+  return count ? valid.reverse() : valid;
 }
 
 /** 计算完整的 Wyckoff 特征，并尽量附上相对基准指数的强弱。 */
