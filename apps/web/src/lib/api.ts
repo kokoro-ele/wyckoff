@@ -592,6 +592,23 @@ export function resetAdminCredits(balance = 10): Promise<{ ok: boolean; updated:
   return request("/admin/credits/reset", { method: "POST", body: JSON.stringify({ balance }) });
 }
 
+export interface AdminDemoTrial {
+  key: string;
+  windowStart: string;
+  count: number;
+}
+
+export function fetchAdminDemoTrials(): Promise<{ trials: AdminDemoTrial[] }> {
+  return request("/admin/demo-trials");
+}
+
+export function clearAdminDemoTrials(key?: string): Promise<{ ok: boolean; cleared: number }> {
+  return request("/admin/demo-trials/clear", {
+    method: "POST",
+    body: JSON.stringify(key ? { key } : {}),
+  });
+}
+
 export interface BugReport {
   id: string;
   user_id: string;

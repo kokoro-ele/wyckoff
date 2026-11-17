@@ -50,6 +50,7 @@ export function AdminPage() {
   const [users, setUsers] = useState<api.AdminUser[]>([]);
   const [feedback, setFeedback] = useState<Awaited<ReturnType<typeof api.fetchAdminFeedback>>["feedback"]>([]);
   const [bugs, setBugs] = useState<api.BugReport[]>([]);
+  const [demoTrials, setDemoTrials] = useState<api.AdminDemoTrial[]>([]);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
@@ -58,18 +59,20 @@ export function AdminPage() {
   const load = async (q = query) => {
     setError("");
     try {
-      const [o, u, a, f, bugsResult] = await Promise.all([
+      const [o, u, a, f, bugsResult, trials] = await Promise.all([
         api.fetchAdminOverview(),
         api.fetchAdminUsers(q),
         api.fetchAdminAnalytics(),
         api.fetchAdminFeedback(),
         api.fetchAdminBugs(),
+        api.fetchAdminDemoTrials(),
       ]);
       setOverview(o);
       setUsers(u.users);
       setAnalytics(a);
       setFeedback(f.feedback);
       setBugs(bugsResult.reports);
+      setDemoTrials(trials.trials);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Admin unavailable");
     }
@@ -101,6 +104,20 @@ export function AdminPage() {
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "BYOK update failed");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const clearDemoTrials = async (key?: string) => {
+    if (!key && !window.confirm(zh ? "清除所有游客试用记录？" : "Clear all guest trial records?")) return;
+    setBusy(key ?? "demo-trials");
+    setError("");
+    try {
+      await api.clearAdminDemoTrials(key);
+      await load();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Clear failed");
     } finally {
       setBusy("");
     }
@@ -315,6 +332,35 @@ export function AdminPage() {
               </tbody>
             </table>
           </div>
+        </section>
+
+        <section className="admin-section hand-card">
+          <div className="admin-section-head">
+            <h2>{zh ? "游客试用限制" : "Guest trial limits"}</h2>
+            <button type="button" className="hand-btn px-2 py-1 text-[10px]" disabled={busy === "demo-trials" || demoTrials.length === 0} onClick={() => void clearDemoTrials()}>
+              {zh ? "全部清除" : "Clear all"}
+            </button>
+          </div>
+          <p className="admin-legend">
+            {zh
+              ? "服务端按 IP 哈希限制每天一次。清除后用户仍需清除浏览器 localStorage 的 wyckoff:guest-demo-used，或等待页面刷新。"
+              : "The server limits one trial per IP hash per day. After clearing, the browser may still need wyckoff:guest-demo-used removed from localStorage."}
+          </p>
+          {demoTrials.length === 0 ? (
+            <p className="text-[11px] text-ink-faint">{zh ? "暂无游客试用记录" : "No guest trial records"}</p>
+          ) : (
+            demoTrials.map((trial) => (
+              <div key={`${trial.key}-${trial.windowStart}`} className="admin-list-row">
+                <span className="min-w-0">
+                  <strong className="font-mono" title={trial.key}>{trial.key.slice(0, 18)}…</strong>
+                  <span className="ml-2 text-ink-faint">{fmtDateTime(trial.windowStart, lang)} · {trial.count} use{trial.count === 1 ? "" : "s"}</span>
+                </span>
+                <button type="button" className="hand-btn admin-danger px-2 py-1 text-[10px]" disabled={busy === trial.key} onClick={() => void clearDemoTrials(trial.key)}>
+                  {zh ? "清除" : "Clear"}
+                </button>
+              </div>
+            ))
+          )}
         </section>
 
         <section className="admin-section hand-card">

@@ -295,6 +295,43 @@ adminRoutes.get("/stripe/health", async (c) => {
   return c.json({ order, account: accountSafe, webhooks: webhookSafe, session: sessionSafe });
 });
 
+
+adminRoutes.get("/demo-trials", async (c) => {
+  const denied = await guard(c);
+  if (denied) return denied;
+  const { rows } = await getPool().query(
+    `SELECT key, window_start, count
+     FROM api_rate_limits
+     WHERE key LIKE 'demo:%'
+     ORDER BY window_start DESC
+     LIMIT 200`,
+  );
+  return c.json({
+    trials: rows.map((row) => ({
+      key: row.key,
+      windowStart: row.window_start,
+      count: row.count,
+    })),
+  });
+});
+
+adminRoutes.post("/demo-trials/clear", bodyLimit({ maxSize: 8 * 1024 }), async (c) => {
+  const denied = await guard(c);
+  if (denied) return denied;
+  const body = (await c.req.json().catch(() => null)) as { key?: unknown } | null;
+  const key = typeof body?.key === "string" ? body.key : "";
+  if (key && !key.startsWith("demo:")) {
+    return c.json({ code: "BAD_REQUEST", message: "只能清除 demo 试用记录" }, 400);
+  }
+  const result = await getPool().query(
+    key
+      ? "DELETE FROM api_rate_limits WHERE key=$1 AND key LIKE 'demo:%'"
+      : "DELETE FROM api_rate_limits WHERE key LIKE 'demo:%'",
+    key ? [key] : [],
+  );
+  return c.json({ ok: true, cleared: result.rowCount ?? 0 });
+});
+
 adminRoutes.get("/bugs", async (c) => {
   const denied = await guard(c);
   if (denied) return denied;
