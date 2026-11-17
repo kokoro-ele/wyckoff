@@ -35,11 +35,6 @@ demoRoutes.post("/analysis", async (c) => {
     return c.json({ code: "DEMO_UNAVAILABLE", message: "Demo analysis is not configured" }, 503);
   }
 
-  const allowed = await consumeRateLimit(getPool(), `demo:${ipKey(c.req.raw.headers)}`, 1, 24 * 60 * 60_000);
-  if (!allowed) {
-    return c.json({ code: "DEMO_USED", message: "The free demo is already used. Create an account to continue." }, 429);
-  }
-
   const { symbol, period, adjust, language, question } = parsed.data;
   const instrument = await getInstrument(symbol);
   if (!instrument) return c.json({ code: "NOT_FOUND", message: "Instrument not found" }, 404);
@@ -80,10 +75,20 @@ Do not invent news or fundamentals. Do not give a deterministic price prediction
       { role: "user", content: prompt },
     ],
     temperature: 0.2,
-    max_tokens: 700,
+    // Some gateways use reasoning tokens before emitting content; 700 can
+    // leave the visible answer empty even though the request succeeds.
+    max_tokens: 2_000,
   });
-  const answer = completion.choices[0]?.message?.content?.trim();
+  const rawMessage = completion.choices[0]?.message as { content?: string | null; reasoning_content?: string | null } | undefined;
+  const answer = (rawMessage?.content || "").trim();
   if (!answer) return c.json({ code: "DEMO_FAILED", message: "Demo generation failed" }, 502);
+
+  // Charge the free trial only after a usable answer exists. A model outage
+  // should not burn the visitor's one preview.
+  const allowed = await consumeRateLimit(getPool(), `demo:${ipKey(c.req.raw.headers)}`, 1, 24 * 60 * 60_000);
+  if (!allowed) {
+    return c.json({ code: "DEMO_USED", message: "The free demo is already used. Create an account to continue." }, 429);
+  }
   return c.json({
     symbol: instrument.symbol,
     name: instrument.name,
