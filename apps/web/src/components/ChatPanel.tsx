@@ -498,12 +498,12 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
           <div ref={listRef} className="chat-stream flex-1 space-y-3 overflow-y-auto px-3 py-3">
             {agentMemory && <MemoryCard memory={agentMemory} open={memoryOpen} onToggle={() => setMemoryOpen((value) => !value)} onResume={() => void send(t("agent.resumePrompt"))} />}
             {visible.length === 0 && (
-              <TabIntro verified={isVerified} guestUsed={guestUsed} llmReady={llmReady} onLogin={openAuth} onRun={() => void send(t("chat.autoPrompt.agent"))} />
+              <TabIntro verified={isVerified} guestUsed={guestUsed} llmReady={llmReady} onLogin={openAuth} onSignup={() => openAuth("register")} onRun={() => void send(t("chat.autoPrompt.agent"))} />
             )}
             {visible.map((message) => (
               <MessageBubble key={message.id} message={message} showTrace={SHOW_TRACE} />
             ))}
-            {guestDone && tradePlan && !isVerified && (
+            {guestDone && !isVerified && visible.length > 0 && tradePlan && (
               <div className="guest-plan-card">
                 <div className="guest-plan-head">{t("chat.guestPlanTitle")} · <span className="font-mono">{tradePlan.symbol}</span></div>
                 <div className="guest-plan-grid">
@@ -516,7 +516,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
                 </div>
               </div>
             )}
-            {guestDone && !isVerified && (
+            {guestDone && !isVerified && visible.length > 0 && (
               <div className="guest-cta">
                 <span>{t("chat.guestCta")}</span>
                 <button type="button" onClick={() => openAuth("register")}>{t("chat.guestSignup")}</button>
@@ -624,12 +624,14 @@ function TabIntro({
   guestUsed,
   llmReady,
   onLogin,
+  onSignup,
   onRun,
 }: {
   verified: boolean;
   guestUsed: boolean;
   llmReady: boolean;
   onLogin: () => void;
+  onSignup: () => void;
   onRun: () => void;
 }) {
   const { t } = useI18n();
@@ -643,7 +645,7 @@ function TabIntro({
         guestUsed ? (
           <>
             <p className="mt-1.5 text-[11px] text-ink-dim">{t("chat.guestUsedHint")}</p>
-            <button type="button" className="hand-btn hand-btn-primary mt-4 inline-flex items-center gap-1.5 px-3 py-2 text-xs" onClick={onLogin}>
+            <button type="button" className="hand-btn hand-btn-primary mt-4 inline-flex items-center gap-1.5 px-3 py-2 text-xs" onClick={onSignup}>
               <LockKeyhole size={13} />
               {t("chat.guestSignup")}
             </button>
