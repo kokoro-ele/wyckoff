@@ -2151,3 +2151,6 @@
 .chart-custom-range button:disabled { opacity: .4; }
 .chart-custom-clear { font-size: 12px !important; line-height: 1; padding-inline: 5px !important; }
 @media (max-width: 760px) { .chart-custom-range { width: 100%; margin: 3px 0 0; border-left: 0; padding-left: 0; } .chart-custom-range input { flex: 1; min-width: 0; } }
+
+.site-pricing-cta { display: flex; justify-content: flex-end; margin-top: 11px; }
+.site-pricing-cta .hand-btn { display: inline-flex; align-items: center; gap: 5px; }

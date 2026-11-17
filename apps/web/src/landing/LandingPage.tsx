@@ -184,8 +184,11 @@ export function LandingPage() {
             <article className="site-price-card hand-card">
               <span className="site-price-tag">PRO</span>
               <strong>{copy.pricing.packs.split(" · ")[1]}</strong>
-              <p>{copy.pricing.cta}</p>
+              <p>{copy.pricing.billing}</p>
             </article>
+          </div>
+          <div className="site-pricing-cta">
+            <a className="hand-btn hand-btn-primary" href={appHref}>{copy.pricing.cta}<ArrowRight size={14} /></a>
           </div>
         </section>
 
