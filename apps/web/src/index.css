@@ -1396,7 +1396,7 @@
 .site-home-topbar { justify-content: space-between; }
 .site-home-main {
   display: flex;
-  flex: 1 0 auto;
+  flex: 0 0 auto;
   flex-direction: column;
   justify-content: flex-start;
   width: min(1200px, 100%);

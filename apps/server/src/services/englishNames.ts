@@ -13,6 +13,20 @@ const TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
 let names = new Map<string, string>();
 let loadedAt = 0;
+// A few high-traffic symbols should never show only a ticker while the Nasdaq
+// directory is still warming up.
+const FALLBACK_NAMES: Record<string, string> = {
+  NVDA: "NVIDIA",
+  AAPL: "Apple",
+  MSFT: "Microsoft",
+  AMZN: "Amazon",
+  GOOGL: "Alphabet",
+  META: "Meta",
+  TSLA: "Tesla",
+  AMD: "AMD",
+  NFLX: "Netflix",
+  AVGO: "Broadcom",
+};
 let loading: Promise<void> | null = null;
 
 function cleanName(value: string): string {
@@ -69,5 +83,6 @@ export async function ensureEnglishNames(force = false): Promise<void> {
 }
 
 export function getEnglishName(code: string): string | null {
-  return names.get(code.trim().toUpperCase()) ?? null;
+  const key = code.trim().toUpperCase();
+  return names.get(key) ?? FALLBACK_NAMES[key] ?? null;
 }
