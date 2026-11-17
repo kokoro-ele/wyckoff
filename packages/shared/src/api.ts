@@ -154,7 +154,7 @@ export type AgentEvent =
   /** Agent 新生成的交易计划（游客试用也用它即时展示）。 */
   | { type: "trade_plan"; plan: AgentTradePlan }
   /** 一轮回复结束。 */
-  | { type: "done"; messageId: string }
+  | { type: "done"; messageId: string; content?: string }
   | { type: "error"; message: string };
 
 export interface ChatMessage {

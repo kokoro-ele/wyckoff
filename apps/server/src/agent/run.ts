@@ -248,7 +248,9 @@ export async function* runAgent(
     if (!ephemeral && runContext?.userId) {
       await clearInterruptedRuns(runContext.userId, symbol, period, runStartedAt).catch(() => undefined);
     }
-    yield { type: "done", messageId: assistantMessage.id };
+    // Include the final text in the terminal event so a client that missed a
+    // late stream chunk can still render the complete answer.
+    yield { type: "done", messageId: assistantMessage.id, content: answer };
   } catch (error) {
     const cancelled = runId ? await isAgentRunCancelled(runId).catch(() => false) : false;
     const aborted = ctx.signal?.aborted || runContext?.state.get("clientGone") === true || cancelled || isAbortError(error);

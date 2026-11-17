@@ -285,6 +285,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
           updateAssistant((entry) => ({
             ...entry,
             id: event.messageId || entry.id,
+            content: event.content?.trim() ? event.content : entry.content,
             streaming: false,
             toolTrace: (entry.liveTrace ?? [])
               .filter((trace) => !trace.running)
@@ -496,7 +497,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
           <div ref={listRef} className="chat-stream flex-1 space-y-3 overflow-y-auto px-3 py-3">
             {agentMemory && <MemoryCard memory={agentMemory} open={memoryOpen} onToggle={() => setMemoryOpen((value) => !value)} onResume={() => void send(t("agent.resumePrompt"))} />}
             {visible.length === 0 && (
-              <TabIntro verified={isVerified} llmReady={llmReady} onLogin={openAuth} onRun={() => void send(t("chat.autoPrompt.agent"))} />
+              <TabIntro verified={isVerified} guestUsed={guestUsed} llmReady={llmReady} onLogin={openAuth} onRun={() => void send(t("chat.autoPrompt.agent"))} />
             )}
             {visible.map((message) => (
               <MessageBubble key={message.id} message={message} showTrace={SHOW_TRACE} />
@@ -606,11 +607,13 @@ function QuickActions({ disabled, onRun }: { disabled: boolean; onRun: (prompt: 
 
 function TabIntro({
   verified,
+  guestUsed,
   llmReady,
   onLogin,
   onRun,
 }: {
   verified: boolean;
+  guestUsed: boolean;
   llmReady: boolean;
   onLogin: () => void;
   onRun: () => void;
@@ -623,23 +626,33 @@ function TabIntro({
       </div>
       <p className="mt-3 text-[13px] font-semibold">{t("chat.intro.agent")}</p>
       {!verified ? (
-        <>
-          <p className="mt-1.5 text-[11px] text-ink-dim">{t("chat.guestHint")}</p>
-          {llmReady ? (
-            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
-              <button type="button" className="hand-btn hand-btn-primary inline-flex items-center gap-1.5 px-3 py-2 text-xs" onClick={onRun}>
-                <Sparkles size={13} />
-                {t("chat.guestTry")}
-              </button>
-              <button type="button" className="hand-btn inline-flex items-center gap-1.5 px-3 py-2 text-xs" onClick={onLogin}>
-                <LockKeyhole size={13} />
-                {t("chat.loginToAnalyze")}
-              </button>
-            </div>
-          ) : (
-            <p className="mt-3 text-[11px] text-warn">{t("error.SERVICE_UNAVAILABLE")}</p>
-          )}
-        </>
+        guestUsed ? (
+          <>
+            <p className="mt-1.5 text-[11px] text-ink-dim">{t("chat.guestUsedHint")}</p>
+            <button type="button" className="hand-btn hand-btn-primary mt-4 inline-flex items-center gap-1.5 px-3 py-2 text-xs" onClick={onLogin}>
+              <LockKeyhole size={13} />
+              {t("chat.guestSignup")}
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="mt-1.5 text-[11px] text-ink-dim">{t("chat.guestHint")}</p>
+            {llmReady ? (
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+                <button type="button" className="hand-btn hand-btn-primary inline-flex items-center gap-1.5 px-3 py-2 text-xs" onClick={onRun}>
+                  <Sparkles size={13} />
+                  {t("chat.guestTry")}
+                </button>
+                <button type="button" className="hand-btn inline-flex items-center gap-1.5 px-3 py-2 text-xs" onClick={onLogin}>
+                  <LockKeyhole size={13} />
+                  {t("chat.loginToAnalyze")}
+                </button>
+              </div>
+            ) : (
+              <p className="mt-3 text-[11px] text-warn">{t("error.SERVICE_UNAVAILABLE")}</p>
+            )}
+          </>
+        )
       ) : llmReady ? (
         <button type="button" className="hand-btn hand-btn-primary mt-4 inline-flex items-center gap-1.5 px-3 py-2 text-xs" onClick={onRun}>
           <Sparkles size={13} />
