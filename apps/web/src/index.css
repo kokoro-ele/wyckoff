@@ -1392,14 +1392,16 @@
 }
 
 /* Compact one-screen landing: intro + visual glossary. */
-.site-home { display: flex; flex-direction: column; }
+.site-home { display: flex; flex-direction: column; width: 100%; max-width: 100%; overflow-x: hidden; }
 .site-home-topbar { justify-content: space-between; }
 .site-home-main {
+  box-sizing: border-box;
   display: flex;
   flex: 0 0 auto;
   flex-direction: column;
   justify-content: flex-start;
   width: min(1200px, 100%);
+  max-width: 100%;
   margin: 0 auto;
   padding: 22px 24px 14px;
 }
@@ -2086,8 +2088,8 @@
 }
 .site-home-lang-en .site-section-head h2 { font-family: var(--font-sans); font-weight: 500; letter-spacing: -.035em; }
 .site-section-head p { margin: 0; color: var(--color-ink-dim); font-size: 12px; line-height: 1.75; }
-.site-sample, .site-features, .site-pricing, .site-faq { margin-top: 30px; border-top: 1.5px dashed var(--color-line); padding-top: 22px; }
-.site-sample-grid { display: grid; grid-template-columns: 1.12fr .88fr; gap: 12px; margin-top: 15px; }
+.site-sample, .site-features, .site-pricing, .site-faq { box-sizing: border-box; width: 100%; max-width: 100%; margin-top: 30px; border-top: 1.5px dashed var(--color-line); padding-top: 22px; }
+.site-sample-grid { display: grid; grid-template-columns: minmax(0, 1.12fr) minmax(0, .88fr); gap: 12px; margin-top: 15px; }
 .site-sample-thesis, .site-sample-plan { padding: 15px 16px; }
 .site-sample-meta, .site-plan-kicker { color: var(--color-ink-faint); font-family: var(--font-mono); font-size: 9px; letter-spacing: .04em; }
 .site-sample-thesis h3 { margin: 10px 0 12px; font-family: var(--font-hand); font-size: 22px; line-height: 1.28; }
