@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { bodyLimit } from "hono/body-limit";
@@ -14,6 +14,7 @@ import { computeStrategy } from "../services/research.js";
 import { consumeRateLimit } from "../credits/rateLimit.js";
 import { runAgent } from "../agent/run.js";
 import { workspaceContext } from "../cloud/context.js";
+import { saveAgentTradePlan } from "../services/tradePlan.js";
 
 const demoRequestSchema = z.object({
   symbol: z.string().min(1).max(32),
@@ -31,6 +32,41 @@ function ipKey(headers: Headers): string {
     headers.get("x-real-ip") ||
     "unknown";
   return createHash("sha256").update(ip).digest("hex").slice(0, 32);
+}
+
+function fallbackTradePlan(
+  symbol: string,
+  period: Parameters<typeof saveAgentTradePlan>[1],
+  adjust: Parameters<typeof saveAgentTradePlan>[2],
+  strategy: ReturnType<typeof computeStrategy>,
+) {
+  return saveAgentTradePlan(symbol, period, adjust, {
+    bias: strategy.bias,
+    trigger: `${strategy.trigger.kind} ${strategy.trigger.price ?? ""}`.trim(),
+    triggerCondition: strategy.trigger.price
+      ? { direction: strategy.trigger.kind === "breakdown" ? "below" : "above", price: strategy.trigger.price }
+      : null,
+    invalidationCondition: {
+      direction: strategy.invalidation.kind === "closeAbove" ? "above" : "below",
+      price: strategy.invalidation.price ?? strategy.stop ?? 0,
+    },
+    entryLow: strategy.entryLow,
+    entryHigh: strategy.entryHigh,
+    stop: strategy.stop,
+    target1: strategy.target1,
+    target2: strategy.target2,
+    riskReward: strategy.riskReward,
+    invalidation: `${strategy.invalidation.kind === "closeAbove" ? "Daily close above" : "Daily close below"} ${strategy.invalidation.price}`,
+    support: strategy.support.map((level) => level.price),
+    resistance: strategy.resistance.map((level) => level.price),
+    note: "Fallback plan computed from the same deterministic ranges and swing structure as the research panel.",
+  });
+}
+
+function fallbackText(plan: ReturnType<typeof fallbackTradePlan>, language: "zh" | "en"): string {
+  return language === "en"
+    ? `**Structure.** The active structure gives a ${plan.bias} bias. The deterministic reference levels are: entry ${plan.entryLow}–${plan.entryHigh}, stop ${plan.stop}, targets ${plan.target1} / ${plan.target2}.\n\n**Invalidation.** ${plan.invalidation}.\n\nThis is a conditional research scenario, not a prediction or investment advice.`
+    : `**结构。** 当前结构偏向 **${plan.bias}**。可核对的参考价位：入场 ${plan.entryLow}–${plan.entryHigh}，止损 ${plan.stop}，目标 ${plan.target1} / ${plan.target2}。\n\n**失效条件。** ${plan.invalidation}。\n\n这是条件情景，不是预测或投资建议。`;
 }
 
 demoRoutes.post("/analysis", async (c) => {
@@ -130,7 +166,18 @@ demoRoutes.post("/chat", bodyLimit({ maxSize: 1024 * 1024 }), async (c) => {
   }
   const context = workspaceContext.getStore();
   if (context) context.signal = c.req.raw.signal;
+  const { symbol, period, adjust, language } = parsed.data;
+  const instrument = await getInstrument(symbol);
+  const klines = await getKlines({ symbol, period, adjust });
+  if (!instrument || klines.length === 0) {
+    return c.json({ code: "NO_DATA", message: "No market data" }, 404);
+  }
+  const features = await getFeatures({ symbol, period, adjust }, { skipBenchmark: true });
+  const deterministicPlan = fallbackTradePlan(symbol, period, adjust, computeStrategy(features, klines));
   return streamSSE(c, async (stream) => {
+    let sawDone = false;
+    let sawPlan = false;
+    let streamedText = "";
     try {
       for await (const event of runAgent(
         { ...parsed.data, showTrace: false },
@@ -139,11 +186,27 @@ demoRoutes.post("/chat", bodyLimit({ maxSize: 1024 * 1024 }), async (c) => {
         { ephemeral: true },
       )) {
         if (event.type === "usage") continue;
+        if (event.type === "done") sawDone = true;
+        if (event.type === "trade_plan") sawPlan = true;
+        if (event.type === "text") streamedText += event.delta;
+        // If the agent fails after drawing/thinking, replace its terminal error
+        // with a deterministic result instead of leaving the guest with nothing.
+        if (event.type === "error") continue;
         await stream.writeSSE({ data: JSON.stringify(event) });
       }
     } catch (error) {
+      console.error("[demo] guest agent failed:", error instanceof Error ? error.message : error);
+    }
+    if (!sawPlan) {
+      await stream.writeSSE({ data: JSON.stringify({ type: "trade_plan", plan: deterministicPlan }) });
+    }
+    if (!sawDone) {
+      const text = streamedText.trim()
+        ? `${streamedText}\n\n${fallbackText(deterministicPlan, language)}`
+        : fallbackText(deterministicPlan, language);
+      await stream.writeSSE({ data: JSON.stringify({ type: "text", delta: fallbackText(deterministicPlan, language) }) });
       await stream.writeSSE({
-        data: JSON.stringify({ type: "error", message: (error as Error).message || "Demo failed" }),
+        data: JSON.stringify({ type: "done", messageId: randomUUID(), content: text }),
       });
     }
   });

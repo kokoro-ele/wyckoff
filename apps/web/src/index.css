@@ -2157,3 +2157,9 @@
 
 .site-pricing-cta { display: flex; justify-content: flex-end; margin-top: 11px; }
 .site-pricing-cta .hand-btn { display: inline-flex; align-items: center; gap: 5px; }
+
+.guest-plan-card { border: 1px solid color-mix(in srgb, var(--color-accent) 35%, var(--color-line)); border-radius: 8px 12px 7px 10px; background: var(--color-panel-2); padding: 9px 10px; }
+.guest-plan-head { color: var(--color-accent); font-size: 10px; font-weight: 600; }
+.guest-plan-grid { display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 4px 8px; margin-top: 7px; font-size: 10px; }
+.guest-plan-grid span { color: var(--color-ink-faint); }
+.guest-plan-grid strong { color: var(--color-ink); font-weight: 500; line-height: 1.45; }

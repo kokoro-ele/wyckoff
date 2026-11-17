@@ -47,6 +47,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
   const pendingContext = useWorkbench((s) => s.pendingContext);
   const setPendingContext = useWorkbench((s) => s.setPendingContext);
   const agentMemory = useWorkbench((s) => s.agentMemory);
+  const tradePlan = useWorkbench((s) => s.tradePlan);
   const loadAgentMemory = useWorkbench((s) => s.loadAgentMemory);
   const pendingAgentPrompt = useWorkbench((s) => s.pendingAgentPrompt);
   const consumeAgentPrompt = useWorkbench((s) => s.consumeAgentPrompt);
@@ -502,6 +503,19 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
             {visible.map((message) => (
               <MessageBubble key={message.id} message={message} showTrace={SHOW_TRACE} />
             ))}
+            {guestDone && tradePlan && !isVerified && (
+              <div className="guest-plan-card">
+                <div className="guest-plan-head">{t("chat.guestPlanTitle")} · <span className="font-mono">{tradePlan.symbol}</span></div>
+                <div className="guest-plan-grid">
+                  <span>{t("research.bias")}</span><strong>{t(`research.bias.${tradePlan.bias}`)}</strong>
+                  <span>{t("research.entry")}</span><strong className="font-mono">{formatPrice(tradePlan.entryLow)}–{formatPrice(tradePlan.entryHigh)}</strong>
+                  <span>{t("research.stop")}</span><strong className="font-mono">{formatPrice(tradePlan.stop)}</strong>
+                  <span>{t("research.target1")}</span><strong className="font-mono">{formatPrice(tradePlan.target1)}</strong>
+                  <span>{t("research.target2")}</span><strong className="font-mono">{formatPrice(tradePlan.target2)}</strong>
+                  <span>{t("research.invalidation")}</span><strong>{tradePlan.invalidation}</strong>
+                </div>
+              </div>
+            )}
             {guestDone && !isVerified && (
               <div className="guest-cta">
                 <span>{t("chat.guestCta")}</span>
