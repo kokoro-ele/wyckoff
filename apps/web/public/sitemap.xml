@@ -5,8 +5,8 @@
     <lastmod>2026-11-13</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
-    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://easywyckoff.online/"/>
-    <xhtml:link rel="alternate" hreflang="en" href="https://easywyckoff.online/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="en" href="https://easywyckoff.online/"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://easywyckoff.online/?lang=zh"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://easywyckoff.online/"/>
   </url>
   <url>
@@ -29,4 +29,60 @@
   <url><loc>https://easywyckoff.online/terms</loc><lastmod>2026-11-13</lastmod><changefreq>yearly</changefreq><priority>0.4</priority></url>
   <url><loc>https://easywyckoff.online/refund</loc><lastmod>2026-11-13</lastmod><changefreq>yearly</changefreq><priority>0.4</priority></url>
   <url><loc>https://easywyckoff.online/contact</loc><lastmod>2026-11-13</lastmod><changefreq>yearly</changefreq><priority>0.4</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.9</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/nvda</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/aapl</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/msft</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/amzn</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/googl</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/meta</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/tsla</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/avgo</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/amd</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/nflx</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/pltr</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/coin</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/mstr</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/smci</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/intc</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/mu</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/qcom</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/orcl</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/crm</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/adbe</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/uber</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/shop</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/hood</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/sofi</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/arm</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/tsm</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/baba</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/pdd</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/nio</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/jpm</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/v</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/brk-b</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/lly</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/unh</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/xom</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/wmt</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/cost</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/dis</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/ba</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/spy</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/qqq</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/iwm</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/smh</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/gld</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/tlt</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/600519-sh</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/300750-sz</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/601318-sh</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/600036-sh</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/000858-sz</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/002594-sz</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/601899-sh</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/600900-sh</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/000333-sz</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
+  <url><loc>https://easywyckoff.online/wyckoff/688981-sh</loc><lastmod>2026-11-19</lastmod><changefreq>daily</changefreq><priority>0.8</priority></url>
 </urlset>
