@@ -33,6 +33,24 @@ export async function handleBillingWebhook(request: Request, pool: Pool): Promis
     if (event.account || event.livemode !== live) {
       throw new BillingError("INVALID_EVENT", "Payment event does not match merchant mode");
     }
+    // Abandoned or failed checkouts: close the local order so it does not stay
+    // "pending" forever and the user can start a new checkout immediately.
+    if (event.type === "checkout.session.expired" || event.type === "checkout.session.async_payment_failed") {
+      const session = event.data?.object;
+      const orderId = typeof session?.client_reference_id === "string" ? session.client_reference_id : "";
+      if (orderId) {
+        const status = event.type === "checkout.session.expired" ? "expired" : "failed";
+        await pool.query(
+          "UPDATE billing_orders SET status=$2 WHERE id=$1 AND status IN ('creating','pending')",
+          [orderId, status],
+        );
+        await pool.query(
+          "UPDATE subscription_orders SET status=$2 WHERE id=$1 AND status IN ('creating','pending')",
+          [orderId, status],
+        );
+      }
+      return Response.json({ received: true });
+    }
     if (await handleSubscriptionEvent(pool, event)) {
       return Response.json({ received: true });
     }

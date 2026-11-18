@@ -6,7 +6,7 @@ import { withWorkspace } from "../cloud/workspace.js";
 import { beginWorkspaceUsage } from "./workspace.js";
 import { migrateBilling } from "./migrate.js";
 import { migrateCredits } from "../credits/migrate.js";
-import { creditStatus, grantVerifiedCredits, registerCreditAccount } from "../credits/store.js";
+import { addCredits, creditStatus, grantVerifiedCredits, registerCreditAccount } from "../credits/store.js";
 
 const url = process.env.TEST_DATABASE_URL ?? process.env.CREDITS_TEST_DATABASE_URL;
 
@@ -42,6 +42,8 @@ describe.skipIf(!url)("workspace + credit finalization", () => {
     );
     await registerCreditAccount(pool, "alice");
     await grantVerifiedCredits(pool, "alice");
+    // New accounts start at 0 since the signup grant was removed; seed 3 to test spending.
+    await addCredits(pool, "alice", 3, "test-seed:alice");
   });
 
   afterAll(async () => {
@@ -88,4 +90,54 @@ describe.skipIf(!url)("workspace + credit finalization", () => {
     });
     expect((await creditStatus(pool, "alice")).balance).toBe(2);
   });
+
+  it("never blocks the user's other writes during an analysis and keeps both results", async () => {
+    const before = (await creditStatus(pool, "alice")).balance;
+    let finish!: () => void;
+    const gate = new Promise<void>((resolve) => (finish = resolve));
+    let reserved!: () => void;
+    const reservedSignal = new Promise<void>((resolve) => (reserved = resolve));
+
+    const analysis = withWorkspace("alice", "optimistic", async () => {
+      const lease = await beginWorkspaceUsage("long-running-key");
+      reserved();
+      db.prepare("INSERT INTO app_state(key,value) VALUES('analysis','done') ON CONFLICT(key) DO UPDATE SET value=excluded.value").run();
+      await gate;
+      await lease.complete();
+    });
+    await reservedSignal;
+
+    // A normal write commits immediately while the analysis is still running.
+    const started = Date.now();
+    await withWorkspace("alice", true, async () => {
+      db.prepare("INSERT INTO app_state(key,value) VALUES('setting','kept') ON CONFLICT(key) DO UPDATE SET value=excluded.value").run();
+    });
+    expect(Date.now() - started).toBeLessThan(5_000);
+    // The reservation is already committed, outside any long transaction.
+    expect((await creditStatus(pool, "alice")).balance).toBe(before - 1);
+
+    finish();
+    await analysis;
+
+    const persisted = await withWorkspace("alice", false, async () =>
+      db.prepare<[], { key: string; value: string }>("SELECT key,value FROM app_state WHERE key IN ('analysis','setting') ORDER BY key").all(),
+    );
+    expect(persisted.value).toEqual([
+      { key: "analysis", value: "done" },
+      { key: "setting", value: "kept" },
+    ]);
+    expect((await creditStatus(pool, "alice")).balance).toBe(before - 1);
+  });
+
+  it("refunds an optimistic analysis that fails", async () => {
+    const before = (await creditStatus(pool, "alice")).balance;
+    await expect(
+      withWorkspace("alice", "optimistic", async () => {
+        await beginWorkspaceUsage("optimistic-failure-key");
+        throw new Error("model failed");
+      }),
+    ).rejects.toThrow("model failed");
+    expect((await creditStatus(pool, "alice")).balance).toBe(before);
+  });
 });
+

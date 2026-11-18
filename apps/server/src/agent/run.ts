@@ -31,6 +31,11 @@ import { executeTool, type RunContext, responseTools, toolDefinitionsForMode } f
 
 /** Agent 每轮最多来回调用几次本地工具，防止模型陷入循环。 */
 const MAX_ITERATIONS = 6;
+/** Sent when the model stops without a visible answer, or on the last allowed round. */
+const FINAL_ANSWER_NUDGE = {
+  zh: "请不要再调用工具，直接根据已获得的数据写出最终回答。",
+  en: "Do not call any more tools. Write the final answer now from the evidence already gathered.",
+} as const;
 /** 带入上下文的历史消息条数。 */
 const HISTORY_LIMIT = 12;
 
@@ -362,10 +367,16 @@ async function* runResponsesLoop(args: LoopArgs & { webSearch: boolean }): Async
     { role: "user", content: userContent, type: "message" },
   ];
 
-  for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+  let forceFinal = false;
+  // One extra round is reserved for a forced, tool-free final answer.
+  for (let iteration = 0; iteration <= MAX_ITERATIONS; iteration++) {
     if (args.runId && await isAgentRunCancelled(args.runId)) throw new Error("客户端已停止本次分析");
+    const finalRound = forceFinal || iteration === MAX_ITERATIONS;
+    if (iteration === MAX_ITERATIONS && !forceFinal) {
+      input.push({ role: "user", content: FINAL_ANSWER_NUDGE[ctx.language === "en" ? "en" : "zh"], type: "message" });
+    }
     logJson(
-      `model=${args.llm.model} responses iteration=${iteration + 1} web_search=${webSearch} items=${input.length}`,
+      `model=${args.llm.model} responses iteration=${iteration + 1} web_search=${webSearch} final=${finalRound} items=${input.length}`,
       input,
     );
 
@@ -374,17 +385,23 @@ async function* runResponsesLoop(args: LoopArgs & { webSearch: boolean }): Async
       instructions,
       input,
       tools: responseTools(webSearch, mode),
+      tool_choice: finalRound ? "none" : undefined,
       include: webSearch ? ["web_search_call.action.sources"] : undefined,
       stream: true,
       store: false,
     });
+    let roundText = "";
 
     let completed: OpenAIResponse | null = null;
     const searchStarted = new Set<string>();
     const searchStartedAt = new Map<string, number>();
 
     for await (const event of stream) {
-      for (const emitted of handleResponseEvent(event, { searchStarted, searchStartedAt, toolTrace, onText, language: ctx.language })) {
+      const trackText = (delta: string) => {
+        roundText += delta;
+        onText(delta);
+      };
+      for (const emitted of handleResponseEvent(event, { searchStarted, searchStartedAt, toolTrace, onText: trackText, language: ctx.language })) {
         yield emitted;
       }
       if (event.type === "response.completed" || event.type === "response.incomplete") {
@@ -402,7 +419,15 @@ async function* runResponsesLoop(args: LoopArgs & { webSearch: boolean }): Async
     }
 
     const calls = completed.output.filter((item): item is ResponseFunctionToolCall => item.type === "function_call");
-    if (calls.length === 0) return;
+    if (finalRound) return;
+    if (calls.length === 0) {
+      if (roundText.trim()) return;
+      // Stopped with no visible answer (e.g. reasoning used the whole budget):
+      // ask once more for the answer, without tools.
+      forceFinal = true;
+      input.push({ role: "user", content: FINAL_ANSWER_NUDGE[ctx.language === "en" ? "en" : "zh"], type: "message" });
+      continue;
+    }
 
     input.push(...(completed.output as ResponseInputItem[]));
 
@@ -465,14 +490,20 @@ async function* runCompletionsLoop(args: LoopArgs): AsyncGenerator<AgentEvent> {
     { role: "user", content: userContent },
   ];
 
-  for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+  let forceFinal = false;
+  for (let iteration = 0; iteration <= MAX_ITERATIONS; iteration++) {
     if (args.runId && await isAgentRunCancelled(args.runId)) throw new Error("客户端已停止本次分析");
-    logJson(`model=${args.llm.model} completions iteration=${iteration + 1} messages=${messages.length}`, messages);
+    const finalRound = forceFinal || iteration === MAX_ITERATIONS;
+    if (iteration === MAX_ITERATIONS && !forceFinal) {
+      messages.push({ role: "user", content: FINAL_ANSWER_NUDGE[ctx.language === "en" ? "en" : "zh"] });
+    }
+    logJson(`model=${args.llm.model} completions iteration=${iteration + 1} final=${finalRound} messages=${messages.length}`, messages);
 
     const stream = await getOpenAiClient().chat.completions.create({
       model: args.llm.model,
       messages,
       tools: toolDefinitionsForMode(mode),
+      tool_choice: finalRound ? "none" : undefined,
       max_tokens: mode === "fundamental" ? 1_200 : 2_400,
       stream: true,
       stream_options: { include_usage: true },
@@ -504,7 +535,13 @@ async function* runCompletionsLoop(args: LoopArgs): AsyncGenerator<AgentEvent> {
     }
 
     const calls = pending.filter((call) => call.name);
-    if (calls.length === 0) return;
+    if (finalRound) return;
+    if (calls.length === 0) {
+      if (text.trim()) return;
+      forceFinal = true;
+      messages.push({ role: "user", content: FINAL_ANSWER_NUDGE[ctx.language === "en" ? "en" : "zh"] });
+      continue;
+    }
 
     messages.push({
       role: "assistant",

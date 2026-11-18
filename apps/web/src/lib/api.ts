@@ -589,7 +589,10 @@ export function setAdminEntitlement(userId: string, active: boolean, days?: numb
 }
 
 export function resetAdminCredits(balance = 0): Promise<{ ok: boolean; updated: number; balance: number }> {
-  return request("/admin/credits/reset", { method: "POST", body: JSON.stringify({ balance }) });
+  return request("/admin/credits/reset", {
+    method: "POST",
+    body: JSON.stringify({ balance, confirm: "RESET_ALL_BALANCES" }),
+  });
 }
 
 export interface AdminDemoTrial {

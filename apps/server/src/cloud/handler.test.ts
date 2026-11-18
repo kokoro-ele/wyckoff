@@ -1,5 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-const { session, work } = vi.hoisted(() => ({ session: vi.fn(), work: vi.fn() }));
+const { session, work, alerts } = vi.hoisted(() => ({ session: vi.fn(), work: vi.fn(), alerts: vi.fn() }));
+vi.mock("../services/priceAlerts.js", () => ({ checkPriceAlerts: alerts }));
+vi.mock("./postgres.js", () => ({ getPool: () => ({}) }));
+vi.mock("./public.js", () => ({ withPublicWorkspace: (work: () => Promise<unknown>) => work() }));
 vi.mock("./auth.js", () => ({ getAuth: () => ({ api: { getSession: session } }) }));
 vi.mock("./workspace.js", () => ({
   withWorkspace: work,
@@ -69,5 +72,23 @@ describe("authentication and origin boundaries", () => {
     const response = await cloudFetch(new Request("https://example.com/api/cron/recommend"));
     expect(response.status).toBe(401);
     expect(work).not.toHaveBeenCalled();
+  });
+
+  it("runs the price-alert cron with the bearer secret and no user session", async () => {
+    vi.stubEnv("CRON_SECRET", "cron-test-secret");
+    alerts.mockResolvedValue({ checked: 1, sent: 0, failed: 0 });
+    const response = await cloudFetch(
+      new Request("https://example.com/api/cron/alerts", { headers: { authorization: "Bearer cron-test-secret" } }),
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ checked: 1, sent: 0, failed: 0 });
+    expect(session).not.toHaveBeenCalled();
+  });
+
+  it("rejects the price-alert cron without the bearer secret", async () => {
+    vi.stubEnv("CRON_SECRET", "cron-test-secret");
+    const response = await cloudFetch(new Request("https://example.com/api/cron/alerts"));
+    expect(response.status).toBe(401);
+    expect(alerts).not.toHaveBeenCalled();
   });
 });

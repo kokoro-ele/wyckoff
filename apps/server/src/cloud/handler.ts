@@ -77,6 +77,16 @@ export async function cloudFetch(request: Request): Promise<Response> {
       return response;
     }
 
+    // Vercel Cron calls this without a user session, authenticated only by the
+    // CRON_SECRET bearer token, so it must run before session authentication.
+    if (path === "/api/cron/alerts" && request.method === "GET") {
+      const secret = process.env.CRON_SECRET;
+      if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
+        return Response.json({ code: "UNAUTHORIZED", message: "unauthorized" }, { status: 401 });
+      }
+      return Response.json(await withPublicWorkspace(() => checkPriceAlerts(getPool()), 240_000));
+    }
+
     if (path.startsWith("/api/auth/")) return await handleAuthRequest(request);
     if (path === "/api/health") return Response.json({ ok: true, backend: "vercel", storage: "postgres" });
 
@@ -95,15 +105,6 @@ export async function cloudFetch(request: Request): Promise<Response> {
     const origin = request.headers.get("origin");
     if (!["GET", "HEAD", "OPTIONS"].includes(request.method) && origin !== trustedOrigin(request)) {
       return Response.json({ code: "FORBIDDEN", message: "请求来源无效" }, { status: 403 });
-    }
-
-    // Vercel Cron invokes this endpoint with the CRON_SECRET bearer token.
-    if (path === "/api/cron/alerts" && request.method === "GET") {
-      const secret = process.env.CRON_SECRET;
-      if (!secret || request.headers.get("authorization") !== `Bearer ${secret}`) {
-        return Response.json({ code: "UNAUTHORIZED", message: "unauthorized" }, { status: 401 });
-      }
-      return Response.json(await checkPriceAlerts(getPool()));
     }
 
     // Stop signals must not wait behind the workspace row lock held by the
@@ -168,8 +169,10 @@ export async function cloudFetch(request: Request): Promise<Response> {
         await write(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
       };
 
+      // Analyses run optimistically: no row lock or Postgres connection is held
+      // during the model call, so the user's other writes are never blocked.
       waitUntil(
-        withWorkspace(session.user.id, true, async () => {
+        withWorkspace(session.user.id, "optimistic", async () => {
           workspaceContext.getStore()?.state.set("cancelSignal", cancel.signal);
           const response = await app.fetch(request);
           if (!response.ok) {

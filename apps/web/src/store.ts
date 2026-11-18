@@ -171,12 +171,29 @@ function newSessionId(): string {
   return `ses_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
+/** Storage can throw in private modes and some in-app browsers; never crash the app over it. */
+function readLastSymbol(): string | null {
+  try {
+    return localStorage.getItem(LAST_SYMBOL_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function saveLastSymbol(symbol: string): void {
+  try {
+    localStorage.setItem(LAST_SYMBOL_KEY, symbol);
+  } catch {
+    /* storage may be disabled */
+  }
+}
+
 function firstUserGroup(groups: WatchGroup[]): WatchGroup | undefined {
   return groups.find((group) => !group.managed);
 }
 
 export const useWorkbench = create<WorkbenchState>((set, get) => ({
-  symbol: localStorage.getItem(LAST_SYMBOL_KEY) ?? "AAPL.US",
+  symbol: readLastSymbol() ?? "AAPL.US",
   chartRevision: 0,
   symbolRevision: 0,
   instrumentName: null,
@@ -214,7 +231,7 @@ export const useWorkbench = create<WorkbenchState>((set, get) => ({
 
   async setSymbol(symbol, name, nameEn) {
     if (get().symbol === symbol) return;
-    localStorage.setItem(LAST_SYMBOL_KEY, symbol);
+    saveLastSymbol(symbol);
     // 换标的等于换一个分析对象，会话与标注都要跟着切换。
     const chartRevision = get().chartRevision + 1;
     const symbolRevision = get().symbolRevision + 1;

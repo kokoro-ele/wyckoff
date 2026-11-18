@@ -4,7 +4,8 @@ import type Database from "better-sqlite3";
 export interface WorkspaceContext {
   userId: string;
   transaction?: import("pg").PoolClient;
-  finalizeUsage?: Array<() => Promise<void>>;
+  /** Settles reserved credits once the workspace outcome is known (`committed=false` refunds). */
+  finalizeUsage?: Array<(committed: boolean) => Promise<void>>;
   database: Database.Database;
   /** Set by any scoped write so GET requests can skip needless snapshots. */
   dirty: boolean;

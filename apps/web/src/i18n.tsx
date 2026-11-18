@@ -1146,7 +1146,12 @@ function detectLang(): Lang {
   if (typeof window === "undefined") return "en";
   const fromUrl = new URLSearchParams(window.location.search).get("lang");
   if (fromUrl === "zh" || fromUrl === "en") return fromUrl;
-  const saved = window.localStorage.getItem(LANG_CHOICE_KEY);
+  let saved: string | null = null;
+  try {
+    saved = window.localStorage.getItem(LANG_CHOICE_KEY);
+  } catch {
+    /* storage can be disabled in private webviews */
+  }
   if (saved === "zh" || saved === "en") return saved;
   return "en";
 }

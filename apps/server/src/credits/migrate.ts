@@ -188,11 +188,12 @@ ALTER TABLE feedback_responses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE price_alerts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bug_reports ENABLE ROW LEVEL SECURITY;
 ALTER TABLE credit_usage ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON user_identity,auth_referral_intents,api_rate_limits,credit_meta,credit_accounts,credit_ledger,credit_usage,feedback_responses,price_alerts,bug_reports FROM PUBLIC;
+ALTER TABLE agent_run_cancels ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON user_identity,auth_referral_intents,api_rate_limits,credit_meta,credit_accounts,credit_ledger,credit_usage,feedback_responses,price_alerts,bug_reports,agent_run_cancels FROM PUBLIC;
 DO $$ DECLARE r TEXT; BEGIN
   FOREACH r IN ARRAY ARRAY['anon','authenticated'] LOOP
     IF EXISTS(SELECT 1 FROM pg_roles WHERE rolname=r) THEN
-      EXECUTE format('REVOKE ALL ON auth_referral_intents,api_rate_limits,credit_meta,credit_accounts,credit_ledger,credit_usage,feedback_responses,price_alerts,bug_reports FROM %I',r);
+      EXECUTE format('REVOKE ALL ON auth_referral_intents,api_rate_limits,credit_meta,credit_accounts,credit_ledger,credit_usage,feedback_responses,price_alerts,bug_reports,agent_run_cancels FROM %I',r);
     END IF;
   END LOOP;
 END $$;

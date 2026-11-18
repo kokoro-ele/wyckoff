@@ -168,7 +168,37 @@ export async function creditStatus(pool: Pool, userId: string) {
   };
 }
 
-/** Runs on the workspace transaction: rollback restores the reservation and saved result together. */
+/** A crashed or timed-out analysis must not keep a credit reserved forever. */
+const STALE_RESERVATION = "15 minutes";
+
+async function releaseStaleReservations(db: PoolClient, userId: string) {
+  const stale = await db.query<{ id: string }>(
+    `SELECT id FROM credit_usage WHERE user_id=$1 AND state='reserved' AND created_at < now() - interval '${STALE_RESERVATION}'`,
+    [userId],
+  );
+  for (const row of stale.rows) await finalizeCredit(db, userId, row.id, false);
+}
+
+/** Reserves one credit in its own short transaction (used by long-running analyses). */
+export async function reserveCreditNow(pool: Pool, userId: string, key: string): Promise<string> {
+  return withAccountLock(pool, userId, async (db) => {
+    await releaseStaleReservations(db, userId);
+    return reserveCredit(db, userId, key);
+  });
+}
+
+/** Settles a reservation in its own short transaction. */
+export async function finalizeCreditNow(
+  pool: Pool,
+  userId: string,
+  id: string,
+  success: boolean,
+  usage?: { inputTokens: number; outputTokens: number },
+): Promise<void> {
+  await withAccountLock(pool, userId, (db) => finalizeCredit(db, userId, id, success, usage));
+}
+
+/** Reserves a credit inside the caller's transaction. */
 export async function reserveCredit(db: PoolClient, userId: string, key: string): Promise<string> {
   if (!/^[\w-]{8,128}$/.test(key)) {
     throw new BillingError("INVALID_IDEMPOTENCY_KEY", "分析请求需要有效的 Idempotency-Key");

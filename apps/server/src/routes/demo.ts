@@ -11,7 +11,7 @@ import { resolveLlmSettings } from "../llm/settings.js";
 import { getInstrument } from "../services/instruments.js";
 import { getFeatures, getKlines } from "../services/market.js";
 import { computeStrategy } from "../services/research.js";
-import { consumeRateLimit } from "../credits/rateLimit.js";
+import { consumeRateLimit, releaseRateLimit } from "../credits/rateLimit.js";
 import { runAgent } from "../agent/run.js";
 import { workspaceContext } from "../cloud/context.js";
 import { saveAgentTradePlan } from "../services/tradePlan.js";
@@ -26,10 +26,15 @@ const demoRequestSchema = z.object({
 
 export const demoRoutes = new Hono();
 
+const DEMO_WINDOW_MS = 24 * 60 * 60_000;
+
 function ipKey(headers: Headers): string {
+  // Vercel sets x-real-ip / x-vercel-forwarded-for itself; a client-supplied
+  // x-forwarded-for prefix must not let a caller choose its own rate-limit key.
   const ip =
-    headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    headers.get("x-real-ip") ||
+    headers.get("x-real-ip")?.trim() ||
+    headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ||
+    headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() ||
     "unknown";
   return createHash("sha256").update(ip).digest("hex").slice(0, 32);
 }
@@ -76,11 +81,22 @@ demoRoutes.post("/analysis", async (c) => {
     return c.json({ code: "DEMO_UNAVAILABLE", message: "Demo analysis is not configured" }, 503);
   }
 
+  // Consume the trial BEFORE any model call: a rejected request must cost nothing.
+  const limitKey = `demo:${ipKey(c.req.raw.headers)}`;
+  if (!(await consumeRateLimit(getPool(), limitKey, 1, DEMO_WINDOW_MS))) {
+    return c.json({ code: "DEMO_USED", message: "The free demo is already used. Create an account to continue." }, 429);
+  }
   const { symbol, period, adjust, language, question } = parsed.data;
   const instrument = await getInstrument(symbol);
-  if (!instrument) return c.json({ code: "NOT_FOUND", message: "Instrument not found" }, 404);
+  if (!instrument) {
+    await releaseRateLimit(getPool(), limitKey, DEMO_WINDOW_MS);
+    return c.json({ code: "NOT_FOUND", message: "Instrument not found" }, 404);
+  }
   const klines = await getKlines({ symbol, period, adjust });
-  if (klines.length === 0) return c.json({ code: "NO_DATA", message: "No market data" }, 404);
+  if (klines.length === 0) {
+    await releaseRateLimit(getPool(), limitKey, DEMO_WINDOW_MS);
+    return c.json({ code: "NO_DATA", message: "No market data" }, 404);
+  }
   const features = await getFeatures({ symbol, period, adjust }, { skipBenchmark: true });
   const plan = computeStrategy(features, klines);
   const summary = renderFeatureSummary(features);
@@ -137,13 +153,8 @@ Do not invent news or fundamentals. Do not give a deterministic price prediction
 This is a research scenario, not a prediction or investment advice.`
       : `**结构。** ${plan.range ? `当前参考区间为 ${plan.range.support}–${plan.range.resistance}；` : "未识别到清晰的活跃区间；"}量价结构给出的偏向是 **${plan.bias}**。\n\n**基准情景。** 观察 ${plan.trigger.kind} 触发价 ${plan.trigger.price ?? plan.entryLow}。参考入场区 ${plan.entryLow}–${plan.entryHigh}，止损 ${plan.stop}，目标 ${plan.target1} 和 ${plan.target2}。\n\n**失效条件。** 日线${plan.invalidation.kind === "closeAbove" ? "收于" : "跌破"} ${plan.invalidation.price} 上方/下方后，该结构失效。\n\n这是研究情景，不是预测或投资建议。`;
   const answer = generated || fallback;
-
-  // Charge the free trial only after a usable answer exists. A model outage
-  // should not burn the visitor's one preview.
-  const allowed = await consumeRateLimit(getPool(), `demo:${ipKey(c.req.raw.headers)}`, 1, 24 * 60 * 60_000);
-  if (!allowed) {
-    return c.json({ code: "DEMO_USED", message: "The free demo is already used. Create an account to continue." }, 429);
-  }
+  // A model outage should not burn the visitor's one preview.
+  if (!generated) await releaseRateLimit(getPool(), limitKey, DEMO_WINDOW_MS);
   return c.json({
     symbol: instrument.symbol,
     name: instrument.name,
@@ -160,7 +171,7 @@ demoRoutes.post("/chat", bodyLimit({ maxSize: 1024 * 1024 }), async (c) => {
   if (!resolveLlmSettings().apiKey) {
     return c.json({ code: "DEMO_UNAVAILABLE", message: "Demo analysis is not configured" }, 503);
   }
-  const allowed = await consumeRateLimit(getPool(), `demo:${ipKey(c.req.raw.headers)}`, 1, 24 * 60 * 60_000);
+  const allowed = await consumeRateLimit(getPool(), `demo:${ipKey(c.req.raw.headers)}`, 1, DEMO_WINDOW_MS);
   if (!allowed) {
     return c.json({ code: "DEMO_USED", message: "The free demo is already used. Create an account to continue." }, 429);
   }

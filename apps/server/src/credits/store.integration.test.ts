@@ -8,6 +8,7 @@ import {
   creditStatus,
   reserveCredit,
   finalizeCredit,
+  addCredits,
 } from "./store.js";
 
 // Dedicated disposable database only: this suite truncates its fixtures.
@@ -93,6 +94,8 @@ describe.skipIf(!url)("credit PostgreSQL transactions", () => {
   it("serializes competing reservations and never overspends", async () => {
     await registerCreditAccount(pool, "alice");
     await grantVerifiedCredits(pool, "alice");
+    // New accounts start at 0 since the signup grant was removed; seed 3 to test spending.
+    await addCredits(pool, "alice", 3, "test-seed:alice");
 
     const results = await Promise.allSettled(
       Array.from({ length: 10 }, (_, i) => use(`request-${i}`, true)),
@@ -104,6 +107,8 @@ describe.skipIf(!url)("credit PostgreSQL transactions", () => {
   it("rolls back interrupted work, refunds failed work, and allows a refunded key to retry", async () => {
     await registerCreditAccount(pool, "alice");
     await grantVerifiedCredits(pool, "alice");
+    // New accounts start at 0 since the signup grant was removed; seed 3 to test spending.
+    await addCredits(pool, "alice", 3, "test-seed:alice");
 
     await use("rollback-request", true, true);
     expect((await creditStatus(pool, "alice")).balance).toBe(3);
