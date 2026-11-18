@@ -47,15 +47,20 @@ const HYPOTHESIS_LABEL: Record<string, string> = {
   unclear: "no clear accumulation or distribution signature yet",
 };
 
-function triggerSentence(strategy: ResearchStrategy, currency: string): string {
+function triggerSentence(strategy: ResearchStrategy, currency: string, price: number): string {
   const level = money(strategy.trigger.price, currency);
+  const above = strategy.trigger.price !== null && price > strategy.trigger.price;
   switch (strategy.trigger.kind) {
     case "breakout":
-      return `a decisive close above ${level} (a breakout from the range — Wyckoff's Sign of Strength / Jump Across the Creek)`;
+      return above
+        ? `price holding above ${level} after the breakout (a Back-Up that stays above the old range top)`
+        : `a decisive close above ${level} on expanding volume (a Sign of Strength out of the range)`;
     case "reclaim":
       return `price holding above ${level} on a pullback (old resistance acting as support — a Back-Up to the edge of the range)`;
     case "breakdown":
-      return `a failed rally below ${level} (broken support acting as resistance — a Sign of Weakness followed by a weak Last Point of Supply)`;
+      return above
+        ? `a decisive close below ${level} on expanding volume (a Sign of Weakness through support)`
+        : `a rally that fails below ${level} on light volume (broken support acting as resistance — a weak Last Point of Supply)`;
     case "hold":
     default:
       return `price holding ${level} with shrinking volume on tests (a successful Secondary Test or Spring)`;
@@ -200,7 +205,7 @@ export function renderStockPage(research: ResearchResponse, perf: Performance, t
 
 <div class="card">
 <p><b>Structure bias: ${escapeHtml(BIAS_LABEL[s.bias])}.</b> Short-term trend is ${TREND_WORD[s.trend.short]}, medium-term ${TREND_WORD[s.trend.medium]}, long-term ${TREND_WORD[s.trend.long]}. ${maParts.length ? `Price is ${maParts.join(", ")}.` : ""}</p>
-<p>What would confirm it: ${triggerSentence(s, cur)}. What would invalidate it: a daily close ${s.invalidation.kind === "closeAbove" ? "above" : "below"} <b>${money(s.invalidation.price, cur)}</b>.</p>
+<p>What would confirm it: ${triggerSentence(s, cur, price)}. What would invalidate it: a daily close ${s.invalidation.kind === "closeAbove" ? "above" : "below"} <b>${money(s.invalidation.price, cur)}</b>.</p>
 <a class="cta" href="${appLink}">Run the full AI Wyckoff analysis on ${escapeHtml(code)} — free</a>
 <p class="note">The AI agent reads the same chart, labels Wyckoff events (SC, AR, ST, Spring, SOS, UT, SOW) on the candles with evidence for each, and writes a conditional plan. One free analysis, no card needed.</p>
 </div>
@@ -219,7 +224,7 @@ export function renderStockPage(research: ResearchResponse, perf: Performance, t
 
 <h2>Conditional scenario</h2>
 <table>
-<tr><th>Trigger</th><td>${triggerSentence(s, cur)}</td></tr>
+<tr><th>Trigger</th><td>${triggerSentence(s, cur, price)}</td></tr>
 <tr><th>Reference entry zone</th><td>${money(s.entryLow, cur)} – ${money(s.entryHigh, cur)}</td></tr>
 <tr><th>Invalidation</th><td>Daily close ${s.invalidation.kind === "closeAbove" ? "above" : "below"} ${money(s.invalidation.price, cur)}</td></tr>
 <tr><th>Targets</th><td>${money(s.target1, cur)} · ${money(s.target2, cur)}${s.riskReward ? ` <span class="note">(≈${s.riskReward}R to the first target)</span>` : ""}</td></tr>
