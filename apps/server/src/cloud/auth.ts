@@ -202,9 +202,12 @@ export async function handleAuthRequest(request: Request): Promise<Response> {
       return new Response(null, { status: 403 });
     }
 
+    // Prefer the platform-set client IP; a client-supplied x-forwarded-for
+    // prefix must not let a caller pick its own rate-limit bucket.
     const ip =
-      request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-      request.headers.get("x-real-ip") ||
+      request.headers.get("x-real-ip")?.trim() ||
+      request.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() ||
+      request.headers.get("x-forwarded-for")?.split(",").at(-1)?.trim() ||
       "unknown";
     const ipKey = createHash("sha256").update(ip).digest("hex");
     if (!(await consumeRateLimit(getPool(), `referral:${ipKey}`, 10, 60_000))) {

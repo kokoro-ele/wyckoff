@@ -70,12 +70,15 @@ export type ChatContext = z.infer<typeof chatContextSchema>;
 export const analysisModeSchema = z.enum(["fundamental", "agent", "trade"]);
 export type AnalysisMode = z.infer<typeof analysisModeSchema>;
 
+/** Hard cap on one chat turn. The model re-reads the whole turn on every tool round. */
+export const MAX_CHAT_MESSAGE_CHARS = 4000;
+
 export const chatRequestSchema = z.object({
-  sessionId: z.string(),
-  symbol: z.string(),
+  sessionId: z.string().max(128),
+  symbol: z.string().max(32),
   period: periodSchema.default("1d"),
   adjust: adjustTypeSchema.default("forward"),
-  message: z.string(),
+  message: z.string().max(MAX_CHAT_MESSAGE_CHARS),
   /** The research surface that produced this turn. */
   mode: analysisModeSchema.default("agent"),
   /** Model response language; tool data stays in its original language. */

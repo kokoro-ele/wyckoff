@@ -81,6 +81,15 @@ DO $$ DECLARE r TEXT; BEGIN
  END LOOP;
 END $$;
 
+-- Event rows follow their order: deleting a user (which cascades to orders)
+-- must not fail on these references. Stripe keeps the payment record itself.
+ALTER TABLE billing_events DROP CONSTRAINT IF EXISTS billing_events_order_id_fkey;
+ALTER TABLE billing_events ADD CONSTRAINT billing_events_order_id_fkey
+  FOREIGN KEY (order_id) REFERENCES billing_orders(id) ON DELETE CASCADE;
+ALTER TABLE subscription_events DROP CONSTRAINT IF EXISTS subscription_events_order_id_fkey;
+ALTER TABLE subscription_events ADD CONSTRAINT subscription_events_order_id_fkey
+  FOREIGN KEY (order_id) REFERENCES subscription_orders(id) ON DELETE CASCADE;
+
 ALTER TABLE billing_orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE billing_subscriptions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE billing_events ENABLE ROW LEVEL SECURITY;

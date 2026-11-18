@@ -2,6 +2,9 @@ import { Hono, type Context } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { getAuth } from "../cloud/auth.js";
 import { getPool } from "../cloud/postgres.js";
+import { randomUUID } from "node:crypto";
+import { withAccountLock } from "../billing/store.js";
+import { addCredits } from "../credits/store.js";
 import { grantEntitlement, revokeEntitlement } from "../billing/entitlements.js";
 import { confirmBugReport, listBugReports, rejectBugReport } from "../services/bugs.js";
 
@@ -425,11 +428,17 @@ adminRoutes.post(
     if (!userId || !Number.isInteger(balance) || balance < 0 || balance > 100000) {
       return c.json({ code: "BAD_REQUEST", message: "参数无效" }, 400);
     }
-    const result = await getPool().query(
-      "UPDATE credit_accounts SET balance=$2 WHERE user_id=$1",
-      [userId, balance],
-    );
-    return c.json({ ok: true, updated: result.rowCount ?? 0, balance });
+    // Every balance change goes through the ledger so it can be audited later.
+    const updated = await withAccountLock(getPool(), userId, async (db) => {
+      const current = (
+        await db.query<{ balance: number }>("SELECT balance FROM credit_accounts WHERE user_id=$1 FOR UPDATE", [userId])
+      ).rows[0];
+      if (!current) return 0;
+      const delta = balance - current.balance;
+      if (delta !== 0) await addCredits(db, userId, delta, `admin:${randomUUID()}`);
+      return 1;
+    });
+    return c.json({ ok: true, updated, balance });
   },
 );
 
@@ -473,12 +482,26 @@ adminRoutes.post(
   async (c) => {
     const denied = await guard(c);
     if (denied) return denied;
-    const body = (await c.req.json().catch(() => null)) as { balance?: unknown } | null;
+    const body = (await c.req.json().catch(() => null)) as { balance?: unknown; confirm?: unknown } | null;
+    // Resets EVERY account: require an explicit confirmation phrase.
+    if (body?.confirm !== "RESET_ALL_BALANCES") {
+      return c.json({ code: "CONFIRM_REQUIRED", message: "需要传入 confirm: RESET_ALL_BALANCES" }, 400);
+    }
     const balance = body?.balance === undefined ? 3 : Number(body.balance);
     if (!Number.isInteger(balance) || balance < 0 || balance > 100000) {
       return c.json({ code: "BAD_REQUEST", message: "参数无效" }, 400);
     }
-    const result = await getPool().query("UPDATE credit_accounts SET balance=$1", [balance]);
+    const batch = randomUUID();
+    const result = await getPool().query(
+      `WITH changed AS (
+         INSERT INTO credit_ledger(event_key,user_id,amount)
+         SELECT 'admin-reset:' || $2 || ':' || user_id, user_id, $1 - balance
+         FROM credit_accounts WHERE balance <> $1
+         RETURNING user_id
+       )
+       UPDATE credit_accounts SET balance=$1 WHERE user_id IN (SELECT user_id FROM changed)`,
+      [balance, batch],
+    );
     return c.json({ ok: true, updated: result.rowCount ?? 0, balance });
   },
 );

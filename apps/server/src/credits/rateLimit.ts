@@ -25,3 +25,11 @@ export async function consumeRateLimit(
   }
   return Number(result.rows[0]?.count ?? 1) <= limit;
 }
+
+/** Gives back one unit consumed in the current window (e.g. when the upstream call failed). */
+export async function releaseRateLimit(db: Pool | PoolClient, key: string, windowMs: number): Promise<void> {
+  const windowStart = new Date(Math.floor(Date.now() / windowMs) * windowMs);
+  await db
+    .query("UPDATE api_rate_limits SET count=GREATEST(count-1,0) WHERE key=$1 AND window_start=$2", [key, windowStart])
+    .catch(() => undefined);
+}

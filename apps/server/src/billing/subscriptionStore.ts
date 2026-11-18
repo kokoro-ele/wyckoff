@@ -84,7 +84,7 @@ async function createCheckout(order: SubscriptionOrder, product: SubscriptionPro
   } else {
     body.set("line_items[0][price_data][currency]", order.currency.toLowerCase());
     body.set("line_items[0][price_data][unit_amount]", String(order.amount));
-    body.set("line_items[0][price_data][product_data][name]", product.name);
+    body.set("line_items[0][price_data][product_data][name]", `EasyWyckoff · ${product.name} (use your own model API key)`);
   }
   const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {
     method: "POST",

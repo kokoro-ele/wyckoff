@@ -4,6 +4,7 @@ import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 import { getPool } from "./postgres.js";
 import { initializeDatabase } from "../db/schema.js";
 import { workspaceContext, type WorkspaceContext } from "./context.js";
+import { mergeWorkspaceChanges } from "./merge.js";
 
 const MAX_WORKSPACE_BYTES = 64 * 1024 * 1024;
 /** Start dropping re-fetchable caches before hitting the hard workspace cap. */
@@ -101,47 +102,32 @@ function compactWorkspace(database: Database.Database): void {
   }
 }
 
-// Writes use a Postgres row lock across instances. GET requests read committed
-// snapshots without waiting for long jobs; cache writes use a version CAS.
-export async function withWorkspace<T>(
-  userId: string,
-  write: boolean,
-  work: () => Promise<T>,
-): Promise<{ value: T; deferred: WorkspaceContext["deferred"] }> {
-  const client = await getPool().connect();
-  let database: Database.Database | undefined;
-  let released = false;
-  try {
-    if (write) {
-      await client.query("BEGIN");
-      await client.query("SET LOCAL lock_timeout = '10s'");
-      await client.query("INSERT INTO workspaces (user_id) VALUES ($1) ON CONFLICT DO NOTHING", [userId]);
-    }
-    const { rows } = await client.query<{ payload: Buffer | null; version: number }>(
-      `SELECT payload, version FROM workspaces WHERE user_id = $1${write ? " FOR UPDATE" : ""}`,
-      [userId],
-    );
-    const row = rows[0];
-    // Account creation always creates a row; this also handles pre-existing users.
-    if (!row && !write) {
-      client.release();
-      released = true;
-      return await withWorkspace(userId, true, work);
-    }
+interface WorkspaceRow {
+  payload: Buffer | null;
+  version: number;
+}
 
-    let serialized = row?.payload ? getCachedSnapshot(userId, row.version) : undefined;
-    if (row?.payload && !serialized) {
-      try {
-        serialized = decodeWorkspace(row.payload, userId);
-      } catch (error) {
-        if (error instanceof RangeError || (error as NodeJS.ErrnoException)?.code === "ERR_BUFFER_TOO_LARGE") {
-          throw new WorkspaceTooLargeError();
-        }
-        throw error;
-      }
-      setCachedSnapshot(userId, row.version, serialized);
+function readSnapshot(userId: string, row: WorkspaceRow | undefined): Buffer | undefined {
+  if (!row?.payload) return undefined;
+  const cached = getCachedSnapshot(userId, row.version);
+  if (cached) return cached;
+  let serialized: Buffer;
+  try {
+    serialized = decodeWorkspace(row.payload, userId);
+  } catch (error) {
+    if (error instanceof RangeError || (error as NodeJS.ErrnoException)?.code === "ERR_BUFFER_TOO_LARGE") {
+      throw new WorkspaceTooLargeError();
     }
-    database = new Database(serialized ?? ":memory:");
+    throw error;
+  }
+  setCachedSnapshot(userId, row.version, serialized);
+  return serialized;
+}
+
+/** Opens a snapshot and applies the idempotent upgrades every request performs. */
+function openWorkspaceDatabase(serialized: Buffer | undefined): { database: Database.Database; dirty: boolean } {
+  const database = new Database(serialized ?? ":memory:");
+  try {
     const schemaChanged = initializeDatabase(database);
 
     // K-line history moved to the shared process cache. Remove legacy copies
@@ -163,35 +149,102 @@ export async function withWorkspace<T>(
       }
     }
 
-    const context: WorkspaceContext = {
-      userId,
-      database,
-      transaction: write ? client : undefined,
-      finalizeUsage: [],
-      dirty: schemaChanged || legacyCacheRemoved,
-      deferred: [],
-      state: new Map(),
-      deadline: Date.now() + 240_000,
-    };
-
     const stale = database
       .prepare(
         "UPDATE ai_backtest_runs SET status = 'failed', error = '云端任务超过执行时限，请缩小回测范围后重试', updated_at = ? WHERE status IN ('queued', 'running') AND updated_at < ?",
       )
       .run(Date.now(), Date.now() - 300_000);
-    if (stale.changes > 0) context.dirty = true;
+
+    return { database, dirty: Boolean(schemaChanged) || legacyCacheRemoved || stale.changes > 0 };
+  } catch (error) {
+    database.close();
+    throw error;
+  }
+}
+
+function serializeForStorage(database: Database.Database): Buffer {
+  let snapshot = database.serialize();
+  if (snapshot.length > COMPACT_AT_BYTES) {
+    console.warn("[workspace] compacting oversized workspace cache");
+    compactWorkspace(database);
+    snapshot = database.serialize();
+  }
+  if (snapshot.length > MAX_WORKSPACE_BYTES) throw new WorkspaceTooLargeError();
+  return snapshot;
+}
+
+/**
+ * Credit usage is settled in its own short Postgres transactions, after the
+ * workspace outcome is known: `committed=false` always refunds the reservation.
+ */
+async function settleUsage(context: WorkspaceContext, committed: boolean): Promise<void> {
+  for (const finalize of context.finalizeUsage ?? []) {
+    try {
+      await finalize(committed);
+    } catch (error) {
+      // An unsettled reservation is released by the stale-reservation sweep.
+      console.error("[workspace] usage settlement failed:", error instanceof Error ? error.message : error);
+    }
+  }
+}
+
+/**
+ * - `false`: read-only snapshot; a GET that mutates the snapshot retries under the lock.
+ * - `true`: short writes under a Postgres row lock across instances.
+ * - `"optimistic"`: long jobs (analyses). No lock or connection is held while the
+ *   job runs; its changes are merged onto the latest version at the end, so the
+ *   user's other writes never wait behind a multi-minute model call.
+ */
+export type WorkspaceMode = boolean | "optimistic";
+
+export async function withWorkspace<T>(
+  userId: string,
+  mode: WorkspaceMode,
+  work: () => Promise<T>,
+): Promise<{ value: T; deferred: WorkspaceContext["deferred"] }> {
+  if (mode === "optimistic") return withOptimisticWorkspace(userId, work);
+  const write = mode;
+  const client = await getPool().connect();
+  let database: Database.Database | undefined;
+  let released = false;
+  let context: WorkspaceContext | undefined;
+  let committed = false;
+  try {
+    if (write) {
+      await client.query("BEGIN");
+      await client.query("SET LOCAL lock_timeout = '10s'");
+      await client.query("INSERT INTO workspaces (user_id) VALUES ($1) ON CONFLICT DO NOTHING", [userId]);
+    }
+    const { rows } = await client.query<WorkspaceRow>(
+      `SELECT payload, version FROM workspaces WHERE user_id = $1${write ? " FOR UPDATE" : ""}`,
+      [userId],
+    );
+    const row = rows[0];
+    // Account creation always creates a row; this also handles pre-existing users.
+    if (!row && !write) {
+      client.release();
+      released = true;
+      return await withWorkspace(userId, true, work);
+    }
+
+    const opened = openWorkspaceDatabase(readSnapshot(userId, row));
+    database = opened.database;
+
+    context = {
+      userId,
+      database,
+      transaction: write ? client : undefined,
+      finalizeUsage: write ? [] : undefined,
+      dirty: opened.dirty,
+      deferred: [],
+      state: new Map(),
+      deadline: Date.now() + 240_000,
+    };
 
     const value = await workspaceContext.run(context, work);
 
     if (context.dirty) {
-      let snapshot = database.serialize();
-      if (snapshot.length > COMPACT_AT_BYTES) {
-        console.warn("[workspace] compacting oversized workspace cache");
-        compactWorkspace(database);
-        snapshot = database.serialize();
-      }
-      if (snapshot.length > MAX_WORKSPACE_BYTES) throw new WorkspaceTooLargeError();
-
+      const snapshot = serializeForStorage(database);
       const payload = encodeWorkspaceBuffer(snapshot, userId);
       const nextVersion = (row?.version ?? 0) + 1;
       const updated = await client.query(
@@ -211,8 +264,8 @@ export async function withWorkspace<T>(
       setCachedSnapshot(userId, nextVersion, snapshot);
     }
 
-    for (const finalize of context.finalizeUsage ?? []) await finalize();
     if (write) await client.query("COMMIT");
+    committed = true;
     return { value, deferred: context.deferred };
   } catch (error) {
     if (write) await client.query("ROLLBACK").catch(() => {});
@@ -220,5 +273,91 @@ export async function withWorkspace<T>(
   } finally {
     database?.close();
     if (!released) client.release();
+    if (context) await settleUsage(context, committed);
+  }
+}
+
+async function withOptimisticWorkspace<T>(
+  userId: string,
+  work: () => Promise<T>,
+): Promise<{ value: T; deferred: WorkspaceContext["deferred"] }> {
+  const pool = getPool();
+  const select = "SELECT payload, version FROM workspaces WHERE user_id = $1";
+  let row = (await pool.query<WorkspaceRow>(select, [userId])).rows[0];
+  if (!row) {
+    await pool.query("INSERT INTO workspaces (user_id) VALUES ($1) ON CONFLICT DO NOTHING", [userId]);
+    row = (await pool.query<WorkspaceRow>(select, [userId])).rows[0];
+  }
+  const baseVersion = row?.version ?? 0;
+  const baseSnapshot = readSnapshot(userId, row);
+  const { database, dirty } = openWorkspaceDatabase(baseSnapshot);
+
+  const context: WorkspaceContext = {
+    userId,
+    database,
+    finalizeUsage: [],
+    dirty,
+    deferred: [],
+    state: new Map(),
+    deadline: Date.now() + 240_000,
+  };
+  let committed = false;
+  try {
+    const value = await workspaceContext.run(context, work);
+    if (context.dirty) await commitOptimistic(userId, database, baseSnapshot, baseVersion);
+    committed = true;
+    return { value, deferred: context.deferred };
+  } finally {
+    database.close();
+    await settleUsage(context, committed);
+  }
+}
+
+async function commitOptimistic(
+  userId: string,
+  changed: Database.Database,
+  baseSnapshot: Buffer | undefined,
+  baseVersion: number,
+): Promise<void> {
+  const client = await getPool().connect();
+  try {
+    await client.query("BEGIN");
+    await client.query("SET LOCAL lock_timeout = '10s'");
+    const latest = (
+      await client.query<WorkspaceRow>("SELECT payload, version FROM workspaces WHERE user_id = $1 FOR UPDATE", [userId])
+    ).rows[0];
+    if (!latest) throw new Error("Workspace row is missing");
+
+    let snapshot: Buffer;
+    if (latest.version === baseVersion) {
+      snapshot = serializeForStorage(changed);
+    } else {
+      // Another request committed while this job ran: replay only this job's
+      // row changes onto the newer version instead of overwriting it.
+      const base = openWorkspaceDatabase(baseSnapshot).database;
+      const target = openWorkspaceDatabase(readSnapshot(userId, latest)).database;
+      try {
+        const stats = mergeWorkspaceChanges(base, changed, target);
+        console.info(
+          `[workspace] merged concurrent changes upserted=${stats.upserted} deleted=${stats.deleted} skipped=${stats.skipped}`,
+        );
+        snapshot = serializeForStorage(target);
+      } finally {
+        base.close();
+        target.close();
+      }
+    }
+
+    await client.query(
+      "UPDATE workspaces SET payload = $1, version = version + 1, updated_at = now() WHERE user_id = $2",
+      [encodeWorkspaceBuffer(snapshot, userId), userId],
+    );
+    await client.query("COMMIT");
+    setCachedSnapshot(userId, latest.version + 1, snapshot);
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw error;
+  } finally {
+    client.release();
   }
 }

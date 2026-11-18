@@ -261,7 +261,10 @@ export async function checkoutCreditPack(
 
   if (!result.create) return publicOrder(result.order);
   try {
-    const remote = await createProviderCheckout(result.order);
+    const remote = await createProviderCheckout({
+      ...result.order,
+      displayName: `EasyWyckoff · ${pack.name} (${pack.credits} credits)`,
+    });
     const updated = await pool.query<StoredOrder>(
       `UPDATE billing_orders SET provider_id=$2,checkout_url=$3,
        status=CASE WHEN status='paid' THEN 'paid' ELSE 'pending' END WHERE id=$1 RETURNING *`,

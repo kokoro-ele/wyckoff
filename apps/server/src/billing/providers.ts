@@ -50,6 +50,8 @@ export function verifyStripe(
 
 export interface CheckoutOrder {
   id: string;
+  /** Customer-facing product name shown on the Stripe payment page. */
+  displayName?: string;
   provider: Provider;
   plan: string;
   period: string;
@@ -98,7 +100,7 @@ export async function createProviderCheckout(order: CheckoutOrder, env: Env = pr
     "managed_payments[enabled]": "false",
     "line_items[0][price_data][currency]": order.currency.toLowerCase(),
     "line_items[0][price_data][unit_amount]": String(order.amount),
-    "line_items[0][price_data][product_data][name]": `Wyckoff ${order.plan} ${order.period} prepaid`,
+    "line_items[0][price_data][product_data][name]": order.displayName?.trim() || "EasyWyckoff analysis credits",
     expires_at: String(Math.floor(order.expires_at.getTime() / 1000)),
   });
   const response = await fetch("https://api.stripe.com/v1/checkout/sessions", {

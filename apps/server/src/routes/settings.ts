@@ -1,4 +1,6 @@
 import { Hono } from "hono";
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
 import { bodyLimit } from "hono/body-limit";
 import { config } from "../config.js";
 import { setState } from "../db/index.js";
@@ -45,6 +47,36 @@ function normalizeBaseUrl(value: string): string {
   url.search = "";
   url.hash = "";
   return url.toString().replace(/\/+$/, "");
+}
+
+function isPrivateAddress(address: string): boolean {
+  const ip = address.toLowerCase().replace(/^::ffff:/, "");
+  if (isIP(ip) === 4) {
+    const [a, b] = ip.split(".").map(Number);
+    return (
+      a === 0 || a === 10 || a === 127 ||
+      (a === 100 && b >= 64 && b <= 127) ||
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      a >= 224
+    );
+  }
+  return ip === "::" || ip === "::1" || ip.startsWith("fc") || ip.startsWith("fd") || ip.startsWith("fe80");
+}
+
+/** Hostname checks alone miss names that resolve to private addresses. */
+async function assertPublicHost(baseUrl: string): Promise<void> {
+  const host = new URL(baseUrl).hostname.replace(/^\[|\]$/g, "");
+  let addresses: Array<{ address: string }>;
+  try {
+    addresses = isIP(host) ? [{ address: host }] : await lookup(host, { all: true });
+  } catch {
+    throw new Error("Base URL 的域名无法解析");
+  }
+  if (!addresses.length || addresses.some(({ address }) => isPrivateAddress(address))) {
+    throw new Error("Base URL 不能指向本地或内网地址");
+  }
 }
 
 function normalizeModel(value: string): string {
@@ -118,6 +150,7 @@ settingsRoutes.put(
             ? body.baseUrl
             : existing.baseUrl || "https://api.openai.com/v1",
         );
+        await assertPublicHost(baseUrl);
         const model = normalizeModel(
           typeof body.model === "string" && body.model.trim()
             ? body.model

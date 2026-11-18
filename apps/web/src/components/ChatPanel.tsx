@@ -23,6 +23,7 @@ import type {
   ChatContext,
   ResearchIntent,
 } from "@wyckoff/shared";
+import { MAX_CHAT_MESSAGE_CHARS } from "@wyckoff/shared";
 import { ApiError, fetchFeedbackStatus, interruptChat, streamChat } from "@/lib/api.js";
 import { cn, formatDate, formatDuration, formatPrice } from "@/lib/utils.js";
 import { useWorkbench, type ChatEntry, type ToolTraceItem } from "@/store.js";
@@ -562,6 +563,7 @@ export function ChatPanel({ onCloseDock }: { onCloseDock?: () => void } = {}) {
             >
               <textarea
                 value={input}
+                maxLength={MAX_CHAT_MESSAGE_CHARS}
                 onChange={(event) => setInput(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.nativeEvent.isComposing || event.keyCode === 229) return;
