@@ -110,6 +110,18 @@ describe("deterministic research strategy after a fast move", () => {
     expect(plan.target2).toBeLessThan(plan.target1!);
   });
 
+  it("lists a range floor that price fell through as resistance, not support", () => {
+    const plan = computeStrategy(
+      {
+        ...features({ tradingRanges: [{ ...staleRange, endIndex: 1, support: 100, resistance: 110 }] }),
+        trend: { shortTerm: "flat", mediumTerm: "flat", longTerm: "flat", ma20: 100, ma50: 100, ma200: 100 },
+      } as Parameters<typeof computeStrategy>[0],
+      [kline(100), kline(99)],
+    );
+    expect(plan.support.every((level) => level.price < 99)).toBe(true);
+    expect(plan.resistance.some((level) => level.price === 100)).toBe(true);
+  });
+
   it("keeps a neutral breakdown plan's targets below price", () => {
     const plan = computeStrategy(
       {

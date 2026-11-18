@@ -56,7 +56,7 @@ function triggerSentence(strategy: ResearchStrategy, currency: string, price: nu
         ? `price holding above ${level} after the breakout (a Back-Up that stays above the old range top)`
         : `a decisive close above ${level} on expanding volume (a Sign of Strength out of the range)`;
     case "reclaim":
-      return `price holding above ${level} on a pullback (old resistance acting as support — a Back-Up to the edge of the range)`;
+      return `price holding above ${level} on a pullback (old resistance acting as support — a Back-Up that holds)`;
     case "breakdown":
       return above
         ? `a decisive close below ${level} on expanding volume (a Sign of Weakness through support)`
