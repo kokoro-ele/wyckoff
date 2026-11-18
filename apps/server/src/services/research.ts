@@ -286,8 +286,12 @@ export function computeStrategy(
       kind: bias === "short" || trigger.kind === "breakdown" ? "closeAbove" : "closeBelow",
       price: round(stop),
     },
-    support: levelDedupe(rawSupports, atr).sort((a, b) => b.price - a.price).slice(0, 4).map((level) => ({ ...level, price: round(level.price) })),
-    resistance: levelDedupe(rawResistances, atr).sort((a, b) => a.price - b.price).slice(0, 4).map((level) => ({ ...level, price: round(level.price) })),
+    // A level's role depends on which side of price it is on: a range floor
+    // that price has fallen through is now overhead resistance.
+    support: levelDedupe([...rawSupports, ...rawResistances].filter((level) => level.price < price), atr)
+      .sort((a, b) => b.price - a.price).slice(0, 4).map((level) => ({ ...level, price: round(level.price) })),
+    resistance: levelDedupe([...rawResistances, ...rawSupports].filter((level) => level.price >= price), atr)
+      .sort((a, b) => a.price - b.price).slice(0, 4).map((level) => ({ ...level, price: round(level.price) })),
     trend: {
       short: trend.shortTerm,
       medium: trend.mediumTerm,
