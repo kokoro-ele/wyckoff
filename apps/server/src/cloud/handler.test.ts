@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const { session, work, alerts } = vi.hoisted(() => ({ session: vi.fn(), work: vi.fn(), alerts: vi.fn() }));
 vi.mock("../services/priceAlerts.js", () => ({ checkPriceAlerts: alerts }));
+vi.mock("./postgres.js", () => ({ getPool: () => ({}) }));
+vi.mock("./public.js", () => ({ withPublicWorkspace: (work: () => Promise<unknown>) => work() }));
 vi.mock("./auth.js", () => ({ getAuth: () => ({ api: { getSession: session } }) }));
 vi.mock("./workspace.js", () => ({
   withWorkspace: work,
