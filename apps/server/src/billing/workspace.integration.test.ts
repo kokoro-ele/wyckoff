@@ -6,7 +6,7 @@ import { withWorkspace } from "../cloud/workspace.js";
 import { beginWorkspaceUsage } from "./workspace.js";
 import { migrateBilling } from "./migrate.js";
 import { migrateCredits } from "../credits/migrate.js";
-import { creditStatus, grantVerifiedCredits, registerCreditAccount } from "../credits/store.js";
+import { addCredits, creditStatus, grantVerifiedCredits, registerCreditAccount } from "../credits/store.js";
 
 const url = process.env.TEST_DATABASE_URL ?? process.env.CREDITS_TEST_DATABASE_URL;
 
@@ -42,6 +42,8 @@ describe.skipIf(!url)("workspace + credit finalization", () => {
     );
     await registerCreditAccount(pool, "alice");
     await grantVerifiedCredits(pool, "alice");
+    // New accounts start at 0 since the signup grant was removed; seed 3 to test spending.
+    await addCredits(pool, "alice", 3, "test-seed:alice");
   });
 
   afterAll(async () => {
