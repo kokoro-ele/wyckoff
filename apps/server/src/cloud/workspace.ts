@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { gzipSync, gunzipSync } from "node:zlib";
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import type { Pool, PoolClient } from "pg";
 import { getPool } from "./postgres.js";
 import { initializeDatabase } from "../db/schema.js";
 import { workspaceContext, type WorkspaceContext } from "./context.js";
@@ -41,8 +42,12 @@ function getCachedSnapshot(userId: string, version: number): Buffer | undefined 
   return value;
 }
 
+/** Newest snapshot version this instance holds per user, so reads can skip the payload. */
+const latestCachedVersion = new Map<string, number>();
+
 function setCachedSnapshot(userId: string, version: number, serialized: Buffer): void {
   if (serialized.length > MAX_CACHE_BYTES) return;
+  latestCachedVersion.set(userId, Math.max(latestCachedVersion.get(userId) ?? -1, version));
   const key = cacheKey(userId, version);
   const previous = snapshotCache.get(key);
   if (previous) {
@@ -105,6 +110,41 @@ function compactWorkspace(database: Database.Database): void {
 interface WorkspaceRow {
   payload: Buffer | null;
   version: number;
+}
+
+/**
+ * Reads the workspace row, transferring the encrypted payload only when this
+ * instance does not already hold that exact version. Every API request goes
+ * through here, so shipping the whole snapshot each time was the main source
+ * of database egress.
+ */
+async function selectWorkspace(
+  db: Pool | PoolClient,
+  userId: string,
+  lock: boolean,
+  useCache = true,
+): Promise<{ row: WorkspaceRow | undefined; serialized: Buffer | undefined }> {
+  const known = useCache ? latestCachedVersion.get(userId) ?? -1 : -1;
+  const { rows } = await db.query<WorkspaceRow & { has_payload: boolean }>(
+    `SELECT version, CASE WHEN version = $2 THEN NULL ELSE payload END AS payload, payload IS NOT NULL AS has_payload
+     FROM workspaces WHERE user_id = $1${lock ? " FOR UPDATE" : ""}`,
+    [userId, known],
+  );
+  const row = rows[0];
+  if (!row) return { row: undefined, serialized: undefined };
+  const result = { version: row.version, payload: row.payload };
+  if (!row.has_payload) return { row: result, serialized: undefined };
+  if (row.payload) return { row: result, serialized: readSnapshot(userId, result) };
+  const cached = getCachedSnapshot(userId, row.version);
+  if (cached) return { row: result, serialized: cached };
+  // The cached copy was evicted after the query: fetch this exact version.
+  const full = await db.query<{ payload: Buffer | null }>(
+    "SELECT payload FROM workspaces WHERE user_id = $1 AND version = $2",
+    [userId, row.version],
+  );
+  if (!full.rows[0]) return selectWorkspace(db, userId, lock, false);
+  const fetched = { version: row.version, payload: full.rows[0].payload };
+  return { row: fetched, serialized: readSnapshot(userId, fetched) };
 }
 
 function readSnapshot(userId: string, row: WorkspaceRow | undefined): Buffer | undefined {
@@ -215,11 +255,7 @@ export async function withWorkspace<T>(
       await client.query("SET LOCAL lock_timeout = '10s'");
       await client.query("INSERT INTO workspaces (user_id) VALUES ($1) ON CONFLICT DO NOTHING", [userId]);
     }
-    const { rows } = await client.query<WorkspaceRow>(
-      `SELECT payload, version FROM workspaces WHERE user_id = $1${write ? " FOR UPDATE" : ""}`,
-      [userId],
-    );
-    const row = rows[0];
+    const { row, serialized } = await selectWorkspace(client, userId, write);
     // Account creation always creates a row; this also handles pre-existing users.
     if (!row && !write) {
       client.release();
@@ -227,7 +263,7 @@ export async function withWorkspace<T>(
       return await withWorkspace(userId, true, work);
     }
 
-    const opened = openWorkspaceDatabase(readSnapshot(userId, row));
+    const opened = openWorkspaceDatabase(serialized);
     database = opened.database;
 
     context = {
@@ -282,14 +318,13 @@ async function withOptimisticWorkspace<T>(
   work: () => Promise<T>,
 ): Promise<{ value: T; deferred: WorkspaceContext["deferred"] }> {
   const pool = getPool();
-  const select = "SELECT payload, version FROM workspaces WHERE user_id = $1";
-  let row = (await pool.query<WorkspaceRow>(select, [userId])).rows[0];
-  if (!row) {
+  let loaded = await selectWorkspace(pool, userId, false);
+  if (!loaded.row) {
     await pool.query("INSERT INTO workspaces (user_id) VALUES ($1) ON CONFLICT DO NOTHING", [userId]);
-    row = (await pool.query<WorkspaceRow>(select, [userId])).rows[0];
+    loaded = await selectWorkspace(pool, userId, false);
   }
-  const baseVersion = row?.version ?? 0;
-  const baseSnapshot = readSnapshot(userId, row);
+  const baseVersion = loaded.row?.version ?? 0;
+  const baseSnapshot = loaded.serialized;
   const { database, dirty } = openWorkspaceDatabase(baseSnapshot);
 
   const context: WorkspaceContext = {
@@ -323,9 +358,7 @@ async function commitOptimistic(
   try {
     await client.query("BEGIN");
     await client.query("SET LOCAL lock_timeout = '10s'");
-    const latest = (
-      await client.query<WorkspaceRow>("SELECT payload, version FROM workspaces WHERE user_id = $1 FOR UPDATE", [userId])
-    ).rows[0];
+    const { row: latest, serialized: latestSnapshot } = await selectWorkspace(client, userId, true);
     if (!latest) throw new Error("Workspace row is missing");
 
     let snapshot: Buffer;
@@ -335,7 +368,7 @@ async function commitOptimistic(
       // Another request committed while this job ran: replay only this job's
       // row changes onto the newer version instead of overwriting it.
       const base = openWorkspaceDatabase(baseSnapshot).database;
-      const target = openWorkspaceDatabase(readSnapshot(userId, latest)).database;
+      const target = openWorkspaceDatabase(latestSnapshot).database;
       try {
         const stats = mergeWorkspaceChanges(base, changed, target);
         console.info(
