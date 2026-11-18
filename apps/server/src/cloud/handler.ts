@@ -10,6 +10,7 @@ import { app } from "../app.js";
 import { getAuth, handleAuthRequest } from "./auth.js";
 import { WorkspaceTooLargeError, withWorkspace } from "./workspace.js";
 import { withPublicWorkspace } from "./public.js";
+import { handleStockPage } from "../seo/stockPages.js";
 
 const encoder = new TextEncoder();
 
@@ -60,6 +61,11 @@ function trustedOrigin(request: Request): string {
 export async function cloudFetch(request: Request): Promise<Response> {
   const path = new URL(request.url).pathname;
   try {
+    // Public, server-rendered Wyckoff pages for search engines (/wyckoff/*).
+    if (path === "/wyckoff" || path.startsWith("/wyckoff/")) {
+      const page = await withPublicWorkspace(() => handleStockPage(request), 60_000);
+      if (page) return page;
+    }
     if (path === "/api/billing/webhooks/stripe") {
       return await handleBillingWebhook(request, getPool());
     }

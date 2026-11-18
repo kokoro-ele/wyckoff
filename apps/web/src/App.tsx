@@ -175,6 +175,25 @@ export function App() {
     requestAgent(prompt);
   };
 
+  // Deep links from the public stock pages: /app?symbol=NVDA.US&analyze=1
+  // opens that symbol and starts the analysis (the guest trial when signed out).
+  const deepLinkHandled = useRef(false);
+  useEffect(() => {
+    if (isPending || deepLinkHandled.current) return;
+    const url = new URL(window.location.href);
+    const linked = url.searchParams.get("symbol")?.trim().toUpperCase();
+    if (!linked || !/^[A-Z0-9]{1,10}\.(US|SH|SZ)$/.test(linked)) return;
+    deepLinkHandled.current = true;
+    const analyze = url.searchParams.has("analyze");
+    url.searchParams.delete("symbol");
+    url.searchParams.delete("analyze");
+    url.searchParams.delete("start");
+    window.history.replaceState(null, "", url);
+    setStartOpen(false);
+    if (analyze) void beginStartAnalysis(linked);
+    else void setSymbol(linked);
+  }, [isPending]);
+
   return (
     <div className="app-shell canvas-workbench flex h-full min-h-0 w-full flex-col overflow-hidden text-ink">
       <header className="canvas-topbar flex shrink-0 items-center gap-2 border-b-2 border-line bg-panel px-3 py-2">

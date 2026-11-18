@@ -76,6 +76,9 @@ function levelDedupe(levels: ResearchLevel[], atr: number): ResearchLevel[] {
   return result;
 }
 
+/** Bars (about six months of daily data) a range stays relevant after price leaves it. */
+const RECENT_RANGE_BARS = 120;
+
 export function computeStrategy(
   features: Pick<MarketFeatures, "atr" | "trend" | "swings" | "tradingRanges">,
   klines: Kline[],
@@ -87,9 +90,16 @@ export function computeStrategy(
   const ranges = features.tradingRanges.filter((range) => range.bars >= 20);
   // Only a range that contains or is near the current price is actionable.
   // An old base far below a trending price is context, not the active range.
+  // A range the price has left is only "active" while it is recent; otherwise a
+  // year-old base just below price would keep driving triggers and targets.
+  const recentFrom = klines.length - RECENT_RANGE_BARS;
   const active =
     [...ranges]
       .filter((range) => price >= range.support - atr * 1.5 && price <= range.resistance + atr * 1.5)
+      .filter(
+        (range) =>
+          (price >= range.support && price <= range.resistance) || range.endIndex >= recentFrom,
+      )
       .sort((a, b) => b.endIndex - a.endIndex)[0] ?? null;
 
   const swingLows = swings.filter((swing) => swing.type === "low" && swing.price < price);
@@ -208,7 +218,8 @@ export function computeStrategy(
 
   // Keep the zones and targets on the correct side of the current price even
   // when a range is compressed by a fast move.
-  if (bias !== "short") {
+  const downside = bias === "short" || (bias === "wait" && trigger.kind === "breakdown");
+  if (!downside) {
     entryLow = Math.min(entryLow, entryHigh);
     entryHigh = Math.max(entryLow, entryHigh);
     if (target1 <= entryLow) target1 = entryHigh + Math.max(atr * 1.5, height * 0.618);
@@ -216,6 +227,28 @@ export function computeStrategy(
   } else {
     if (target1 >= entryHigh) target1 = entryLow - Math.max(atr * 1.5, height * 0.618);
     if (target2 >= target1) target2 = target1 - Math.max(atr * 1.5, height * 0.618);
+  }
+
+  // Targets must still lie ahead of the current price. After a fast move a
+  // level-based target can already be behind price, which would point the
+  // user at a level that has been hit.
+  const room = Math.max(atr * 1.5, height * 0.382);
+  if (downside) {
+    if (target1 >= price - atr * 0.5) {
+      const next = swings
+        .filter((swing) => swing.type === "low" && swing.price < price - atr * 0.5)
+        .sort((a, b) => b.price - a.price)[0];
+      target1 = next?.price ?? price - room;
+    }
+    if (target2 >= target1 - atr * 0.5) target2 = target1 - room;
+  } else {
+    if (target1 <= price + atr * 0.5) {
+      const next = swings
+        .filter((swing) => swing.type === "high" && swing.price > price + atr * 0.5)
+        .sort((a, b) => a.price - b.price)[0];
+      target1 = next?.price ?? price + room;
+    }
+    if (target2 <= target1 + atr * 0.5) target2 = target1 + room;
   }
 
   const entryMid = (entryLow + entryHigh) / 2;

@@ -27,9 +27,10 @@ export function LandingPage() {
         : "Read Wyckoff market structure through candles, volume, ranges and closes; the Agent builds evidence-backed trade plans.",
     path: "/",
     lang,
+    // "/" renders English by default (see i18n); Chinese is "/?lang=zh".
     alternates: [
-      { hreflang: "zh-CN", href: `${SEO_ORIGIN}/` },
-      { hreflang: "en", href: `${SEO_ORIGIN}/?lang=en` },
+      { hreflang: "en", href: `${SEO_ORIGIN}/` },
+      { hreflang: "zh-CN", href: `${SEO_ORIGIN}/?lang=zh` },
       { hreflang: "x-default", href: `${SEO_ORIGIN}/` },
     ],
     jsonLd: [
@@ -227,6 +228,12 @@ export function LandingPage() {
 
       <footer className="site-home-footer">
         <span>{copy.footer}</span>
+        <nav className="site-legal-links" aria-label={lang === "zh" ? "个股 Wyckoff 分析" : "Wyckoff stock analysis"}>
+          <a href="/wyckoff">{lang === "zh" ? "个股结构" : "Stock analyses"}</a>
+          {["nvda", "aapl", "tsla", "spy", "qqq"].map((slug) => (
+            <a key={slug} href={`/wyckoff/${slug}`}>{`${slug.toUpperCase()} Wyckoff`}</a>
+          ))}
+        </nav>
         <nav className="site-legal-links" aria-label="Legal">
           <a href="/privacy">{lang === "zh" ? "隐私政策" : "Privacy"}</a>
           <a href="/terms">{lang === "zh" ? "服务条款" : "Terms"}</a>

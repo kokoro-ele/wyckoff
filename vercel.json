@@ -14,6 +14,14 @@
   },
   "rewrites": [
     {
+      "source": "/wyckoff",
+      "destination": "/api"
+    },
+    {
+      "source": "/wyckoff/:path*",
+      "destination": "/api"
+    },
+    {
       "source": "/api/:path*",
       "destination": "/api"
     },

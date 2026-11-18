@@ -67,6 +67,62 @@ describe("deterministic research strategy", () => {
   });
 });
 
+describe("deterministic research strategy after a fast move", () => {
+  const staleRange = {
+    startIndex: 0,
+    endIndex: 19,
+    startTime: 1,
+    endTime: 20,
+    bars: 20,
+    support: 170,
+    resistance: 187,
+    heightPct: 10,
+    efficiencyRatio: 0.2,
+    touchesTop: 3,
+    touchesBottom: 3,
+    volumeVsBefore: 1,
+    priorTrend: "up" as const,
+    hypothesis: "unclear" as const,
+    pierces: [],
+    atrAtRange: 9,
+  };
+  const downtrend = {
+    atr: { current: 9.7, currentPct: 6 },
+    trend: { shortTerm: "down", mediumTerm: "down", longTerm: "flat", ma20: 192, ma50: 211, ma200: 203 },
+    swings: [
+      { index: 5, timestamp: 5, price: 104, type: "low", changePct: 0, bars: 4 },
+      { index: 200, timestamp: 200, price: 214, type: "high", changePct: 0, bars: 4 },
+    ],
+    tradingRanges: [staleRange],
+  } as unknown as Parameters<typeof computeStrategy>[0];
+  // 300 bars: the range ended 280 bars ago and price (155.46) sits just below it.
+  const bars = [...Array.from({ length: 299 }, () => kline(200)), kline(155.46)];
+
+  it("does not treat a year-old range just above price as active", () => {
+    const plan = computeStrategy(downtrend, bars);
+    expect(plan.range).toBeNull();
+  });
+
+  it("keeps every short target below the current price", () => {
+    const plan = computeStrategy(downtrend, bars);
+    expect(plan.bias).toBe("short");
+    expect(plan.target1).toBeLessThan(155.46);
+    expect(plan.target2).toBeLessThan(plan.target1!);
+  });
+
+  it("keeps a neutral breakdown plan's targets below price", () => {
+    const plan = computeStrategy(
+      {
+        ...features({ tradingRanges: [{ ...staleRange, endIndex: 1, support: 100, resistance: 110 }] }),
+        trend: { shortTerm: "flat", mediumTerm: "flat", longTerm: "flat", ma20: 100, ma50: 100, ma200: 100 },
+      } as Parameters<typeof computeStrategy>[0],
+      [kline(100), kline(99)],
+    );
+    expect(plan.trigger.kind).toBe("breakdown");
+    expect(plan.target1).toBeLessThan(99);
+  });
+});
+
 describe("research data parsers", () => {
   it("parses Tencent US valuation fields without mixing currencies", () => {
     const fields = Array(50).fill("0");
